@@ -114,7 +114,7 @@ class MainActivity : ComponentActivity() {
     private fun refreshState() {
         shizukuReady = ShizukuManager.isAvailable() && ShizukuManager.hasPermission()
         notificationAccess = hasClockNotificationAccess(this)
-        clockActive = isClockServiceRunning()
+        clockActive = getPreferences(0).getBoolean("clock_active", false)
         duosActive = ShizukuOverlayController.isBound()
 
         if (ShizukuManager.isAvailable() && !ShizukuManager.hasPermission()) {
@@ -129,16 +129,6 @@ class MainActivity : ComponentActivity() {
         duoX = DuoPreferences.getHorizontalOffsetDp(this)
         duoY = DuoPreferences.getVerticalOffsetDp(this)
         duoStyle = DuoPreferences.getVisualStyle(this)
-    }
-
-    private fun isClockServiceRunning(): Boolean {
-        return try {
-            val field = ClockOverlayService::class.java.getDeclaredField("isRunning")
-            field.isAccessible = true
-            field.getBoolean(null)
-        } catch (_: Throwable) {
-            false
-        }
     }
 
     private fun requestShizuku() {
@@ -178,6 +168,7 @@ class MainActivity : ComponentActivity() {
                 runOnUiThread {
                     busy = false
                     clockActive = false
+                    getPreferences(0).edit().putBoolean("clock_active", false).apply()
                     toast("Custom clock stopped")
                 }
             }
@@ -209,6 +200,7 @@ class MainActivity : ComponentActivity() {
                             Intent(this, ClockOverlayService::class.java)
                         )
                         clockActive = true
+                        getPreferences(0).edit().putBoolean("clock_active", true).apply()
                         busy = false
                     } catch (t: Throwable) {
                         clockShell.execute("cmd statusbar send-disable-flag none") {}
@@ -270,6 +262,7 @@ class MainActivity : ComponentActivity() {
             ShizukuOverlayController.stop(this, restoreSystemBar = true) {
                 runOnUiThread {
                     clockActive = false
+                    getPreferences(0).edit().putBoolean("clock_active", false).apply()
                     duosActive = false
                     busy = false
                     toast("Native SystemUI restored")
