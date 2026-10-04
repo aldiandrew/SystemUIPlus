@@ -66,6 +66,8 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git rebase origin/main
 
           git add app/src/main/java/com/aldiandrew/clockos
           git add app/src/main/java/com/aldiandrew/duos
