@@ -1,5 +1,7 @@
 package com.aldiandrew.systemuiplus
 
+// Unified SystemUI Plus controller: ClockOS + Duos.
+
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
