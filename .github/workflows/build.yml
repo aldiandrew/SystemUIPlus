@@ -1,0 +1,121 @@
+name: Build SystemUI Plus
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout SystemUIPlus
+        uses: actions/checkout@v5
+
+      - name: Checkout ClockOS and Duos
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/ClockOS /tmp/Duos
+          git clone --depth 1 https://github.com/aldiandrew/ClockOS.git /tmp/ClockOS
+          git clone --depth 1 https://github.com/aldiandrew/Duos.git /tmp/Duos
+
+      - name: Merge application implementations
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          rm -rf app/src/main/java/com/aldiandrew/clockos
+          rm -rf app/src/main/java/com/aldiandrew/duos
+          rm -rf app/src/main/aidl/com/aldiandrew/clockos
+
+          mkdir -p app/src/main/java/com/aldiandrew
+          mkdir -p app/src/main/aidl/com/aldiandrew
+
+          cp -R /tmp/ClockOS/app/src/main/java/com/aldiandrew/clockos app/src/main/java/com/aldiandrew/
+          rm -f app/src/main/java/com/aldiandrew/clockos/MainActivity.kt
+          rm -rf app/src/main/java/com/aldiandrew/clockos/ui
+
+          cp -R /tmp/ClockOS/app/src/main/aidl/com/aldiandrew/clockos app/src/main/aidl/com/aldiandrew/
+
+          cp -R /tmp/Duos/app/src/main/java/com/aldiandrew/duos app/src/main/java/com/aldiandrew/
+          rm -f app/src/main/java/com/aldiandrew/duos/MainActivity.kt
+
+      - name: Configure Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Configure Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          gradle-version: "9.3.1"
+
+      - name: Build release APK
+        run: gradle --no-daemon assembleRelease
+
+      - name: Commit merged source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add app/src/main/java/com/aldiandrew/clockos
+          git add app/src/main/java/com/aldiandrew/duos
+          git add app/src/main/aidl/com/aldiandrew/clockos
+
+          if git diff --cached --quiet; then
+            echo "Merged source is already committed."
+          else
+            git commit -m "Merge ClockOS and Duos implementations"
+            git push
+          fi
+
+      - name: Prepare installable APK
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          OUTPUT_DIR="app/build/outputs/apk/release"
+          APK="$(find "$OUTPUT_DIR" -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+
+          if [ -z "$APK" ]; then
+            echo "No release APK found."
+            find app/build/outputs -type f -print || true
+            exit 1
+          fi
+
+          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          ZIPALIGN="$BUILD_TOOLS/zipalign"
+          APKSIGNER="$BUILD_TOOLS/apksigner"
+
+          KEYSTORE="$HOME/.android/debug.keystore"
+          mkdir -p "$HOME/.android"
+
+          if [ ! -f "$KEYSTORE" ]; then
+            keytool -genkeypair               -keystore "$KEYSTORE"               -storepass android               -keypass android               -alias androiddebugkey               -keyalg RSA               -keysize 2048               -validity 10000               -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+          ALIGNED="/tmp/SystemUIPlus-release-aligned.apk"
+          SIGNED="app-release.apk"
+
+          "$ZIPALIGN" -f -p 4 "$APK" "$ALIGNED"
+
+          "$APKSIGNER" sign             --ks "$KEYSTORE"             --ks-pass pass:android             --key-pass pass:android             --ks-key-alias androiddebugkey             --out "$OUTPUT_DIR/$SIGNED"             "$ALIGNED"
+
+          "$APKSIGNER" verify --verbose "$OUTPUT_DIR/$SIGNED"
+          rm -f "$ALIGNED"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SystemUIPlus-release
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
