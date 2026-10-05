@@ -44,6 +44,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -482,6 +483,9 @@ class MainActivity : ComponentActivity() {
                 )
             }
         ) { padding ->
+            val customizationEnabled =
+                systemUiHidden && !busy
+
             Column(
                 Modifier
                     .fillMaxSize()
@@ -564,7 +568,11 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                ExpressiveCard(Modifier.fillMaxWidth()) {
+                ExpressiveCard(
+                    Modifier
+                        .fillMaxWidth()
+                        .alpha(if (customizationEnabled) 1f else 0.45f)
+                ) {
                     Column(
                         Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -645,7 +653,11 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                ExpressiveCard(Modifier.fillMaxWidth()) {
+                ExpressiveCard(
+                    Modifier
+                        .fillMaxWidth()
+                        .alpha(if (customizationEnabled) 1f else 0.45f)
+                ) {
                     Column(
                         Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -747,6 +759,7 @@ class MainActivity : ComponentActivity() {
                                 if (selected) {
                                     Button(
                                         onClick = {},
+                                        enabled = customizationEnabled,
                                         modifier = Modifier.weight(1f)
                                     ) {
                                         Text(
@@ -766,6 +779,7 @@ class MainActivity : ComponentActivity() {
                                                 style
                                             )
                                         },
+                                        enabled = customizationEnabled,
                                         modifier = Modifier.weight(1f)
                                     ) {
                                         Text(
@@ -853,7 +867,6 @@ class MainActivity : ComponentActivity() {
                     Text(
                         timeText,
                         style = MaterialTheme.typography.titleLarge.copy(
-                            fontFamily = SystemUIPlusIosevka,
                             fontSize = clockSettings.sizeSp.sp
                         ),
                         color = MaterialTheme.colorScheme.onSurface,
@@ -932,10 +945,12 @@ class MainActivity : ComponentActivity() {
         options: List<String>,
         onSelected: (String) -> Unit
     ) {
+        val enabled = systemUiHidden && !busy
         var expanded by androidx.compose.runtime.remember { mutableStateOf(false) }
 
         Box(Modifier.fillMaxWidth()) {
             OutlinedButton(
+                enabled = enabled,
                 onClick = { expanded = true },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp)
@@ -954,7 +969,7 @@ class MainActivity : ComponentActivity() {
             }
 
             androidx.compose.material3.DropdownMenu(
-                expanded = expanded,
+                expanded = expanded && enabled,
                 onDismissRequest = { expanded = false }
             ) {
                 options.forEach { option ->
@@ -1014,6 +1029,7 @@ class MainActivity : ComponentActivity() {
         onValueChange: (Float) -> Unit,
         onReset: () -> Unit
     ) {
+        val enabled = systemUiHidden && !busy
         Column(
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
@@ -1029,12 +1045,14 @@ class MainActivity : ComponentActivity() {
                     Text(
                         valueText,
                         style = MaterialTheme.typography.bodySmall.copy(
-                            fontFamily = SystemUIPlusIosevka
                         ),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                TextButton(onClick = onReset) {
+                TextButton(
+                    enabled = enabled,
+                    onClick = onReset
+                ) {
                     androidx.compose.material3.Icon(
                         Icons.Default.Refresh,
                         contentDescription = "Reset"
@@ -1046,6 +1064,7 @@ class MainActivity : ComponentActivity() {
                 value = value,
                 onValueChange = onValueChange,
                 valueRange = range,
+                enabled = enabled,
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -1057,12 +1076,17 @@ class MainActivity : ComponentActivity() {
         checked: Boolean,
         onChanged: (Boolean) -> Unit
     ) {
+        val enabled = systemUiHidden && !busy
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(label)
-            Switch(checked = checked, onCheckedChange = onChanged)
+            Switch(
+                checked = checked,
+                enabled = enabled,
+                onCheckedChange = onChanged
+            )
         }
     }
 }
@@ -1083,26 +1107,6 @@ private val SystemUIPlusJakartaSans =
         ),
         Font(
             R.font.plus_jakarta_sans_700,
-            FontWeight.Bold
-        )
-    )
-
-private val SystemUIPlusIosevka =
-    FontFamily(
-        Font(
-            R.font.iosevka_400,
-            FontWeight.Normal
-        ),
-        Font(
-            R.font.iosevka_500,
-            FontWeight.Medium
-        ),
-        Font(
-            R.font.iosevka_600,
-            FontWeight.SemiBold
-        ),
-        Font(
-            R.font.iosevka_700,
             FontWeight.Bold
         )
     )
@@ -1158,12 +1162,16 @@ private val SystemUIPlusTypography =
 
 @Composable
 private fun SystemUIPlusTheme(content: @Composable () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val deviceAccent =
+        androidx.compose.material3.dynamicDarkColorScheme(context)
+
     val scheme =
         androidx.compose.material3.darkColorScheme(
-            primary = androidx.compose.ui.graphics.Color(0xFF8BE8FF),
-            onPrimary = androidx.compose.ui.graphics.Color(0xFF002027),
-            primaryContainer = androidx.compose.ui.graphics.Color(0xFF004D5A),
-            onPrimaryContainer = androidx.compose.ui.graphics.Color(0xFFB7F0FF),
+            primary = deviceAccent.primary,
+            onPrimary = deviceAccent.onPrimary,
+            primaryContainer = deviceAccent.primaryContainer,
+            onPrimaryContainer = deviceAccent.onPrimaryContainer,
 
             secondary = androidx.compose.ui.graphics.Color(0xFFB8CBD0),
             onSecondary = androidx.compose.ui.graphics.Color(0xFF223236),
@@ -1195,7 +1203,7 @@ private fun SystemUIPlusTheme(content: @Composable () -> Unit) {
             scrim = androidx.compose.ui.graphics.Color(0xFF000000),
             inverseSurface = androidx.compose.ui.graphics.Color(0xFFF0F0F0),
             inverseOnSurface = androidx.compose.ui.graphics.Color(0xFF1A1A1A),
-            inversePrimary = androidx.compose.ui.graphics.Color(0xFF006778)
+            inversePrimary = deviceAccent.primary
         )
 
     MaterialTheme(
