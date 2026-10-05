@@ -151,13 +151,19 @@ object SystemUIPlusAppearance {
         val appContext =
             context.applicationContext
 
+        val previous =
+            cachedSnapshot
+
         invalidate()
 
         if (!hasListeners()) {
             return
         }
 
-        submitRefresh(appContext)
+        submitRefresh(
+            appContext,
+            previous
+        )
     }
 
     fun snapshot(
@@ -211,7 +217,8 @@ object SystemUIPlusAppearance {
         }
 
     private fun submitRefresh(
-        context: Context
+        context: Context,
+        previousSnapshot: Snapshot? = cachedSnapshot
     ) {
         if (
             !refreshPending.compareAndSet(
@@ -224,14 +231,12 @@ object SystemUIPlusAppearance {
 
         refreshExecutor.execute {
             try {
-                val previous =
-                    cachedSnapshot
                 val current =
                     snapshot(context)
 
                 if (
-                    previous == null ||
-                    previous.foregroundColor !=
+                    previousSnapshot == null ||
+                    previousSnapshot.foregroundColor !=
                         current.foregroundColor
                 ) {
                     notifyListeners(
@@ -400,63 +405,72 @@ object SystemUIPlusAppearance {
                 .configuration
                 .layoutDirection == 1
 
-        val edgeX =
+        // The custom clock/notification cluster is anchored close to the
+        // display edge. Probe slightly inside the edge so vendor-generated
+        // regions that start at x=0 are selected reliably.
+        val probeInsetPx =
+            (
+                8f *
+                    context.resources
+                        .displayMetrics
+                        .density
+            )
+                .toInt()
+                .coerceAtLeast(1)
+
+        val probeX =
             if (rtl) {
-                (displayWidth - 1)
+                (displayWidth - probeInsetPx)
                     .coerceAtLeast(0)
             } else {
-                0
+                probeInsetPx
             }
 
-        val edgeRegion =
+        val matchingRegion =
             regions.firstOrNull { region ->
                 val left = region.left
                 val right = region.right
 
                 left != null &&
                     right != null &&
-                    edgeX >= left &&
-                    edgeX < right
+                    probeX >= left &&
+                    probeX < right
             }
 
-        if (edgeRegion != null) {
-            return edgeRegion.isLight
-        }
-
-        return regions.first().isLight
+        // Only use a region when it actually covers the custom clock side.
+        // Otherwise let the global SystemUI appearance state decide.
+        return matchingRegion?.isLight
     }
 
     private fun parseRegionLine(
         line: String
     ): AppearanceRegionState? {
-        if (
-            !line.contains("stack #") ||
-            !line.contains("isLight=")
-        ) {
-            return null
-        }
+        val isLightMatch =
+            IS_LIGHT_PATTERN.find(line)
+                ?: return null
 
         val isLight =
-            line.substringAfter(
-                "isLight=",
-                ""
-            )
-                .trimStart()
-                .startsWith(
+            isLightMatch
+                .groupValues
+                .getOrNull(1)
+                ?.equals(
                     "true",
                     ignoreCase = true
                 )
+                ?: return null
 
         val rectMatch =
             RECT_PATTERN.find(line)
 
         return AppearanceRegionState(
             left =
-                rectMatch?.groupValues
+                rectMatch
+                    ?.groupValues
                     ?.getOrNull(1)
                     ?.toIntOrNull(),
             right =
-                rectMatch?.groupValues
+                rectMatch
+                    ?.groupValues
                     ?.getOrNull(2)
                     ?.toIntOrNull(),
             isLight = isLight
@@ -540,8 +554,14 @@ object SystemUIPlusAppearance {
             ) ==
                 Configuration.UI_MODE_NIGHT_YES
 
+    private val IS_LIGHT_PATTERN =
+        Regex(
+            """isLight\s*=\s*(true|false)""",
+            RegexOption.IGNORE_CASE
+        )
+
     private val RECT_PATTERN =
         Regex(
-            """bounds=Rect\((-?\d+)\s*,\s*-?\d+\s*-\s*(-?\d+)\s*,\s*-?\d+\)"""
+            """bounds=Rect\(\s*(-?\d+)\s*,\s*-?\d+\s*[-,]\s*(-?\d+)\s*,\s*-?\d+\s*\)"""
         )
 }
