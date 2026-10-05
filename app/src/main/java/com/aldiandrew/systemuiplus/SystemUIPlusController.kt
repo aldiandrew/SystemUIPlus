@@ -246,15 +246,23 @@ object SystemUIPlusController {
             val previous = prefs.getString(KEY_PREVIOUS_POLICY, NO_POLICY)
                 ?: NO_POLICY
 
-            if (previous == NO_POLICY || previous == "null" || previous.isBlank()) {
+            val expectedPolicy =
+                previous
+                    .trim()
+                    .takeUnless {
+                        it.isBlank() || it == "null" || it == NO_POLICY
+                    }
+
+            if (expectedPolicy == null) {
+                // No policy was present before SystemUI Plus was enabled.
+                // Deleting the setting is the clean reset. Do not write the
+                // literal string "null", because OEM implementations can
+                // represent that value differently.
                 SystemUIPlusShizuku.execute(
                     "settings delete global policy_control"
                 ).getOrThrow()
-                SystemUIPlusShizuku.execute(
-                    "settings put global policy_control null"
-                ).getOrThrow()
             } else {
-                val escaped = previous.replace("'", "'\\''")
+                val escaped = expectedPolicy.replace("'", "'\\''")
                 SystemUIPlusShizuku.execute(
                     "settings put global policy_control '$escaped'"
                 ).getOrThrow()
@@ -263,18 +271,30 @@ object SystemUIPlusController {
             // Ensure demo mode cannot leave SystemUI in a stale hidden state.
             SystemUIPlusShizuku.execute(
                 "am broadcast -a com.android.systemui.demo -e command exit"
-            )
+            ).getOrThrow()
 
-            val verify = SystemUIPlusShizuku.execute(
-                "settings get global policy_control"
-            ).getOrThrow().stdout.trim()
+            val verify =
+                SystemUIPlusShizuku.execute(
+                    "settings get global policy_control"
+                ).getOrThrow().stdout.trim()
 
-            if (verify.contains("immersive.status=*") ||
-                verify.contains("immersive.full=*")
-            ) {
+            val normalizedVerify =
+                verify
+                    .takeUnless {
+                        it.isBlank() || it == "null"
+                    }
+
+            val restored =
+                if (expectedPolicy == null) {
+                    normalizedVerify == null
+                } else {
+                    normalizedVerify == expectedPolicy
+                }
+
+            if (!restored) {
                 return Result.failure(
                     IllegalStateException(
-                        "Android still reports an immersive SystemUI policy"
+                        "Android did not restore the previous SystemUI policy"
                     )
                 )
             }
