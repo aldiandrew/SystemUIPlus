@@ -6,6 +6,7 @@ import android.service.quicksettings.TileService
 import android.content.Intent
 import androidx.annotation.RequiresApi
 import android.os.Build
+import com.aldiandrew.systemuiplus.SystemUIPlusShizuku
 
 @RequiresApi(Build.VERSION_CODES.N)
 class DuosTileService : TileService() {
@@ -18,7 +19,7 @@ class DuosTileService : TileService() {
     override fun onClick() {
         super.onClick()
 
-        if (!ShizukuManager.hasPermission()) {
+        if (!SystemUIPlusShizuku.hasPermission()) {
             updateTile(Tile.STATE_UNAVAILABLE)
             return
         }
@@ -29,8 +30,7 @@ class DuosTileService : TileService() {
 
         if (CustomStatusBarService.isRunning) {
             ShizukuOverlayController.stop(
-                this,
-                restoreSystemBar = true
+                this
             ) {
                 updateTile()
             }
