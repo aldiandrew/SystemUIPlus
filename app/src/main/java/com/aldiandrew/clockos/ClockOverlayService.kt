@@ -128,8 +128,6 @@ class ClockOverlayService : Service() {
                 return
             }
 
-            syncNativeNotificationIcons()
-
             systemUiContext =
                 try {
                     createPackageContext(
