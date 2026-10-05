@@ -209,6 +209,82 @@ jobs:
           duos = Path("app/src/main/java/com/aldiandrew/duos/CustomStatusBarService.kt")
           text = duos.read_text()
 
+          # Match Duos' Wi-Fi detection but do not depend on validated internet.
+          old_wifi = """            val network = cm.activeNetwork
+            val caps = network?.let { cm.getNetworkCapabilities(it) }
+                ?: return Triple(0, false, false)
+
+            val transportWifi =
+                caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+
+            if (!transportWifi) {
+                return Triple(0, false, false)
+            }
+
+            val validated =
+                caps.hasCapability(
+                    NetworkCapabilities.NET_CAPABILITY_VALIDATED
+                )
+
+            @Suppress("DEPRECATION")
+            val rssi = wifi.connectionInfo?.rssi ?: -127
+
+            val stockBars =
+                if (rssi == -127) {
+                    0
+                } else {
+                    @Suppress("DEPRECATION")
+                    (WifiManager.calculateSignalLevel(rssi, 5) + 1)
+                        .coerceIn(0, 4)
+                }
+
+            // Only a validated Wi-Fi network owns the middle slot; otherwise the mobile generation
+            // remains visible, matching the active data path.
+            Triple(
+                DuoStatusMapper.wifiBars(stockBars),
+                validated,
+                validated
+            )"""
+          new_wifi = """            val network = cm.activeNetwork
+            val caps = network?.let { cm.getNetworkCapabilities(it) }
+            val transportWifi =
+                caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+
+            @Suppress("DEPRECATION")
+            val connectionInfo = runCatching { wifi.connectionInfo }.getOrNull()
+            @Suppress("DEPRECATION")
+            val connectedByWifiInfo =
+                connectionInfo?.networkId?.let { it != -1 } == true
+
+            if (!transportWifi && !connectedByWifiInfo) {
+                return Triple(0, false, false)
+            }
+
+            val validated =
+                caps?.hasCapability(
+                    NetworkCapabilities.NET_CAPABILITY_VALIDATED
+                ) == true
+
+            @Suppress("DEPRECATION")
+            val rssi = connectionInfo?.rssi ?: -127
+
+            val stockBars =
+                if (rssi == -127) {
+                    1
+                } else {
+                    @Suppress("DEPRECATION")
+                    (WifiManager.calculateSignalLevel(rssi, 5) + 1)
+                        .coerceIn(0, 4)
+                }
+
+            Triple(
+                DuoStatusMapper.wifiBars(stockBars),
+                true,
+                validated
+            )"""
+          if old_wifi in text:
+              text = text.replace(old_wifi, new_wifi)
+
           # Remove legacy native SystemUI restoration from the renderer.
           text = re.sub(
               r'^\s*restoreSystemBarInBackground\(\)\s*$\n?',
