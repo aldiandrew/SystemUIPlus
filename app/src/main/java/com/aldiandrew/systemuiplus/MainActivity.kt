@@ -424,8 +424,7 @@ class MainActivity : ComponentActivity() {
         stopService(Intent(this, ClockOverlayService::class.java))
 
         ShizukuOverlayController.stop(
-            this,
-            restoreSystemBar = false
+            this
         ) {
             Thread {
                 val restored = SystemUIPlusController.restore(this)
