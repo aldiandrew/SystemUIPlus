@@ -6,22 +6,23 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.res.Configuration
 import android.graphics.Color
-import android.os.PowerManager
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.math.abs
 
 /**
  * Shared status-bar foreground appearance for the custom renderers.
  *
- * SystemUI already calculates appearance per status-bar region from the
- * foreground application's window. We read that calculated state from the
- * SystemUI dump instead of guessing from the device night mode alone.
+ * SystemUI calculates status-bar appearance from the foreground application's
+ * window, including separate appearance regions. This object reads that
+ * calculated state instead of guessing from the device night mode alone.
  *
- * A single shared monitor is used by both renderers so two independent
- * polling loops cannot wake and query SystemUI at the same time.
+ * Both custom renderers share one monitor so they do not run independent
+ * SystemUI dumps in parallel. Monitoring also pauses to a low-frequency
+ * heartbeat while the screen is off and is completely stopped when there
+ * are no custom renderers listening.
  */
 object SystemUIPlusAppearance {
     data class Snapshot(
@@ -36,8 +37,10 @@ object SystemUIPlusAppearance {
 
     private val lock = Any()
     private val handler = Handler(Looper.getMainLooper())
-    private val refreshExecutor = Executors.newSingleThreadExecutor()
-    private val refreshPending = AtomicBoolean(false)
+    private val refreshExecutor =
+        Executors.newSingleThreadExecutor()
+    private val refreshPending =
+        AtomicBoolean(false)
 
     private val listeners =
         LinkedHashSet<(Int) -> Unit>()
@@ -49,8 +52,8 @@ object SystemUIPlusAppearance {
     private var cachedAtMs: Long = 0L
 
     private var monitorContext: Context? = null
-    private var monitorRunning = false
     private var screenReceiverRegistered = false
+    private var screenReceiverContext: Context? = null
 
     private const val CACHE_MS = 1_500L
     private const val REFRESH_WHEN_INTERACTIVE_MS = 10_000L
@@ -63,7 +66,10 @@ object SystemUIPlusAppearance {
                 context: Context?,
                 intent: Intent?
             ) {
-                if (intent?.action != Intent.ACTION_SCREEN_ON) {
+                if (
+                    intent?.action !=
+                        Intent.ACTION_SCREEN_ON
+                ) {
                     return
                 }
 
@@ -72,7 +78,9 @@ object SystemUIPlusAppearance {
                         monitorContext
                     } ?: return
 
-                handler.removeCallbacks(monitorRunnable)
+                handler.removeCallbacks(
+                    monitorRunnable
+                )
                 requestRefresh(appContext)
                 scheduleMonitor(appContext)
             }
@@ -95,7 +103,8 @@ object SystemUIPlusAppearance {
         context: Context,
         listener: (Int) -> Unit
     ) {
-        val appContext = context.applicationContext
+        val appContext =
+            context.applicationContext
 
         synchronized(lock) {
             listeners += listener
@@ -104,7 +113,9 @@ object SystemUIPlusAppearance {
 
         ensureScreenReceiver(appContext)
 
-        handler.removeCallbacks(monitorRunnable)
+        handler.removeCallbacks(
+            monitorRunnable
+        )
         handler.post(monitorRunnable)
     }
 
@@ -114,17 +125,20 @@ object SystemUIPlusAppearance {
         val shouldStop =
             synchronized(lock) {
                 listeners -= listener
-                if (listeners.isEmpty()) {
-                    monitorContext = null
-                    true
-                } else {
-                    false
-                }
+                listeners.isEmpty()
             }
 
         if (shouldStop) {
-            handler.removeCallbacks(monitorRunnable)
+            handler.removeCallbacks(
+                monitorRunnable
+            )
             removeScreenReceiver()
+
+            synchronized(lock) {
+                if (listeners.isEmpty()) {
+                    monitorContext = null
+                }
+            }
         }
     }
 
@@ -134,7 +148,9 @@ object SystemUIPlusAppearance {
     }
 
     fun requestRefresh(context: Context) {
-        val appContext = context.applicationContext
+        val appContext =
+            context.applicationContext
+
         invalidate()
 
         if (!hasListeners()) {
@@ -144,9 +160,13 @@ object SystemUIPlusAppearance {
         submitRefresh(appContext)
     }
 
-    fun snapshot(context: Context): Snapshot {
-        val now = System.currentTimeMillis()
-        val cached = cachedSnapshot
+    fun snapshot(
+        context: Context
+    ): Snapshot {
+        val now =
+            System.currentTimeMillis()
+        val cached =
+            cachedSnapshot
 
         if (
             cached != null &&
@@ -176,17 +196,23 @@ object SystemUIPlusAppearance {
         return snapshot
     }
 
-    fun foregroundColor(context: Context): Int =
+    fun foregroundColor(
+        context: Context
+    ): Int =
         snapshot(context).foregroundColor
 
-    fun fallbackForegroundColor(context: Context): Int =
+    fun fallbackForegroundColor(
+        context: Context
+    ): Int =
         if (isNightMode(context)) {
             Color.WHITE
         } else {
             Color.BLACK
         }
 
-    private fun submitRefresh(context: Context) {
+    private fun submitRefresh(
+        context: Context
+    ) {
         if (
             !refreshPending.compareAndSet(
                 false,
@@ -198,8 +224,10 @@ object SystemUIPlusAppearance {
 
         refreshExecutor.execute {
             try {
-                val previous = cachedSnapshot
-                val current = snapshot(context)
+                val previous =
+                    cachedSnapshot
+                val current =
+                    snapshot(context)
 
                 if (
                     previous == null ||
@@ -237,7 +265,9 @@ object SystemUIPlusAppearance {
         }
     }
 
-    private fun scheduleMonitor(context: Context) {
+    private fun scheduleMonitor(
+        context: Context
+    ) {
         val powerManager =
             context.getSystemService(
                 PowerManager::class.java
@@ -252,13 +282,13 @@ object SystemUIPlusAppearance {
 
         synchronized(lock) {
             if (listeners.isEmpty()) {
-                monitorRunning = false
                 return
             }
-            monitorRunning = true
         }
 
-        handler.removeCallbacks(monitorRunnable)
+        handler.removeCallbacks(
+            monitorRunnable
+        )
         handler.postDelayed(
             monitorRunnable,
             delay
@@ -278,42 +308,46 @@ object SystemUIPlusAppearance {
                 return
             }
             screenReceiverRegistered = true
+            screenReceiverContext = context
         }
 
         try {
-            val filter =
-                IntentFilter(
-                    Intent.ACTION_SCREEN_ON
-                )
             context.registerReceiver(
                 screenReceiver,
-                filter,
+                IntentFilter(
+                    Intent.ACTION_SCREEN_ON
+                ),
                 Context.RECEIVER_NOT_EXPORTED
             )
         } catch (_: Throwable) {
             synchronized(lock) {
                 screenReceiverRegistered = false
+                screenReceiverContext = null
             }
         }
     }
 
     private fun removeScreenReceiver() {
-        val shouldRemove =
+        val receiverContext =
             synchronized(lock) {
                 if (!screenReceiverRegistered) {
-                    false
+                    null
                 } else {
                     screenReceiverRegistered = false
-                    true
+                    screenReceiverContext
                 }
             }
 
-        if (shouldRemove) {
+        if (receiverContext != null) {
             runCatching {
-                monitorContext?.unregisterReceiver(
+                receiverContext.unregisterReceiver(
                     screenReceiver
                 )
             }
+        }
+
+        synchronized(lock) {
+            screenReceiverContext = null
         }
     }
 
@@ -356,14 +390,19 @@ object SystemUIPlusAppearance {
         }
 
         val displayWidth =
-            context.resources.displayMetrics.widthPixels
+            context.resources
+                .displayMetrics
+                .widthPixels
+
         val rtl =
-            context.resources.configuration.layoutDirection ==
-                ViewLayoutDirection.RTL
+            context.resources
+                .configuration
+                .layoutDirection == 1
 
         val edgeX =
             if (rtl) {
-                (displayWidth - 1).coerceAtLeast(0)
+                (displayWidth - 1)
+                    .coerceAtLeast(0)
             } else {
                 0
             }
@@ -372,6 +411,7 @@ object SystemUIPlusAppearance {
             regions.firstOrNull { region ->
                 val left = region.left
                 val right = region.right
+
                 left != null &&
                     right != null &&
                     edgeX >= left &&
@@ -401,18 +441,23 @@ object SystemUIPlusAppearance {
                 ""
             )
                 .trimStart()
-                .startsWith("true", ignoreCase = true)
+                .startsWith(
+                    "true",
+                    ignoreCase = true
+                )
 
         val rectMatch =
             RECT_PATTERN.find(line)
 
         return AppearanceRegionState(
-            left = rectMatch?.groupValues
-                ?.getOrNull(1)
-                ?.toIntOrNull(),
-            right = rectMatch?.groupValues
-                ?.getOrNull(2)
-                ?.toIntOrNull(),
+            left =
+                rectMatch?.groupValues
+                    ?.getOrNull(1)
+                    ?.toIntOrNull(),
+            right =
+                rectMatch?.groupValues
+                    ?.getOrNull(2)
+                    ?.toIntOrNull(),
             isLight = isLight
         )
     }
@@ -424,11 +469,14 @@ object SystemUIPlusAppearance {
         val line =
             dump.lineSequence()
                 .firstOrNull {
-                    it.trimStart().startsWith(
-                        "mAppearance="
-                    )
+                    it.trimStart()
+                        .startsWith(
+                            "mAppearance="
+                        )
                 }
-                ?: return fallbackForegroundColor(context)
+                ?: return fallbackForegroundColor(
+                    context
+                )
 
         if (
             line.contains(
@@ -448,7 +496,9 @@ object SystemUIPlusAppearance {
                 }
 
         if (valueText.isBlank()) {
-            return fallbackForegroundColor(context)
+            return fallbackForegroundColor(
+                context
+            )
         }
 
         val value =
@@ -459,7 +509,9 @@ object SystemUIPlusAppearance {
                         ignoreCase = true
                     )
                 ) {
-                    valueText.substring(2).toLong(16)
+                    valueText
+                        .substring(2)
+                        .toLong(16)
                 } else {
                     valueText.toLong()
                 }
@@ -467,7 +519,8 @@ object SystemUIPlusAppearance {
 
         return if (
             value != null &&
-            (value and LIGHT_STATUS_BARS) != 0L
+            (value and
+                LIGHT_STATUS_BARS) != 0L
         ) {
             Color.BLACK
         } else {
@@ -479,14 +532,12 @@ object SystemUIPlusAppearance {
         context: Context
     ): Boolean =
         (
-            context.resources.configuration.uiMode and
+            context.resources
+                .configuration
+                .uiMode and
                 Configuration.UI_MODE_NIGHT_MASK
-        ) == Configuration.UI_MODE_NIGHT_YES
-
-    private object ViewLayoutDirection {
-        const val LTR = 0
-        const val RTL = 1
-    }
+            ) ==
+                Configuration.UI_MODE_NIGHT_YES
 
     private val RECT_PATTERN =
         Regex(
