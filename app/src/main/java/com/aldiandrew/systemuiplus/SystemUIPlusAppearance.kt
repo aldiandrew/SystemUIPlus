@@ -384,6 +384,7 @@ object SystemUIPlusAppearance {
                 .mapNotNull {
                     parseRegionLine(it)
                 }
+                .toList()
 
         if (regions.isEmpty()) {
             return null
