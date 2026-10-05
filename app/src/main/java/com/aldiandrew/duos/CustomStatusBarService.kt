@@ -10,7 +10,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.content.res.Configuration
-import com.aldiandrew.systemuiplus.SystemUIPlusAppearance
 import com.aldiandrew.systemuiplus.SystemUIPlusController
 import android.graphics.Color
 import android.net.ConnectivityManager
@@ -30,6 +29,7 @@ import android.view.View
 import android.view.WindowInsets
 import android.view.WindowManager
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -40,22 +40,28 @@ class CustomStatusBarService : Service() {
 
     private var windowManager: WindowManager? = null
     private var rootView: DuoIndicatorView? = null
-    private var backgroundView: View? = null
-    private var backgroundParams: WindowManager.LayoutParams? = null
     private var overlayParams: WindowManager.LayoutParams? = null
     private var lastOverlayY: Int? = null
     private var lastOverlayX: Int? = null
 
     private val handler = Handler(android.os.Looper.getMainLooper())
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var stateRefreshJob: Job? = null
+    private var lastState: DuoStatusState? = null
+    @Volatile
+    private var foregroundColor: Int = Color.WHITE
 
     private val stateRefreshRunnable = Runnable {
-        scope.launch {
+        stateRefreshJob?.cancel()
+        stateRefreshJob = scope.launch {
             try {
                 val snapshot = readState()
+                lastState = snapshot
                 handler.post { rootView?.update(snapshot) }
             } catch (t: Throwable) {
-                Log.w(TAG, "state refresh failed: " + t.javaClass.simpleName + ": " + t.message)
+                if (t !is java.util.concurrent.CancellationException) {
+                    Log.w(TAG, "state refresh failed: " + t.javaClass.simpleName + ": " + t.message)
+                }
             }
         }
     }
@@ -74,15 +80,27 @@ class CustomStatusBarService : Service() {
     private val appearanceRunnable = object : Runnable {
         override fun run() {
             scope.launch {
-                val appearance = SystemUIPlusAppearance.snapshot(this@CustomStatusBarService)
-                val snapshot = readState(foregroundOverride = appearance.foregroundColor)
-                handler.post {
-                    rootView?.update(snapshot)
-                    backgroundView?.setBackgroundColor(appearance.backgroundColor)
-                    applyBackgroundOverlayPosition(backgroundView, backgroundView?.rootWindowInsets)
+                try {
+                    val color =
+                        com.aldiandrew.systemuiplus.SystemUIPlusAppearance
+                            .foregroundColor(this@CustomStatusBarService)
+
+                    handler.post {
+                        if (foregroundColor != color) {
+                            foregroundColor = color
+                            lastState?.let { state ->
+                                val updated = state.copy(foregroundColor = color)
+                                lastState = updated
+                                rootView?.update(updated)
+                            }
+                        }
+                        handler.postDelayed(this@CustomStatusBarService.appearanceRunnable, APPEARANCE_REFRESH_MS)
+                    }
+                } catch (t: Throwable) {
+                    Log.w(TAG, "appearance refresh failed: " + t.javaClass.simpleName + ": " + t.message)
+                    handler.postDelayed(this@CustomStatusBarService.appearanceRunnable, APPEARANCE_REFRESH_MS)
                 }
             }
-            handler.postDelayed(this, APPEARANCE_REFRESH_MS)
         }
     }
 
@@ -122,7 +140,7 @@ class CustomStatusBarService : Service() {
         private const val CHANNEL_ID = "duos_custom_status_bar"
         private const val NOTIFICATION_ID = 1001
         private const val PREFS_NAME = "duos_preferences"
-        private const val APPEARANCE_REFRESH_MS = 1500L
+        private const val APPEARANCE_REFRESH_MS = 10_000L
 
         @Volatile
         var isRunning: Boolean = false
@@ -149,6 +167,9 @@ class CustomStatusBarService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        foregroundColor =
+            com.aldiandrew.systemuiplus.SystemUIPlusAppearance
+                .fallbackForegroundColor(this)
         clearError()
 
         try {
@@ -185,6 +206,12 @@ class CustomStatusBarService : Service() {
         super.onConfigurationChanged(newConfig)
         lastOverlayY = null
         lastOverlayX = null
+        foregroundColor =
+            com.aldiandrew.systemuiplus.SystemUIPlusAppearance
+                .fallbackForegroundColor(this)
+
+        handler.removeCallbacks(appearanceRunnable)
+        handler.postDelayed(appearanceRunnable, 400L)
 
         if (SystemUIPlusController.isEnabled(this)) {
             SystemUIPlusController.reapplyAfterConfiguration(this)
@@ -203,6 +230,8 @@ class CustomStatusBarService : Service() {
         handler.removeCallbacks(stateRefreshRunnable)
         handler.removeCallbacks(positionRefreshRunnable)
         handler.removeCallbacks(appearanceRunnable)
+        stateRefreshJob?.cancel()
+        stateRefreshJob = null
 
         rootView?.let {
             try {
@@ -214,21 +243,8 @@ class CustomStatusBarService : Service() {
                 }
             }
         }
-        backgroundView?.let {
-            try {
-                windowManager?.removeViewImmediate(it)
-            } catch (_: Throwable) {
-                try {
-                    windowManager?.removeView(it)
-                } catch (_: Throwable) {
-                }
-            }
-        }
-
         rootView = null
-        backgroundView = null
         windowManager = null
-        backgroundParams = null
         overlayParams = null
         lastOverlayY = null
         lastOverlayX = null
@@ -297,8 +313,6 @@ class CustomStatusBarService : Service() {
             getSystemService(Context.WINDOW_SERVICE) as? WindowManager
                 ?: throw IllegalStateException("WindowManager unavailable")
 
-        createBackgroundOverlay()
-
         val side = overlaySizePx()
 
         val params = WindowManager.LayoutParams(
@@ -361,15 +375,8 @@ class CustomStatusBarService : Service() {
             )
         }
 
-        // Do not block the main thread during overlay creation. The night-mode value is a safe
-        // first frame; the SystemUI appearance is refined by the asynchronous reader below.
-        val appearance = SystemUIPlusAppearance.snapshot(this)
-        backgroundView?.setBackgroundColor(appearance.backgroundColor)
-        customView.update(
-            readState(
-                foregroundOverride = appearance.foregroundColor
-            )
-        )
+        // Use the cached/lightweight foreground value for the first frame.
+        customView.update(readState())
 
         registerStateListeners()
         requestStateRefresh()
@@ -430,9 +437,7 @@ class CustomStatusBarService : Service() {
         telephonyCallback = null
     }
 
-    private fun readState(
-        foregroundOverride: Int? = null
-    ): DuoStatusState {
+    private fun readState(): DuoStatusState {
         val battery = batteryState()
         val wifi = wifiState()
         val airplane = isAirplaneOn()
@@ -452,8 +457,7 @@ class CustomStatusBarService : Service() {
             airplane = airplane,
             dnd = dnd,
             vpnConnected = vpn,
-            foregroundColor =
-                foregroundOverride ?: SystemUIPlusAppearance.foregroundColor(this),
+            foregroundColor = foregroundColor,
             batteryNormalColorOverride =
                 DuoPreferences.getBatteryNormalColorOverride(this),
             batteryChargingColorOverride =
@@ -798,115 +802,6 @@ class CustomStatusBarService : Service() {
             )
         }
     }
-
-    private fun createBackgroundOverlay() {
-        val wm = windowManager
-            ?: throw IllegalStateException("WindowManager unavailable")
-
-        val view = View(this).apply {
-            setBackgroundColor(SystemUIPlusAppearance.backgroundColor(this@CustomStatusBarService))
-            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-        }
-
-        val params = WindowManager.LayoutParams(
-            resources.displayMetrics.widthPixels,
-            backgroundHeightPx(),
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            android.graphics.PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            x = 0
-            y = 0
-
-            if (Build.VERSION.SDK_INT >= 28) {
-                layoutInDisplayCutoutMode =
-                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
-            }
-
-            if (Build.VERSION.SDK_INT >= 30) {
-                setFitInsetsTypes(0)
-            }
-        }
-
-        backgroundView = view
-        backgroundParams = params
-
-        view.setOnApplyWindowInsetsListener { v, insets ->
-            applyBackgroundOverlayPosition(v, insets)
-            insets
-        }
-
-        wm.addView(view, params)
-
-        view.post {
-            applyBackgroundOverlayPosition(view, view.rootWindowInsets)
-        }
-    }
-
-    private fun applyBackgroundOverlayPosition(
-        view: View?,
-        insets: WindowInsets?
-    ) {
-        val wm = windowManager ?: return
-        val params = backgroundParams ?: return
-        if (view == null) return
-
-        val topBand = if (Build.VERSION.SDK_INT >= 30 && insets != null) {
-            maxOf(
-                insets.getInsetsIgnoringVisibility(
-                    WindowInsets.Type.statusBars()
-                ).top,
-                insets.displayCutout?.safeInsetTop ?: 0
-            )
-        } else if (insets != null) {
-            @Suppress("DEPRECATION")
-            maxOf(
-                insets.systemWindowInsetTop,
-                insets.displayCutout?.safeInsetTop ?: 0
-            )
-        } else {
-            backgroundHeightPx()
-        }
-
-        val width = resources.displayMetrics.widthPixels
-        val height = topBand.coerceAtLeast(dp(24f))
-
-        if (
-            params.width == width &&
-            params.height == height
-        ) {
-            return
-        }
-
-        params.width = width
-        params.height = height
-        try {
-            wm.updateViewLayout(view, params)
-        } catch (_: Throwable) {
-        }
-    }
-
-    private fun backgroundHeightPx(): Int =
-        runCatching {
-            val id = resources.getIdentifier(
-                "status_bar_height",
-                "dimen",
-                "android"
-            )
-            if (id != 0) {
-                resources.getDimensionPixelSize(id)
-            } else {
-                dp(24f)
-            }
-        }.getOrDefault(dp(24f))
-            .coerceAtLeast(dp(24f))
-
-    private fun overlaySizePx(): Int =
-        dp(DuoPreferences.getIndicatorSizeDp(this))
-            .coerceAtLeast(1)
 
     private fun dp(value: Float): Int =
         (value * resources.displayMetrics.density)
