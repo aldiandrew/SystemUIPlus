@@ -480,37 +480,41 @@ class CustomStatusBarService : Service() {
 
             val network = cm.activeNetwork
             val caps = network?.let { cm.getNetworkCapabilities(it) }
-                ?: return Triple(0, false, false)
-
             val transportWifi =
-                caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+                caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
 
-            if (!transportWifi) {
+            @Suppress("DEPRECATION")
+            val connectionInfo = runCatching { wifi.connectionInfo }.getOrNull()
+            @Suppress("DEPRECATION")
+            val connectedByWifiInfo =
+                connectionInfo?.networkId?.let { it != -1 } == true
+
+            // Wi-Fi is shown whenever the Wi-Fi link is connected; internet
+            // validation must not make the icon disappear.
+            if (!transportWifi && !connectedByWifiInfo) {
                 return Triple(0, false, false)
             }
 
             val validated =
-                caps.hasCapability(
+                caps?.hasCapability(
                     NetworkCapabilities.NET_CAPABILITY_VALIDATED
-                )
+                ) == true
 
             @Suppress("DEPRECATION")
-            val rssi = wifi.connectionInfo?.rssi ?: -127
+            val rssi = connectionInfo?.rssi ?: -127
 
             val stockBars =
                 if (rssi == -127) {
-                    0
+                    1
                 } else {
                     @Suppress("DEPRECATION")
                     (WifiManager.calculateSignalLevel(rssi, 5) + 1)
                         .coerceIn(0, 4)
                 }
 
-            // Only a validated Wi-Fi network owns the middle slot; otherwise the mobile generation
-            // remains visible, matching the active data path.
             Triple(
                 DuoStatusMapper.wifiBars(stockBars),
-                validated,
+                true,
                 validated
             )
         } catch (t: Throwable) {
@@ -623,32 +627,8 @@ class CustomStatusBarService : Service() {
             false
         }
 
-    private fun readLightStatusBar(): Boolean {
-        return try {
-            val output = runBlocking(Dispatchers.IO) {
-                ShizukuManager.executeCommand(
-                    "dumpsys statusbar"
-                ).getOrDefault("")
-            }
-
-            val appearanceLine =
-                output.lineSequence()
-                    .firstOrNull {
-                        it.trimStart().startsWith("mAppearance=")
-                    }
-
-            appearanceLine?.contains(
-                "LIGHT_STATUS_BARS",
-                ignoreCase = true
-            ) ?: !isNightMode()
-        } catch (t: Throwable) {
-            Log.w(
-                TAG,
-                "appearance read failed: ${t.javaClass.simpleName}"
-            )
-            !isNightMode()
-        }
-    }
+    private fun readLightStatusBar(): Boolean =
+        !isNightMode()
 
     private fun isNightMode(): Boolean =
         (
