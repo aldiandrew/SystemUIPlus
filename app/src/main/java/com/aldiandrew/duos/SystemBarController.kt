@@ -1,118 +1,27 @@
 package com.aldiandrew.duos
 
+import com.aldiandrew.systemuiplus.SystemUIPlusController
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
+/**
+ * Compatibility facade for Duos.
+ *
+ * Native SystemUI visibility belongs exclusively to SystemUIPlus.
+ * These methods intentionally do not change global SystemUI visibility.
+ */
 object SystemBarController {
-
     suspend fun isHidden(): Boolean = withContext(Dispatchers.IO) {
-        val current = ShizukuManager.executeCommand(
-            "settings get global policy_control"
-        )
-
-        if (current.isFailure) {
-            return@withContext false
-        }
-
-        current.getOrDefault("")
-            .trim()
-            .contains("immersive.status=*")
+        SystemUIPlusController.isEnabled(AppContextHolder.context)
     }
 
-    /**
-     * Keeps the native status-bar container visible while disabling only
-     * the SystemUI system-icon group for the Duo replacement.
-     * Clock and notification icons remain owned by SystemUI.
-     */
-    suspend fun showCustomBarShell(): Result<String> = withContext(Dispatchers.IO) {
-        ShizukuManager.executeCommand(
-            "am broadcast -a com.android.systemui.demo -e command exit"
-        )
+    suspend fun showCustomBarShell(): Result<String> =
+        Result.success("SystemUI Plus master controller owns native SystemUI visibility")
 
-        val flags = ShizukuManager.executeCommand(
-            "cmd statusbar send-disable-flag system-icons"
-        )
+    suspend fun restore(): Result<String> =
+        Result.success("SystemUI Plus master controller owns native SystemUI visibility")
+}
 
-        if (flags.isFailure) {
-            return@withContext Result.failure(
-                IllegalStateException(
-                    flags.exceptionOrNull()?.message
-                        ?: "Could not disable native system icons"
-                )
-            )
-        }
-
-        val delete = ShizukuManager.executeCommand(
-            "settings delete global policy_control"
-        )
-        val nullValue = ShizukuManager.executeCommand(
-            "settings put global policy_control null"
-        )
-
-        if (delete.isFailure && nullValue.isFailure) {
-            return@withContext Result.failure(
-                IllegalStateException(
-                    delete.exceptionOrNull()?.message
-                        ?: nullValue.exceptionOrNull()?.message
-                        ?: "Could not reveal the native status-bar container"
-                )
-            )
-        }
-
-        delay(150)
-
-        if (isHidden()) {
-            Result.failure(
-                IllegalStateException("Android still reports immersive.status=*")
-            )
-        } else {
-            Result.success(
-                "Native status-bar container visible; system icons delegated to Duos"
-            )
-        }
-    }
-
-    suspend fun restore(): Result<String> = withContext(Dispatchers.IO) {
-        val flags = ShizukuManager.executeCommand(
-            "cmd statusbar send-disable-flag none"
-        )
-
-        val delete = ShizukuManager.executeCommand(
-            "settings delete global policy_control"
-        )
-
-        val nullValue = ShizukuManager.executeCommand(
-            "settings put global policy_control null"
-        )
-
-        val demoExit = ShizukuManager.executeCommand(
-            "am broadcast -a com.android.systemui.demo -e command exit"
-        )
-
-        if (
-            flags.isFailure &&
-            delete.isFailure &&
-            nullValue.isFailure &&
-            demoExit.isFailure
-        ) {
-            return@withContext Result.failure(
-                IllegalStateException(
-                    "Could not restore system status bar"
-                )
-            )
-        }
-
-        delay(150)
-
-        if (!isHidden()) {
-            Result.success("System status bar restored")
-        } else {
-            Result.failure(
-                IllegalStateException(
-                    "Android still reports immersive.status=*"
-                )
-            )
-        }
-    }
+internal object AppContextHolder {
+    lateinit var context: android.content.Context
 }
