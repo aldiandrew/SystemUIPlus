@@ -5,6 +5,12 @@ import android.content.Context
 import android.os.LocaleList
 import java.util.Locale
 
+enum class AppSettingsPage {
+    ROOT,
+    BACKUP_RESTORE,
+    ABOUT
+}
+
 enum class AppLanguageMode(val storageValue: String) {
     DEVICE("device"),
     ENGLISH("en");
