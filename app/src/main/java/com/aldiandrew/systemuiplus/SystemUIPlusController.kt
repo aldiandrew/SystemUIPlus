@@ -118,7 +118,7 @@ object SystemUIPlusController {
         if (!isEnabled(context)) return
 
         val handler = Handler(Looper.getMainLooper())
-        longArrayOf(0L, 50L, 120L, 250L, 500L, 900L).forEach { delay ->
+        longArrayOf(0L, 60L, 140L, 280L, 550L, 900L, 1400L, 2200L).forEach { delay ->
             handler.postDelayed({
                 if (isEnabled(context)) {
                     reapply(context)
