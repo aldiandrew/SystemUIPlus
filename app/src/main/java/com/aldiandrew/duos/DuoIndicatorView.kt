@@ -184,7 +184,7 @@ class DuoIndicatorView(context: Context) : View(context) {
                 bounds.width()
             )
 
-            postInvalidateDelayed(33L)
+            postInvalidateDelayed(66L)
             return
         }
 
@@ -255,7 +255,7 @@ class DuoIndicatorView(context: Context) : View(context) {
             )
 
             // Keep the charging animation running only while charging at about 30 fps.
-            postInvalidateDelayed(33L)
+            postInvalidateDelayed(66L)
             return
         }
 
@@ -328,14 +328,14 @@ class DuoIndicatorView(context: Context) : View(context) {
             )
             current.dnd -> drawMoon(
                 canvas,
-                current.networkColorOverride ?: current.foregroundColor,
+                current.foregroundColor,
                 k,
                 cx,
                 cy + 12f * k
             )
             current.vpnConnected -> drawNetwork(
                 canvas,
-                current.networkColorOverride ?: current.foregroundColor,
+                current.foregroundColor,
                 "VPN",
                 k,
                 cx,
@@ -351,7 +351,7 @@ class DuoIndicatorView(context: Context) : View(context) {
             )
             current.networkGeneration.isNotEmpty() -> drawNetwork(
                 canvas,
-                current.networkColorOverride ?: current.foregroundColor,
+                current.foregroundColor,
                 current.networkGeneration,
                 k,
                 cx,
