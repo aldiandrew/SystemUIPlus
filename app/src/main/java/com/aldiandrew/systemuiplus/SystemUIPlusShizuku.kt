@@ -120,14 +120,5 @@ object SystemUIPlusShizuku {
         val stdout: String,
         val stderr: String
     ) {
-        fun asClockShellString(): String {
-            val output = when {
-                stderr.isNotBlank() -> stderr
-                stdout.isNotBlank() -> stdout
-                else -> ""
-            }
-            return "exit=$exitCode" +
-                if (output.isNotBlank()) " $output" else ""
-        }
     }
 }
