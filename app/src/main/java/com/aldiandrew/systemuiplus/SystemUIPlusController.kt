@@ -16,6 +16,7 @@ object SystemUIPlusController {
     private const val KEY_ENABLED = "native_systemui_hidden"
     private const val KEY_PREVIOUS_POLICY = "previous_policy_control"
     private const val NO_POLICY = "__SYSTEMUI_PLUS_NO_POLICY__"
+    private val handler = Handler(Looper.getMainLooper())
 
     fun isEnabled(context: Context): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -94,15 +95,13 @@ object SystemUIPlusController {
             if (!SystemUIPlusShizuku.hasPermission()) {
                 return Result.failure(SecurityException("Shizuku permission is not granted"))
             }
-            SystemUIPlusShizuku.execute(
-                "am broadcast -a com.android.systemui.demo -e command exit"
-            )
+
+            // Rotation can reset the native status-bar disable flags. Reassert
+            // only those flags instead of rewriting global immersive policy.
             SystemUIPlusShizuku.execute(
                 "cmd statusbar send-disable-flag system-icons clock notification-icons"
-            )
-            SystemUIPlusShizuku.execute(
-                "settings put global policy_control immersive.full=*"
             ).getOrThrow()
+
             Result.success(Unit)
         } catch (t: Throwable) {
             Result.failure(t)
@@ -110,15 +109,12 @@ object SystemUIPlusController {
     }
 
     /**
-     * Rotation-safe reapply. Android can briefly recreate SystemUI status-bar
-     * surfaces during a display configuration change, so reassert the hidden
-     * state several times after the change rather than relying on a single call.
+     * Rotation-safe reapply with only two lightweight native flag updates.
      */
     fun reapplyAfterConfiguration(context: Context) {
         if (!isEnabled(context)) return
 
-        val handler = Handler(Looper.getMainLooper())
-        longArrayOf(0L, 60L, 140L, 280L, 550L, 900L, 1400L, 2200L).forEach { delay ->
+        longArrayOf(80L, 500L).forEach { delay ->
             handler.postDelayed({
                 if (isEnabled(context)) {
                     reapply(context)
