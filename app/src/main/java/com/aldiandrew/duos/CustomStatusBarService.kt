@@ -10,6 +10,8 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.content.res.Configuration
+import com.aldiandrew.systemuiplus.SystemUIPlusAppearance
+import com.aldiandrew.systemuiplus.SystemUIPlusController
 import android.graphics.Color
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -70,8 +72,8 @@ class CustomStatusBarService : Service() {
     private val appearanceRunnable = object : Runnable {
         override fun run() {
             scope.launch {
-                val light = readLightStatusBar()
-                val snapshot = readState(foregroundOverride = if (light) Color.BLACK else Color.WHITE)
+                val color = SystemUIPlusAppearance.foregroundColor(this@CustomStatusBarService)
+                val snapshot = readState(foregroundOverride = color)
                 handler.post { rootView?.update(snapshot) }
             }
             handler.postDelayed(this, APPEARANCE_REFRESH_MS)
@@ -114,7 +116,7 @@ class CustomStatusBarService : Service() {
         private const val CHANNEL_ID = "duos_custom_status_bar"
         private const val NOTIFICATION_ID = 1001
         private const val PREFS_NAME = "duos_preferences"
-        private const val APPEARANCE_REFRESH_MS = 15000L
+        private const val APPEARANCE_REFRESH_MS = 3000L
 
         @Volatile
         var isRunning: Boolean = false
@@ -172,6 +174,25 @@ class CustomStatusBarService : Service() {
     ): Int = START_NOT_STICKY
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        lastOverlayY = null
+        lastOverlayX = null
+
+        if (SystemUIPlusController.isEnabled(this)) {
+            Thread {
+                SystemUIPlusController.reapply(this)
+            }.start()
+        }
+
+        handler.post {
+            val view = rootView ?: return@post
+            view.requestApplyInsets()
+            requestPositionRefresh()
+            requestStateRefresh()
+        }
+    }
 
     override fun onDestroy() {
         unregisterStateListeners()
@@ -325,8 +346,7 @@ class CustomStatusBarService : Service() {
         // first frame; the SystemUI appearance is refined by the asynchronous reader below.
         customView.update(
             readState(
-                foregroundOverride =
-                    if (isNightMode()) Color.WHITE else Color.BLACK
+                foregroundOverride = SystemUIPlusAppearance.foregroundColor(this)
             )
         )
 
@@ -412,8 +432,7 @@ class CustomStatusBarService : Service() {
             dnd = dnd,
             vpnConnected = vpn,
             foregroundColor =
-                foregroundOverride
-                    ?: if (isNightMode()) Color.WHITE else Color.BLACK,
+                foregroundOverride ?: SystemUIPlusAppearance.foregroundColor(this),
             batteryNormalColorOverride =
                 DuoPreferences.getBatteryNormalColorOverride(this),
             batteryChargingColorOverride =
