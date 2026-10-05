@@ -68,7 +68,6 @@ object ShizukuOverlayController {
                     context.startService(intent)
                 }
             } catch (t: Throwable) {
-                SystemBarController.restore()
                 callbackOnMain(
                     callback,
                     false,
