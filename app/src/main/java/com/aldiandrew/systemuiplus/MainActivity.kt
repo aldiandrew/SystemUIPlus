@@ -710,28 +710,20 @@ class MainActivity : ComponentActivity() {
                             "Style",
                             style = MaterialTheme.typography.titleMedium
                         )
-                        androidx.compose.material3.SingleChoiceSegmentedButtonRow(
-                            modifier = Modifier.fillMaxWidth()
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             listOf(
                                 DuoVisualStyle.DUO,
                                 DuoVisualStyle.COMPACT
-                            ).forEachIndexed { index, style ->
-                                androidx.compose.material3.SegmentedButton(
-                                    selected = duoStyle == style,
-                                    onClick = {
-                                        duoStyle = style
-                                        DuoPreferences.setVisualStyle(
-                                            this@MainActivity,
-                                            style
-                                        )
-                                    },
-                                    shape =
-                                        androidx.compose.material3.SegmentedButtonDefaults.itemShape(
-                                            index = index,
-                                            count = 2
-                                        ),
-                                    label = {
+                            ).forEach { style ->
+                                val selected = duoStyle == style
+                                if (selected) {
+                                    Button(
+                                        onClick = {},
+                                        modifier = Modifier.weight(1f)
+                                    ) {
                                         Text(
                                             if (style == DuoVisualStyle.DUO) {
                                                 "Duo"
@@ -740,7 +732,26 @@ class MainActivity : ComponentActivity() {
                                             }
                                         )
                                     }
-                                )
+                                } else {
+                                    OutlinedButton(
+                                        onClick = {
+                                            duoStyle = style
+                                            DuoPreferences.setVisualStyle(
+                                                this@MainActivity,
+                                                style
+                                            )
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text(
+                                            if (style == DuoVisualStyle.DUO) {
+                                                "Duo"
+                                            } else {
+                                                "Compact"
+                                            }
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
