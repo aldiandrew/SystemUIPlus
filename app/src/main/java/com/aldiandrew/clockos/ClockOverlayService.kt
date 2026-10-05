@@ -67,15 +67,39 @@ class ClockOverlayService : Service() {
     private var lastSizeSp = Float.NaN
     private var overlayAttached = false
     private var notificationStoreRegistered = false
+    private var appearanceListenerRegistered = false
 
     private val notificationStoreListener: () -> Unit = {
+        if (overlayAttached) {
+            handler.post {
+                if (overlayAttached) {
+                    renderNotificationIcons()
+                }
+            }
+        }
+    }
+
+    private val appearanceListener: (Int) -> Unit = { color ->
         handler.post {
-            renderNotificationIcons()
+            if (
+                overlayAttached &&
+                ::clockView.isInitialized
+            ) {
+                if (lastColor != color) {
+                    lastColor = color
+                    clockView.setTextColor(color)
+                    renderNotificationIcons()
+                }
+            }
         }
     }
 
     private val tick = object : Runnable {
         override fun run() {
+            if (!overlayAttached) {
+                return
+            }
+
             updateClock()
             handler.postDelayed(
                 this,
@@ -84,27 +108,20 @@ class ClockOverlayService : Service() {
         }
     }
 
-    private val appearanceTick = object : Runnable {
-        override fun run() {
-            if (!hasClockNotificationAccess(this@ClockOverlayService)) {
-                stopSelf()
-                return
-            }
-
-            refreshSystemUiAppearance()
-            handler.postDelayed(this, 10_000L)
-        }
-    }
-
     override fun onStartCommand(
         intent: Intent?,
         flags: Int,
         startId: Int
     ): Int {
-        if (intent?.action == ACTION_SETTINGS_CHANGED) {
+        if (
+            intent?.action == ACTION_SETTINGS_CHANGED &&
+            overlayAttached
+        ) {
             lastRendered = ""
             updateClock()
-            refreshSystemUiAppearance()
+            SystemUIPlusAppearance.requestRefresh(
+                this
+            )
         }
 
         return START_STICKY
@@ -203,13 +220,10 @@ class ClockOverlayService : Service() {
             }
 
             updateClock()
-            refreshSystemUiAppearance()
 
-            handler.post(tick)
-            handler.postDelayed(
-                appearanceTick,
-                1_500L
-            )
+            if (overlayAttached) {
+                startClockUpdates()
+            }
         } catch (_: Throwable) {
             stopSelf()
         }
@@ -228,11 +242,18 @@ class ClockOverlayService : Service() {
         lastY = Int.MIN_VALUE
 
         if (SystemUIPlusController.isEnabled(this)) {
-            if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            if (
+                newConfig.orientation ==
+                    Configuration.ORIENTATION_LANDSCAPE
+            ) {
+                stopClockUpdates()
                 detachOverlay()
             } else {
                 attachOverlay()
+                startClockUpdates()
             }
+
+            SystemUIPlusAppearance.invalidate()
             SystemUIPlusController.reapplyAfterConfiguration(this)
         }
 
@@ -263,6 +284,19 @@ class ClockOverlayService : Service() {
     private fun isLandscape(): Boolean =
         resources.configuration.orientation ==
             Configuration.ORIENTATION_LANDSCAPE
+
+    private fun startClockUpdates() {
+        if (!overlayAttached) {
+            return
+        }
+
+        handler.removeCallbacks(tick)
+        handler.post(tick)
+    }
+
+    private fun stopClockUpdates() {
+        handler.removeCallbacks(tick)
+    }
 
     private fun attachOverlay() {
         if (!::windowManager.isInitialized || !::statusBarContentView.isInitialized) {
@@ -297,6 +331,14 @@ class ClockOverlayService : Service() {
             notificationStoreRegistered = true
         }
 
+        if (!appearanceListenerRegistered) {
+            SystemUIPlusAppearance.registerListener(
+                this,
+                appearanceListener
+            )
+            appearanceListenerRegistered = true
+        }
+
         statusBarContentView.post {
             if (overlayAttached) {
                 updatePosition(
@@ -311,6 +353,13 @@ class ClockOverlayService : Service() {
     private fun detachOverlay() {
         if (!overlayAttached || !::windowManager.isInitialized || !::statusBarContentView.isInitialized) {
             return
+        }
+
+        if (appearanceListenerRegistered) {
+            SystemUIPlusAppearance.unregisterListener(
+                appearanceListener
+            )
+            appearanceListenerRegistered = false
         }
 
         try {
@@ -369,7 +418,11 @@ class ClockOverlayService : Service() {
         // Fully transparent window surface: the custom text is drawn directly
         // over the real SystemUI status-bar background.
         view.background = null
-        view.setTextColor(SystemUIPlusAppearance.foregroundColor(this))
+        view.setTextColor(
+            SystemUIPlusAppearance.fallbackForegroundColor(
+                this
+            )
+        )
 
         view.importantForAccessibility =
             View.IMPORTANT_FOR_ACCESSIBILITY_NO
@@ -804,6 +857,7 @@ class ClockOverlayService : Service() {
 
     private fun renderNotificationIcons() {
         if (
+            !overlayAttached ||
             !::notificationIconView.isInitialized ||
             !::statusBarContentView.isInitialized
         ) {
@@ -1037,18 +1091,13 @@ class ClockOverlayService : Service() {
     }
 
     private fun refreshSystemUiAppearance() {
-        val color = SystemUIPlusAppearance.foregroundColor(this)
-
-        handler.post {
-            if (
-                ::clockView.isInitialized &&
-                color != lastColor
-            ) {
-                lastColor = color
-                clockView.setTextColor(color)
-                renderNotificationIcons()
-            }
+        if (!overlayAttached) {
+            return
         }
+
+        SystemUIPlusAppearance.requestRefresh(
+            this
+        )
     }
 
 
