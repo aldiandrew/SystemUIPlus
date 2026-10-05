@@ -36,8 +36,8 @@ jobs:
 
           npm pack --silent             @fontsource/iosevka@5.3.0             --pack-destination "$TMP_DIR"
 
-          JAKARTA_TGZ="$(find "$TMP_DIR" -maxdepth 1 -type f -name 'plus-jakarta-sans-5.3.0.tgz' -print -quit)"
-          IOSEVKA_TGZ="$(find "$TMP_DIR" -maxdepth 1 -type f -name 'iosevka-5.3.0.tgz' -print -quit)"
+          JAKARTA_TGZ="$(find "$TMP_DIR" -maxdepth 1 -type f -name 'fontsource-plus-jakarta-sans-5.3.0.tgz' -print -quit)"
+          IOSEVKA_TGZ="$(find "$TMP_DIR" -maxdepth 1 -type f -name 'fontsource-iosevka-5.3.0.tgz' -print -quit)"
 
           tar -xzf "$JAKARTA_TGZ" -C "$JAKARTA_DIR" --strip-components=1
           tar -xzf "$IOSEVKA_TGZ" -C "$IOSEVKA_DIR" --strip-components=1
