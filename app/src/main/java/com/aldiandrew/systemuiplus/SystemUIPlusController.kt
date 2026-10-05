@@ -3,11 +3,11 @@ package com.aldiandrew.systemuiplus
 import android.content.Context
 
 /**
- * Single owner of native status-bar visibility.
+ * Single owner of native SystemUI visibility.
  *
- * ClockOS and Duos may render their own overlays, but neither feature is
- * allowed to show/hide the native SystemUI. Only this controller changes
- * the global status-bar visibility state.
+ * This follows the proven CleanBar sequence: clear demo mode, disable native
+ * status-bar icons/clock/notifications, then apply immersive policy. ClockOS
+ * and Duos never touch native SystemUI visibility themselves.
  */
 object SystemUIPlusController {
     private const val PREFS = "systemui_plus_controller"
@@ -43,6 +43,22 @@ object SystemUIPlusController {
                     .apply()
             }
 
+            // CleanBar sequence:
+            // 1. Exit any active SystemUI demo mode.
+            SystemUIPlusShizuku.execute(
+                "am broadcast -a com.android.systemui.demo -e command exit"
+            )
+
+            // 2. Explicitly disable native status-bar icons, clock and
+            // notifications. This closes the gap where immersive policy alone
+            // can leave the native SystemUI renderer visible on some builds.
+            SystemUIPlusShizuku.execute(
+                "cmd statusbar send-disable-flag system-icons clock notification-icons"
+            )
+
+            // 3. Keep the full immersive policy so native navigation is hidden
+            // as well. The custom renderer remains the only visible SystemUI
+            // surface owned by this application.
             SystemUIPlusShizuku.execute(
                 "settings put global policy_control immersive.full=*"
             ).getOrThrow()
@@ -76,6 +92,12 @@ object SystemUIPlusController {
                 )
             }
 
+            // CleanBar restoration first re-enables all native SystemUI
+            // elements before removing the immersive policy.
+            SystemUIPlusShizuku.execute(
+                "cmd statusbar send-disable-flag none"
+            )
+
             val previous = prefs.getString(KEY_PREVIOUS_POLICY, NO_POLICY)
                 ?: NO_POLICY
 
@@ -93,14 +115,21 @@ object SystemUIPlusController {
                 ).getOrThrow()
             }
 
+            // Ensure demo mode cannot leave SystemUI in a stale hidden state.
+            SystemUIPlusShizuku.execute(
+                "am broadcast -a com.android.systemui.demo -e command exit"
+            )
+
             val verify = SystemUIPlusShizuku.execute(
                 "settings get global policy_control"
             ).getOrThrow().stdout.trim()
 
-            if (verify.contains("immersive.status=*")) {
+            if (verify.contains("immersive.status=*") ||
+                verify.contains("immersive.full=*")
+            ) {
                 return Result.failure(
                     IllegalStateException(
-                        "Android still reports immersive.status=*"
+                        "Android still reports an immersive SystemUI policy"
                     )
                 )
             }
