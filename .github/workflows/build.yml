@@ -3,6 +3,7 @@ concurrency:
   cancel-in-progress: false
 
 name: Build SystemUI Plus
+# Trigger a fresh release build after the unified SystemUI merge.
 
 on:
   push:
