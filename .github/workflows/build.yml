@@ -178,7 +178,7 @@ jobs:
           )
 
           # Keep the upstream clock color logic; SystemUI Plus settings controls its preview theme.
-                    clock.write_text(text)
+          clock.write_text(text)
           PY
 
           # Duos must never restore native SystemUI when its renderer stops.
