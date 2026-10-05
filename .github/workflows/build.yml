@@ -182,9 +182,11 @@ jobs:
               'import java.util.Locale',
               'import java.util.Locale\\nimport androidx.compose.material3.darkColorScheme\\nimport androidx.compose.material3.dynamicDarkColorScheme\\nimport androidx.compose.material3.dynamicLightColorScheme\\nimport androidx.compose.material3.lightColorScheme\\nimport androidx.compose.ui.graphics.toArgb'
           )
-          text = text.replace(
-              '            val color =',
-              '            val color = appThemeClockColor()\\n            //'
+          text = re.sub(
+              r'            val color =\\s*when \\(appearance\\) \\{.*?\\n                \\}',
+              '            val color = appThemeClockColor()',
+              text,
+              flags=re.S
           )
           marker = '    private fun nativeClockColor(): Int? {'
           theme_fn = (
