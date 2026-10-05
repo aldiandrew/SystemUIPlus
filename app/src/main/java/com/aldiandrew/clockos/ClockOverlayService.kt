@@ -311,7 +311,14 @@ class ClockOverlayService : Service() {
         // Fully transparent window surface: the custom text is drawn directly
         // over the real SystemUI status-bar background.
         view.background = null
-        view.setTextColor(Color.WHITE)
+        val deviceIsNight =
+            (
+                resources.configuration.uiMode and
+                    android.content.res.Configuration.UI_MODE_NIGHT_MASK
+            ) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+        view.setTextColor(
+            if (deviceIsNight) Color.WHITE else Color.BLACK
+        )
 
         view.importantForAccessibility =
             View.IMPORTANT_FOR_ACCESSIBILITY_NO
@@ -1002,12 +1009,11 @@ class ClockOverlayService : Service() {
                 when (appearance) {
                     true -> Color.BLACK
                     false -> Color.WHITE
-                    null -> nativeClockColor()
-                        ?: if (fallbackNight) {
-                            Color.WHITE
-                        } else {
-                            Color.BLACK
-                        }
+                    null -> if (fallbackNight) {
+                        Color.WHITE
+                    } else {
+                        Color.BLACK
+                    }
                 }
 
             handler.post {
