@@ -33,7 +33,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.launch
 
 class CustomStatusBarService : Service() {
@@ -190,7 +189,6 @@ class CustomStatusBarService : Service() {
             lastError = t.stackTraceToString()
             isRunning = false
             Log.e(TAG, "Custom status bar failed", t)
-            restoreSystemBarInBackground()
             stopSelf()
         }
     }
@@ -252,7 +250,6 @@ class CustomStatusBarService : Service() {
         isRunning = false
 
         // Safety rule: once the custom bar disappears, never leave the user with no status bar.
-        restoreSystemBarInBackground()
 
         Log.i(TAG, "Compact custom status bar stopped")
         scope.cancel()
@@ -765,23 +762,4 @@ class CustomStatusBarService : Service() {
             .toInt()
             .coerceAtLeast(1)
 
-    private fun restoreSystemBarInBackground() {
-        Thread {
-            try {
-                runBlocking {
-                    SystemBarController.restore()
-                }
-            } catch (t: Throwable) {
-                Log.e(
-                    TAG,
-                    "Automatic system status bar restore failed",
-                    t
-                )
-            }
-        }.apply {
-            name = "Duos-SystemBar-Restore"
-            isDaemon = true
-            start()
-        }
-    }
 }
