@@ -174,6 +174,11 @@ object SystemUIPlusController {
                 "am broadcast -a com.android.systemui.demo -e command exit"
             )
 
+            // Native SystemUI now owns the status bar appearance again.
+            // Invalidate the custom appearance cache so portrait receives a
+            // fresh value when the custom renderer is attached again.
+            SystemUIPlusAppearance.invalidate()
+
             Result.success(Unit)
         } catch (t: Throwable) {
             Result.failure(t)
