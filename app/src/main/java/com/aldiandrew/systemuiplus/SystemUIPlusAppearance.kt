@@ -5,18 +5,16 @@ import android.content.res.Configuration
 import android.graphics.Color
 
 /**
- * Shared appearance state for every custom SystemUI renderer.
+ * Shared foreground appearance for custom SystemUI renderers.
  *
- * Foreground comes from the native SystemUI light-status-bar appearance.
- * Background comes from the currently resumed app's task status-bar color
- * when Android exposes it through ActivityManager/WindowManager.
- * Transparent bars remain transparent so the app content shows through.
+ * Only the light/dark status-bar foreground is queried from SystemUI.
+ * Expensive activity/task dumps and the full-width background overlay were
+ * removed because they caused unnecessary periodic work.
  */
 object SystemUIPlusAppearance {
 
     data class Snapshot(
-        val foregroundColor: Int,
-        val backgroundColor: Int
+        val foregroundColor: Int
     )
 
     @Volatile
@@ -25,11 +23,12 @@ object SystemUIPlusAppearance {
     @Volatile
     private var cachedAtMs: Long = 0L
 
-    private const val CACHE_MS = 1200L
+    private const val CACHE_MS = 5_000L
 
     fun snapshot(context: Context): Snapshot {
         val now = System.currentTimeMillis()
         val cached = cachedSnapshot
+
         if (cached != null && now - cachedAtMs < CACHE_MS) {
             return cached
         }
@@ -37,13 +36,12 @@ object SystemUIPlusAppearance {
         val output =
             runCatching {
                 SystemUIPlusShizuku.execute(
-                    "dumpsys statusbar; dumpsys activity activities | grep -E \"mResumedActivity:|packageName=|statusBarColor=|state=RESUMED\""
+                    "dumpsys statusbar"
                 ).getOrNull()?.stdout.orEmpty()
             }.getOrDefault("")
 
         val snapshot = Snapshot(
-            foregroundColor = parseForegroundColor(context, output),
-            backgroundColor = parseBackgroundColor(output)
+            foregroundColor = parseForegroundColor(context, output)
         )
 
         cachedSnapshot = snapshot
@@ -54,8 +52,8 @@ object SystemUIPlusAppearance {
     fun foregroundColor(context: Context): Int =
         snapshot(context).foregroundColor
 
-    fun backgroundColor(context: Context): Int =
-        snapshot(context).backgroundColor
+    fun fallbackForegroundColor(context: Context): Int =
+        if (isNightMode(context)) Color.WHITE else Color.BLACK
 
     fun isLightStatusBar(context: Context): Boolean =
         foregroundColor(context) == Color.BLACK
@@ -64,18 +62,14 @@ object SystemUIPlusAppearance {
         context: Context,
         dump: String
     ): Int {
-        val fallbackLight =
-            (
-                context.resources.configuration.uiMode and
-                    Configuration.UI_MODE_NIGHT_MASK
-            ) != Configuration.UI_MODE_NIGHT_YES
+        val fallback = fallbackForegroundColor(context)
 
         val line =
             dump.lineSequence()
                 .firstOrNull {
                     it.trimStart().startsWith("mAppearance=")
                 }
-                ?: return if (fallbackLight) Color.BLACK else Color.WHITE
+                ?: return fallback
 
         if (line.contains("LIGHT_STATUS_BARS", ignoreCase = true)) {
             return Color.BLACK
@@ -89,7 +83,7 @@ object SystemUIPlusAppearance {
                 }
 
         if (valueText.isBlank()) {
-            return if (fallbackLight) Color.BLACK else Color.WHITE
+            return fallback
         }
 
         val value =
@@ -108,25 +102,9 @@ object SystemUIPlusAppearance {
         }
     }
 
-    private fun parseBackgroundColor(dump: String): Int {
-        val match =
-            Regex(
-                """packageName=([A-Za-z0-9_.$]+).*?statusBarColor=([0-9A-Fa-f]{6,8}).*?state=RESUMED""",
-                setOf(RegexOption.DOT_MATCHES_ALL)
-            ).find(dump)
-                ?: return Color.TRANSPARENT
-
-        val valueText = match.groupValues.getOrNull(2)
-            ?: return Color.TRANSPARENT
-
-        val value = valueText.toLongOrNull(16)
-            ?: return Color.TRANSPARENT
-
-        return when {
-            valueText.length <= 6 ->
-                (0xFF000000L or value).toInt()
-            else ->
-                value.toInt()
-        }
-    }
+    private fun isNightMode(context: Context): Boolean =
+        (
+            context.resources.configuration.uiMode and
+                Configuration.UI_MODE_NIGHT_MASK
+        ) == Configuration.UI_MODE_NIGHT_YES
 }
