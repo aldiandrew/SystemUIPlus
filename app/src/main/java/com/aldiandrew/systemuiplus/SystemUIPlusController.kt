@@ -108,24 +108,26 @@ object SystemUIPlusController {
         }
     }
 
-    private fun activatePortrait(context: Context): Result<Unit> = try {
-        if (!SystemUIPlusShizuku.hasPermission()) {
-            return Result.failure(
-                SecurityException("Shizuku permission is not granted")
-            )
+    private fun activatePortrait(context: Context): Result<Unit> {
+        return try {
+            if (!SystemUIPlusShizuku.hasPermission()) {
+                return Result.failure(
+                    SecurityException("Shizuku permission is not granted")
+                )
+            }
+
+            SystemUIPlusShizuku.execute(
+                "cmd statusbar send-disable-flag system-icons clock notification-icons"
+            ).getOrThrow()
+
+            SystemUIPlusShizuku.execute(
+                "settings put global policy_control immersive.full=*"
+            ).getOrThrow()
+
+            Result.success(Unit)
+        } catch (t: Throwable) {
+            Result.failure(t)
         }
-
-        SystemUIPlusShizuku.execute(
-            "cmd statusbar send-disable-flag system-icons clock notification-icons"
-        ).getOrThrow()
-
-        SystemUIPlusShizuku.execute(
-            "settings put global policy_control immersive.full=*"
-        ).getOrThrow()
-
-        Result.success(Unit)
-    } catch (t: Throwable) {
-        Result.failure(t)
     }
 
     private fun activateLandscapeNative(context: Context): Result<Unit> {
