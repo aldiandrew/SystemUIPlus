@@ -42,12 +42,7 @@ data class DuoStatusState(
      * override is configured.
      */
     val batteryColor: Int
-        get() = when {
-            charging -> batteryChargingColorOverride
-            powerSaver -> batteryPowerSaverColorOverride
-            batteryLevel <= 15 -> batteryLowColorOverride
-            else -> batteryNormalColorOverride
-        } ?: foregroundColor
+        get() = foregroundColor
 }
 
 /**
