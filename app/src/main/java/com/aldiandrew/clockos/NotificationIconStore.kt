@@ -49,12 +49,57 @@ object NotificationIconStore {
 
     fun snapshot(): List<ClockNotificationEntry> =
         synchronized(lock) {
-            entries.values
-                .sortedWith(
-                    compareBy<ClockNotificationEntry> { it.rank }
-                        .thenBy { it.notification.postTime }
-                        .thenBy { it.key }
-                )
+            val sorted =
+                entries.values
+                    .sortedWith(
+                        compareBy<ClockNotificationEntry> { it.rank }
+                            .thenBy { it.notification.postTime }
+                            .thenBy { it.key }
+                    )
+
+            val grouped =
+                LinkedHashMap<String, ClockNotificationEntry>()
+
+            sorted.forEach { entry ->
+                val notification = entry.notification
+                val groupKey =
+                    if (notification.isGroup) {
+                        notification.groupKey
+                    } else {
+                        null
+                    }
+
+                if (groupKey.isNullOrBlank()) {
+                    grouped[entry.key] = entry
+                    return@forEach
+                }
+
+                val current = grouped[groupKey]
+
+                if (current == null) {
+                    grouped[groupKey] = entry
+                    return@forEach
+                }
+
+                val currentIsSummary =
+                    current.notification.notification
+                        .isGroupSummary
+                val entryIsSummary =
+                    notification.notification
+                        .isGroupSummary
+
+                if (
+                    (!currentIsSummary && entryIsSummary) ||
+                    (
+                        currentIsSummary == entryIsSummary &&
+                            entry.rank < current.rank
+                    )
+                ) {
+                    grouped[groupKey] = entry
+                }
+            }
+
+            grouped.values.toList()
         }
 
     fun replaceAll(
