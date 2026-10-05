@@ -1,6 +1,8 @@
 package com.aldiandrew.systemuiplus
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 
 /**
  * Single owner of native SystemUI visibility.
@@ -104,6 +106,24 @@ object SystemUIPlusController {
             Result.success(Unit)
         } catch (t: Throwable) {
             Result.failure(t)
+        }
+    }
+
+    /**
+     * Rotation-safe reapply. Android can briefly recreate SystemUI status-bar
+     * surfaces during a display configuration change, so reassert the hidden
+     * state several times after the change rather than relying on a single call.
+     */
+    fun reapplyAfterConfiguration(context: Context) {
+        if (!isEnabled(context)) return
+
+        val handler = Handler(Looper.getMainLooper())
+        longArrayOf(0L, 50L, 120L, 250L, 500L, 900L).forEach { delay ->
+            handler.postDelayed({
+                if (isEnabled(context)) {
+                    reapply(context)
+                }
+            }, delay)
         }
     }
 
