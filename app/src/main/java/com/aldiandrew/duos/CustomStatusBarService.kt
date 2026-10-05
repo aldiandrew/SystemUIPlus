@@ -657,41 +657,8 @@ class CustomStatusBarService : Service() {
             false
         }
 
-    private fun readLightStatusBar(): Boolean {
-        return try {
-            val output = runBlocking(Dispatchers.IO) {
-                ShizukuManager.executeCommand(
-                    "dumpsys statusbar"
-                ).getOrDefault("")
-            }
-
-            val appearanceLine =
-                output.lineSequence()
-                    .firstOrNull {
-                        it.trimStart().startsWith("mAppearance=")
-                    }
-
-            appearanceLine?.contains(
-                "LIGHT_STATUS_BARS",
-                ignoreCase = true
-            ) ?: !isNightMode()
-        } catch (t: Throwable) {
-            Log.w(
-                TAG,
-                "appearance read failed: ${t.javaClass.simpleName}"
-            )
-            !isNightMode()
-        }
-    }
-
-    private fun isNightMode(): Boolean =
-        (
-            resources.configuration.uiMode and
-                Configuration.UI_MODE_NIGHT_MASK
-            ) == Configuration.UI_MODE_NIGHT_YES
-
-    private fun compactSizePx(): Int =
-        dp(36f).coerceAtLeast(1)
+    private fun overlaySizePx(): Int =
+        dp(DuoPreferences.getIndicatorSizeDp(this))
 
     private fun applyDynamicOverlayPosition(
         view: View,
