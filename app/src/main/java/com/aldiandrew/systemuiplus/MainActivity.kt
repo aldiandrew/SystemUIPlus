@@ -785,10 +785,10 @@ class MainActivity : ComponentActivity() {
                 Column(
                     Modifier
                         .weight(1f)
-                        .offset(
-                            x = clockSettings.horizontalPositionDp.dp,
-                            y = clockSettings.verticalPositionDp.dp
-                        )
+                        .graphicsLayer {
+                            translationX = clockSettings.horizontalPositionDp.dp.toPx()
+                            translationY = clockSettings.verticalPositionDp.dp.toPx()
+                        }
                 ) {
                     Text(
                         timeText,
