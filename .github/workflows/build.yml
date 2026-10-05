@@ -157,19 +157,24 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin main
-          git rebase origin/main
-
           git add app/src/main/java/com/aldiandrew/clockos
           git add app/src/main/java/com/aldiandrew/duos
           git add app/src/main/aidl/com/aldiandrew/clockos
 
           if git diff --cached --quiet; then
             echo "Merged source is already committed."
-          else
-            git commit -m "Merge ClockOS and Duos implementations"
-            git push
+            exit 0
           fi
+
+          # Commit the generated merge first so the worktree is clean.
+          # Rebase must never run while the merge step has local changes.
+          git commit -m "Merge ClockOS and Duos implementations"
+
+          # The repository may have received another commit while the build
+          # was running. Rebase the clean merge commit, then push it.
+          git fetch origin main
+          git rebase origin/main
+          git push
 
       - name: Prepare installable APK
         shell: bash
