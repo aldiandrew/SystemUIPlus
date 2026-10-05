@@ -65,6 +65,8 @@ class ClockOverlayService : Service() {
 
     private var lastRendered = ""
     private var lastSizeSp = Float.NaN
+    private var overlayAttached = false
+    private var notificationStoreRegistered = false
 
     private val notificationStoreListener: () -> Unit = {
         handler.post {
@@ -196,29 +198,8 @@ class ClockOverlayService : Service() {
                 }
             }
 
-            windowManager.addView(
-                statusBarContentView,
-                params
-            )
-
-            statusBarContentView.setOnApplyWindowInsetsListener {
-                    view,
-                    insets
-                ->
-                updatePosition(view, insets)
-                insets
-            }
-
-            NotificationIconStore.register(
-                notificationStoreListener
-            )
-
-            statusBarContentView.post {
-                updatePosition(
-                    statusBarContentView,
-                    statusBarContentView.rootWindowInsets
-                )
-                renderNotificationIcons()
+            if (!isLandscape()) {
+                attachOverlay()
             }
 
             updateClock()
@@ -247,11 +228,16 @@ class ClockOverlayService : Service() {
         lastY = Int.MIN_VALUE
 
         if (SystemUIPlusController.isEnabled(this)) {
+            if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                detachOverlay()
+            } else {
+                attachOverlay()
+            }
             SystemUIPlusController.reapplyAfterConfiguration(this)
         }
 
         handler.post {
-            if (::statusBarContentView.isInitialized) {
+            if (::statusBarContentView.isInitialized && overlayAttached) {
                 statusBarContentView.requestApplyInsets()
                 updateClock()
                 refreshSystemUiAppearance()
@@ -266,21 +252,72 @@ class ClockOverlayService : Service() {
             notificationStoreListener
         )
 
-        try {
-            if (
-                ::windowManager.isInitialized &&
-                ::statusBarContentView.isInitialized
-            ) {
-                windowManager.removeViewImmediate(
-                    statusBarContentView
+        detachOverlay()
+
+        super.onDestroy()
+    }
+
+    private fun isLandscape(): Boolean =
+        resources.configuration.orientation ==
+            Configuration.ORIENTATION_LANDSCAPE
+
+    private fun attachOverlay() {
+        if (!::windowManager.isInitialized || !::statusBarContentView.isInitialized) {
+            return
+        }
+
+        if (!overlayAttached) {
+            try {
+                windowManager.addView(
+                    statusBarContentView,
+                    params
                 )
+                overlayAttached = true
+            } catch (_: Throwable) {
+                overlayAttached = false
+                return
             }
+        }
+
+        statusBarContentView.setOnApplyWindowInsetsListener {
+                view,
+                insets
+            ->
+            updatePosition(view, insets)
+            insets
+        }
+
+        if (!notificationStoreRegistered) {
+            NotificationIconStore.register(
+                notificationStoreListener
+            )
+            notificationStoreRegistered = true
+        }
+
+        statusBarContentView.post {
+            if (overlayAttached) {
+                updatePosition(
+                    statusBarContentView,
+                    statusBarContentView.rootWindowInsets
+                )
+                renderNotificationIcons()
+            }
+        }
+    }
+
+    private fun detachOverlay() {
+        if (!overlayAttached || !::windowManager.isInitialized || !::statusBarContentView.isInitialized) {
+            return
+        }
+
+        try {
+            windowManager.removeViewImmediate(
+                statusBarContentView
+            )
         } catch (_: Throwable) {
         }
 
-
-
-        super.onDestroy()
+        overlayAttached = false
     }
 
     private fun createSystemUiStyledClock(): TextView {
@@ -548,7 +585,7 @@ class ClockOverlayService : Service() {
         view: View,
         insets: WindowInsets?
     ) {
-        if (!::params.isInitialized) return
+        if (!::params.isInitialized || !overlayAttached) return
 
         val targetX =
             statusBarStartX(insets)
