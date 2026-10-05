@@ -10,6 +10,8 @@ import android.os.Bundle
 import android.os.BatteryManager
 import android.provider.Settings
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
@@ -24,10 +26,22 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -45,6 +59,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.clickable
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -84,6 +100,9 @@ class MainActivity : ComponentActivity() {
     private var duoX by mutableStateOf(0f)
     private var duoY by mutableStateOf(0f)
     private var duoStyle by mutableStateOf(DuoVisualStyle.DUO)
+    private var settingsScreen by mutableStateOf(false)
+    private var settingsPage by mutableStateOf(AppSettingsPage.ROOT)
+    private var appLanguageMode by mutableStateOf(AppLanguageMode.DEVICE)
 
     private val permissionListener =
         Shizuku.OnRequestPermissionResultListener { _, _ -> refreshState() }
@@ -105,6 +124,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         clockPrefs = ClockPrefs(this)
+        appLanguageMode = SystemUIPlusAppSettings.getLanguageMode(this)
+        SystemUIPlusAppSettings.applyLanguage(this, appLanguageMode)
         loadSettings()
         refreshPhonePermission()
 
@@ -256,7 +277,7 @@ class MainActivity : ComponentActivity() {
         if (requestCode == PHONE_PERMISSION_REQUEST) {
             refreshPhonePermission()
             if (phoneStateGranted) {
-                toast("Phone state permission granted")
+                toast(getString(R.string.toast_phone_state_granted))
             }
         }
     }
@@ -276,7 +297,7 @@ class MainActivity : ComponentActivity() {
             return
         }
         try { SystemUIPlusShizuku.requestPermission() } catch (t: Throwable) {
-            toast(t.message ?: "Shizuku permission failed")
+            toast(t.message ?: getString(R.string.toast_shizuku_permission_failed))
         }
     }
 
@@ -289,10 +310,10 @@ class MainActivity : ComponentActivity() {
             if (intent != null) {
                 startActivity(intent)
             } else {
-                toast("Shizuku app is not installed")
+                toast(getString(R.string.toast_shizuku_not_installed))
             }
         } catch (t: Throwable) {
-            toast(t.message ?: "Could not open Shizuku")
+            toast(t.message ?: getString(R.string.toast_shizuku_open_failed))
         }
     }
 
@@ -300,18 +321,18 @@ class MainActivity : ComponentActivity() {
         try {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         } catch (_: Throwable) {
-            toast("Notification access settings are unavailable")
+            toast(getString(R.string.toast_notification_access_unavailable))
         }
     }
 
     private fun startUnifiedSystemUi() {
         if (!shizukuReady) {
-            toast("Grant Shizuku permission in SystemUI control first")
+            toast(getString(R.string.toast_grant_shizuku_first))
             return
         }
 
         if (!phoneStateGranted || !notificationAccess || !overlayPermissionGranted) {
-            toast("Grant all required permissions in SystemUI control first")
+            toast(getString(R.string.toast_grant_all_permissions))
             return
         }
 
@@ -325,7 +346,7 @@ class MainActivity : ComponentActivity() {
                     busy = false
                     toast(
                         hidden.exceptionOrNull()?.message
-                            ?: "Could not hide native SystemUI"
+                            ?: getString(R.string.toast_hide_native_failed)
                     )
                     return@runOnUiThread
                 }
@@ -343,7 +364,7 @@ class MainActivity : ComponentActivity() {
                                 busy = false
                                 toast(
                                     indicatorMessage.ifBlank {
-                                        "Could not start custom system indicators"
+                                        getString(R.string.toast_start_indicators_failed)
                                     }
                                 )
                             }
@@ -367,7 +388,7 @@ class MainActivity : ComponentActivity() {
                             .apply()
 
                         busy = false
-                        toast("SystemUI Plus is active")
+                        toast(getString(R.string.toast_active))
                     } catch (t: Throwable) {
                         ShizukuOverlayController.stop(
                             this,
@@ -382,7 +403,7 @@ class MainActivity : ComponentActivity() {
                                     busy = false
                                     toast(
                                         t.message
-                                            ?: "Could not start custom SystemUI"
+                                            ?: getString(R.string.toast_start_failed)
                                     )
                                 }
                             }.start()
@@ -395,7 +416,7 @@ class MainActivity : ComponentActivity() {
 
     private fun stopUnifiedSystemUi() {
         if (!shizukuReady) {
-            toast("Shizuku permission is required")
+            toast(getString(R.string.toast_shizuku_required))
             return
         }
 
@@ -420,12 +441,12 @@ class MainActivity : ComponentActivity() {
                             .putBoolean("clock_active", false)
                             .apply()
                         busy = false
-                        toast("Native SystemUI restored")
+                        toast(getString(R.string.toast_native_restored))
                     } else {
                         busy = false
                         toast(
                             restored.exceptionOrNull()?.message
-                                ?: "Could not restore native SystemUI"
+                                ?: getString(R.string.toast_restore_failed)
                         )
                     }
                 }
@@ -471,350 +492,1189 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     private fun SystemUIScreen() {
+        BackHandler(enabled = settingsScreen) {
+            navigateBackFromSettings()
+        }
+
+        val topBarTitle =
+            when {
+                !settingsScreen -> stringResource(R.string.systemui_plus)
+                settingsPage == AppSettingsPage.ROOT ->
+                    stringResource(R.string.settings)
+                settingsPage == AppSettingsPage.BACKUP_RESTORE ->
+                    stringResource(R.string.backup_restore_title)
+                else ->
+                    stringResource(R.string.about_title)
+            }
+
         Scaffold(
             topBar = {
                 TopAppBar(
                     title = {
                         Text(
-                            "SystemUI Plus",
+                            topBarTitle,
                             style = MaterialTheme.typography.titleLarge
                         )
+                    },
+                    navigationIcon = if (settingsScreen) {
+                        {
+                            IconButton(
+                                onClick = ::navigateBackFromSettings
+                            ) {
+                                Icon(
+                                    Icons.Default.ArrowBack,
+                                    contentDescription = stringResource(
+                                        R.string.content_description_back
+                                    )
+                                )
+                            }
+                        }
+                    } else {
+                        {}
+                    },
+                    actions = if (!settingsScreen) {
+                        {
+                            IconButton(
+                                onClick = {
+                                    settingsPage = AppSettingsPage.ROOT
+                                    settingsScreen = true
+                                }
+                            ) {
+                                Icon(
+                                    Icons.Default.Settings,
+                                    contentDescription = stringResource(
+                                        R.string.content_description_settings
+                                    )
+                                )
+                            }
+                        }
+                    } else {
+                        {}
                     }
                 )
             }
         ) { padding ->
-            val customizationEnabled =
-                systemUiHidden && !busy
-
-            Column(
-                Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(horizontal = 18.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                ExpressiveCard(Modifier.fillMaxWidth()) {
-                    Column {
-                        Text(
-                            "SystemUI control",
-                            style = MaterialTheme.typography.titleLarge,
-                            modifier = Modifier.padding(
-                                start = 16.dp,
-                                top = 16.dp,
-                                end = 16.dp,
-                                bottom = 6.dp
-                            )
+            if (settingsScreen) {
+                when (settingsPage) {
+                    AppSettingsPage.ROOT ->
+                        SettingsRootScreen(
+                            Modifier
+                                .fillMaxSize()
+                                .padding(padding)
                         )
-
-                        PermissionRow(
-                            title = "Shizuku",
-                            ready = shizukuReady,
-                            actionLabel = "Connect",
-                            onAction = ::requestShizuku
+                    AppSettingsPage.BACKUP_RESTORE ->
+                        BackupRestoreScreen(
+                            Modifier
+                                .fillMaxSize()
+                                .padding(padding)
                         )
-                        PermissionRow(
-                            title = "Notification access",
-                            ready = notificationAccess,
-                            actionLabel = "Grant",
-                            onAction = ::openNotificationAccess
+                    AppSettingsPage.ABOUT ->
+                        AboutScreen(
+                            Modifier
+                                .fillMaxSize()
+                                .padding(padding)
                         )
-                        PermissionRow(
-                            title = "Phone state",
-                            ready = phoneStateGranted,
-                            actionLabel = "Allow",
-                            onAction = ::requestPhonePermission
-                        )
-                        PermissionRow(
-                            title = "Display over other apps",
-                            ready = overlayPermissionGranted,
-                            actionLabel = "Allow",
-                            onAction = ::openOverlayPermission
-                        )
-
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-
-                        ListItem(
-                            headlineContent = {
-                                Text("SystemUI Plus")
-                            },
-                            trailingContent = {
-                                Switch(
-                                    checked = systemUiHidden,
-                                    onCheckedChange = { toggleMasterSystemUi() },
-                                    enabled = shizukuReady &&
-                                        notificationAccess &&
-                                        phoneStateGranted &&
-                                        overlayPermissionGranted &&
-                                        !busy
-                                )
-                            }
-                        )
-                    }
                 }
+            } else {
+                val customizationEnabled =
+                    systemUiHidden && !busy
 
-                ExpressiveCard(Modifier.fillMaxWidth()) {
-                    Column(
-                        Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            "Live preview",
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                        SystemUiPreview()
-                    }
-                }
-
-                ExpressiveCard(
+                Column(
                     Modifier
-                        .fillMaxWidth()
-                        .alpha(if (customizationEnabled) 1f else 0.45f)
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(horizontal = 18.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Column(
-                        Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            "Custom Clock",
-                            style = MaterialTheme.typography.titleLarge
-                        )
-
-                        SettingSwitch("24-hour", clockSettings.format24) {
-                            saveClock("format24", it)
-                        }
-                        SettingSwitch("Show date", clockSettings.showDate) {
-                            saveClock("showDate", it)
-                        }
-
-                        ExpressiveDropdown(
-                            label = "Date format",
-                            selected = clockSettings.dateFormat,
-                            options = listOf(
-                                "dd/MM", "dd/MM/yy", "yyyy-MM-dd",
-                                "dd-MM-yyyy", "MMM dd", "EEE",
-                                "EEE dd", "EEE dd/MM", "EEE dd MMM",
-                                "EEE MMM dd", "EEEE dd/MM", "EEEE MM/dd"
+                    ExpressiveCard(Modifier.fillMaxWidth()) {
+                        Column {
+                            Text(
+                                stringResource(R.string.systemui_control),
+                                style = MaterialTheme.typography.titleLarge,
+                                modifier = Modifier.padding(
+                                    start = 16.dp,
+                                    top = 16.dp,
+                                    end = 16.dp,
+                                    bottom = 6.dp
+                                )
                             )
-                        ) { saveClock("dateFormat", it) }
 
-                        ExpressiveDropdown(
-                            label = "Date style",
-                            selected = when (clockSettings.dateStyle.coerceIn(0, 2)) {
-                                1 -> "lowercase"
-                                2 -> "UPPERCASE"
-                                else -> "Normal"
-                            },
-                            options = listOf("Normal", "lowercase", "UPPERCASE")
-                        ) { value ->
-                            saveClock(
-                                "dateStyle",
-                                when (value) {
-                                    "lowercase" -> 1
-                                    "UPPERCASE" -> 2
-                                    else -> 0
-                                }
+                            PermissionRow(
+                                title = stringResource(R.string.shizuku),
+                                ready = shizukuReady,
+                                actionLabel = stringResource(R.string.connect),
+                                onAction = ::requestShizuku
                             )
-                        }
-
-                        SliderSetting(
-                            title = "Clock size",
-                            valueText = clockSettings.sizeSp.toInt().toString() + " sp",
-                            value = clockSettings.sizeSp,
-                            range = 10f..22f,
-                            onValueChange = { saveClock("sizeSp", it) },
-                            onReset = {
-                                saveClock(
-                                    "sizeSp",
-                                    clockPrefs.nativeDefaultClockSizeSp()
-                                )
-                            }
-                        )
-
-                        SliderSetting(
-                            title = "Clock horizontal position",
-                            valueText = clockSettings.horizontalPositionDp.toInt().toString() + " dp",
-                            value = clockSettings.horizontalPositionDp,
-                            range = -100f..100f,
-                            onValueChange = { saveClock("horizontalPositionDp", it) },
-                            onReset = { saveClock("horizontalPositionDp", 0f) }
-                        )
-
-                        SliderSetting(
-                            title = "Clock vertical position",
-                            valueText = clockSettings.verticalPositionDp.toInt().toString() + " dp",
-                            value = clockSettings.verticalPositionDp,
-                            range = -20f..20f,
-                            onValueChange = { saveClock("verticalPositionDp", it) },
-                            onReset = { saveClock("verticalPositionDp", 0f) }
-                        )
-                    }
-                }
-
-                ExpressiveCard(
-                    Modifier
-                        .fillMaxWidth()
-                        .alpha(if (customizationEnabled) 1f else 0.45f)
-                ) {
-                    Column(
-                        Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            "Custom System Indicators",
-                            style = MaterialTheme.typography.titleLarge
-                        )
-
-                        SliderSetting(
-                            title = "Indicator size",
-                            valueText = duoSize.toInt().toString() + " dp",
-                            value = duoSize,
-                            range = 28f..60f,
-                            onValueChange = {
-                                duoSize = it
-                                DuoPreferences.setIndicatorSizeDp(
-                                    this@MainActivity,
-                                    it
-                                )
-                            },
-                            onReset = {
-                                DuoPreferences.setIndicatorSizeDp(
-                                    this@MainActivity,
-                                    36f
-                                )
-                                loadSettings()
-                            }
-                        )
-
-                        SettingSwitch(
-                            "Automatic position",
-                            duoAutomatic
-                        ) {
-                            duoAutomatic = it
-                            DuoPreferences.setAutomaticPosition(
-                                this@MainActivity,
-                                it
+                            PermissionRow(
+                                title = stringResource(R.string.notification_access),
+                                ready = notificationAccess,
+                                actionLabel = stringResource(R.string.grant),
+                                onAction = ::openNotificationAccess
                             )
-                        }
+                            PermissionRow(
+                                title = stringResource(R.string.phone_state),
+                                ready = phoneStateGranted,
+                                actionLabel = stringResource(R.string.allow),
+                                onAction = ::requestPhonePermission
+                            )
+                            PermissionRow(
+                                title = stringResource(R.string.display_over_other_apps),
+                                ready = overlayPermissionGranted,
+                                actionLabel = stringResource(R.string.allow),
+                                onAction = ::openOverlayPermission
+                            )
 
-                        SliderSetting(
-                            title = "Indicator horizontal position",
-                            valueText = duoX.toInt().toString() + " dp",
-                            value = duoX,
-                            range = -24f..24f,
-                            onValueChange = {
-                                duoX = it
-                                duoAutomatic = false
-                                DuoPreferences.setHorizontalOffsetDp(
-                                    this@MainActivity,
-                                    it
-                                )
-                                DuoPreferences.setAutomaticPosition(
-                                    this@MainActivity,
-                                    false
-                                )
-                            },
-                            onReset = {
-                                resetDuoPosition()
-                            }
-                        )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
 
-                        SliderSetting(
-                            title = "Indicator vertical position",
-                            valueText = duoY.toInt().toString() + " dp",
-                            value = duoY,
-                            range = -24f..24f,
-                            onValueChange = {
-                                duoY = it
-                                duoAutomatic = false
-                                DuoPreferences.setVerticalOffsetDp(
-                                    this@MainActivity,
-                                    it
-                                )
-                                DuoPreferences.setAutomaticPosition(
-                                    this@MainActivity,
-                                    false
-                                )
-                            },
-                            onReset = {
-                                resetDuoPosition()
-                            }
-                        )
-
-                        Text(
-                            "Style",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            listOf(
-                                DuoVisualStyle.DUO,
-                                DuoVisualStyle.COMPACT
-                            ).forEach { style ->
-                                val selected = duoStyle == style
-                                if (selected) {
-                                    Button(
-                                        onClick = {},
-                                        enabled = customizationEnabled,
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Text(
-                                            if (style == DuoVisualStyle.DUO) {
-                                                "Duo"
-                                            } else {
-                                                "Compact"
-                                            }
-                                        )
-                                    }
-                                } else {
-                                    OutlinedButton(
-                                        onClick = {
-                                            duoStyle = style
-                                            DuoPreferences.setVisualStyle(
-                                                this@MainActivity,
-                                                style
-                                            )
+                            ListItem(
+                                headlineContent = {
+                                    Text(stringResource(R.string.systemui_plus))
+                                },
+                                trailingContent = {
+                                    Switch(
+                                        checked = systemUiHidden,
+                                        onCheckedChange = {
+                                            toggleMasterSystemUi()
                                         },
-                                        enabled = customizationEnabled,
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Text(
-                                            if (style == DuoVisualStyle.DUO) {
-                                                "Duo"
-                                            } else {
-                                                "Compact"
-                                            }
-                                        )
+                                        enabled = shizukuReady &&
+                                            notificationAccess &&
+                                            phoneStateGranted &&
+                                            overlayPermissionGranted &&
+                                            !busy
+                                    )
+                                }
+                            )
+                        }
+                    }
+
+                    ExpressiveCard(Modifier.fillMaxWidth()) {
+                        Column(
+                            Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                stringResource(R.string.live_preview),
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                            SystemUiPreview()
+                        }
+                    }
+
+                    ExpressiveCard(
+                        Modifier
+                            .fillMaxWidth()
+                            .alpha(if (customizationEnabled) 1f else 0.45f)
+                    ) {
+                        Column(
+                            Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                stringResource(R.string.custom_clock),
+                                style = MaterialTheme.typography.titleLarge
+                            )
+
+                            SettingSwitch(
+                                stringResource(R.string.twenty_four_hour),
+                                clockSettings.format24
+                            ) {
+                                saveClock("format24", it)
+                            }
+                            SettingSwitch(
+                                stringResource(R.string.show_date),
+                                clockSettings.showDate
+                            ) {
+                                saveClock("showDate", it)
+                            }
+
+                            ExpressiveDropdown(
+                                label = stringResource(R.string.date_format),
+                                selected = clockSettings.dateFormat,
+                                options = listOf(
+                                    "dd/MM",
+                                    "dd/MM/yy",
+                                    "yyyy-MM-dd",
+                                    "dd-MM-yyyy",
+                                    "MMM dd",
+                                    "EEE",
+                                    "EEE dd",
+                                    "EEE dd/MM",
+                                    "EEE dd MMM",
+                                    "EEE MMM dd",
+                                    "EEEE dd/MM",
+                                    "EEEE MM/dd"
+                                )
+                            ) {
+                                saveClock("dateFormat", it)
+                            }
+
+                            val normalLabel =
+                                stringResource(R.string.date_style_normal)
+                            val lowercaseLabel =
+                                stringResource(R.string.date_style_lowercase)
+                            val uppercaseLabel =
+                                stringResource(R.string.date_style_uppercase)
+
+                            ExpressiveDropdown(
+                                label = stringResource(R.string.date_style),
+                                selected = when (
+                                    clockSettings.dateStyle.coerceIn(0, 2)
+                                ) {
+                                    1 -> lowercaseLabel
+                                    2 -> uppercaseLabel
+                                    else -> normalLabel
+                                },
+                                options = listOf(
+                                    normalLabel,
+                                    lowercaseLabel,
+                                    uppercaseLabel
+                                )
+                            ) { value ->
+                                saveClock(
+                                    "dateStyle",
+                                    when (value) {
+                                        lowercaseLabel -> 1
+                                        uppercaseLabel -> 2
+                                        else -> 0
+                                    }
+                                )
+                            }
+
+                            SliderSetting(
+                                title = stringResource(R.string.clock_size),
+                                valueText = stringResource(
+                                    R.string.sp_value,
+                                    clockSettings.sizeSp.toInt()
+                                ),
+                                value = clockSettings.sizeSp,
+                                range = 10f..22f,
+                                onValueChange = {
+                                    saveClock("sizeSp", it)
+                                },
+                                onReset = {
+                                    saveClock(
+                                        "sizeSp",
+                                        clockPrefs.nativeDefaultClockSizeSp()
+                                    )
+                                }
+                            )
+
+                            SliderSetting(
+                                title = stringResource(
+                                    R.string.clock_horizontal_position
+                                ),
+                                valueText = stringResource(
+                                    R.string.dp_value,
+                                    clockSettings.horizontalPositionDp.toInt()
+                                ),
+                                value = clockSettings.horizontalPositionDp,
+                                range = -100f..100f,
+                                onValueChange = {
+                                    saveClock(
+                                        "horizontalPositionDp",
+                                        it
+                                    )
+                                },
+                                onReset = {
+                                    saveClock(
+                                        "horizontalPositionDp",
+                                        0f
+                                    )
+                                }
+                            )
+
+                            SliderSetting(
+                                title = stringResource(
+                                    R.string.clock_vertical_position
+                                ),
+                                valueText = stringResource(
+                                    R.string.dp_value,
+                                    clockSettings.verticalPositionDp.toInt()
+                                ),
+                                value = clockSettings.verticalPositionDp,
+                                range = -20f..20f,
+                                onValueChange = {
+                                    saveClock(
+                                        "verticalPositionDp",
+                                        it
+                                    )
+                                },
+                                onReset = {
+                                    saveClock(
+                                        "verticalPositionDp",
+                                        0f
+                                    )
+                                }
+                            )
+                        }
+                    }
+
+                    ExpressiveCard(
+                        Modifier
+                            .fillMaxWidth()
+                            .alpha(if (customizationEnabled) 1f else 0.45f)
+                    ) {
+                        Column(
+                            Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                stringResource(R.string.custom_system_indicators),
+                                style = MaterialTheme.typography.titleLarge
+                            )
+
+                            SliderSetting(
+                                title = stringResource(R.string.indicator_size),
+                                valueText = stringResource(
+                                    R.string.dp_value,
+                                    duoSize.toInt()
+                                ),
+                                value = duoSize,
+                                range = 28f..60f,
+                                onValueChange = {
+                                    duoSize = it
+                                    DuoPreferences.setIndicatorSizeDp(
+                                        this@MainActivity,
+                                        it
+                                    )
+                                },
+                                onReset = {
+                                    DuoPreferences.setIndicatorSizeDp(
+                                        this@MainActivity,
+                                        36f
+                                    )
+                                    loadSettings()
+                                }
+                            )
+
+                            SettingSwitch(
+                                stringResource(R.string.automatic_position),
+                                duoAutomatic
+                            ) {
+                                duoAutomatic = it
+                                DuoPreferences.setAutomaticPosition(
+                                    this@MainActivity,
+                                    it
+                                )
+                            }
+
+                            SliderSetting(
+                                title = stringResource(
+                                    R.string.indicator_horizontal_position
+                                ),
+                                valueText = stringResource(
+                                    R.string.dp_value,
+                                    duoX.toInt()
+                                ),
+                                value = duoX,
+                                range = -24f..24f,
+                                onValueChange = {
+                                    duoX = it
+                                    duoAutomatic = false
+                                    DuoPreferences.setHorizontalOffsetDp(
+                                        this@MainActivity,
+                                        it
+                                    )
+                                    DuoPreferences.setAutomaticPosition(
+                                        this@MainActivity,
+                                        false
+                                    )
+                                },
+                                onReset = ::resetDuoPosition
+                            )
+
+                            SliderSetting(
+                                title = stringResource(
+                                    R.string.indicator_vertical_position
+                                ),
+                                valueText = stringResource(
+                                    R.string.dp_value,
+                                    duoY.toInt()
+                                ),
+                                value = duoY,
+                                range = -24f..24f,
+                                onValueChange = {
+                                    duoY = it
+                                    duoAutomatic = false
+                                    DuoPreferences.setVerticalOffsetDp(
+                                        this@MainActivity,
+                                        it
+                                    )
+                                    DuoPreferences.setAutomaticPosition(
+                                        this@MainActivity,
+                                        false
+                                    )
+                                },
+                                onReset = ::resetDuoPosition
+                            )
+
+                            Text(
+                                stringResource(R.string.style),
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                listOf(
+                                    DuoVisualStyle.DUO,
+                                    DuoVisualStyle.COMPACT
+                                ).forEach { style ->
+                                    val selected = duoStyle == style
+                                    if (selected) {
+                                        Button(
+                                            onClick = {},
+                                            enabled = customizationEnabled,
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Text(
+                                                if (
+                                                    style ==
+                                                        DuoVisualStyle.DUO
+                                                ) {
+                                                    stringResource(R.string.duo)
+                                                } else {
+                                                    stringResource(R.string.compact)
+                                                }
+                                            )
+                                        }
+                                    } else {
+                                        OutlinedButton(
+                                            onClick = {
+                                                duoStyle = style
+                                                DuoPreferences.setVisualStyle(
+                                                    this@MainActivity,
+                                                    style
+                                                )
+                                            },
+                                            enabled = customizationEnabled,
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Text(
+                                                if (
+                                                    style ==
+                                                        DuoVisualStyle.DUO
+                                                ) {
+                                                    stringResource(R.string.duo)
+                                                } else {
+                                                    stringResource(R.string.compact)
+                                                }
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                }
 
-                ExpressiveCard(Modifier.fillMaxWidth()) {
-                    Column(
-                        Modifier.padding(16.dp)
-                    ) {
-                        Text(
-                            "Safety",
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                        TextButton(
-                            enabled = !busy,
-                            onClick = ::restoreNativeSystemUi,
-                            modifier = Modifier.fillMaxWidth()
+                    ExpressiveCard(Modifier.fillMaxWidth()) {
+                        Column(
+                            Modifier.padding(16.dp)
                         ) {
-                            Text("Restore native SystemUI")
+                            Text(
+                                stringResource(R.string.safety),
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                            TextButton(
+                                enabled = !busy,
+                                onClick = ::restoreNativeSystemUi,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    stringResource(
+                                        R.string.restore_native_systemui
+                                    )
+                                )
+                            }
                         }
                     }
                 }
             }
         }
+    }
+
+    private fun navigateBackFromSettings() {
+        if (!settingsScreen) return
+
+        if (settingsPage != AppSettingsPage.ROOT) {
+            settingsPage = AppSettingsPage.ROOT
+        } else {
+            settingsScreen = false
+        }
+    }
+
+    private fun changeLanguage(mode: AppLanguageMode) {
+        SystemUIPlusAppSettings.setLanguageMode(this, mode)
+        appLanguageMode = mode
+
+        val changed =
+            SystemUIPlusAppSettings.applyLanguage(this, mode)
+
+        if (changed) {
+            recreate()
+        }
+    }
+
+    private fun openWebLink(url: String) {
+        try {
+            startActivity(
+                Intent(
+                    Intent.ACTION_VIEW,
+                    Uri.parse(url)
+                )
+            )
+        } catch (_: Throwable) {
+            toast(getString(R.string.open_link_failed))
+        }
+    }
+
+    @Composable
+    private fun SettingsRootScreen(
+        modifier: Modifier = Modifier
+    ) {
+        var showLanguageDialog by remember {
+            mutableStateOf(false)
+        }
+
+        Column(
+            modifier
+                .padding(horizontal = 18.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                stringResource(R.string.settings_general),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(
+                    start = 4.dp,
+                    top = 8.dp
+                )
+            )
+
+            ExpressiveCard(Modifier.fillMaxWidth()) {
+                ListItem(
+                    modifier = Modifier.clickable {
+                        showLanguageDialog = true
+                    },
+                    leadingContent = {
+                        Icon(
+                            Icons.Default.Language,
+                            contentDescription = stringResource(
+                                R.string.content_description_language
+                            )
+                        )
+                    },
+                    headlineContent = {
+                        Text(stringResource(R.string.language))
+                    },
+                    supportingContent = {
+                        Text(stringResource(R.string.language_summary))
+                    },
+                    trailingContent = {
+                        Text(
+                            if (appLanguageMode == AppLanguageMode.ENGLISH) {
+                                stringResource(R.string.language_english)
+                            } else {
+                                stringResource(R.string.language_device)
+                            },
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+                )
+            }
+
+            Text(
+                stringResource(R.string.settings_data),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(
+                    start = 4.dp,
+                    top = 8.dp
+                )
+            )
+
+            ExpressiveCard(Modifier.fillMaxWidth()) {
+                ListItem(
+                    modifier = Modifier.clickable {
+                        settingsPage = AppSettingsPage.BACKUP_RESTORE
+                    },
+                    leadingContent = {
+                        Icon(
+                            Icons.Default.Backup,
+                            contentDescription = stringResource(
+                                R.string.content_description_backup_restore
+                            )
+                        )
+                    },
+                    headlineContent = {
+                        Text(stringResource(R.string.backup_restore))
+                    },
+                    supportingContent = {
+                        Text(
+                            stringResource(
+                                R.string.backup_restore_summary
+                            )
+                        )
+                    }
+                )
+            }
+
+            Text(
+                stringResource(R.string.settings_about),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(
+                    start = 4.dp,
+                    top = 8.dp
+                )
+            )
+
+            ExpressiveCard(Modifier.fillMaxWidth()) {
+                ListItem(
+                    modifier = Modifier.clickable {
+                        settingsPage = AppSettingsPage.ABOUT
+                    },
+                    leadingContent = {
+                        Icon(
+                            Icons.Default.Info,
+                            contentDescription = stringResource(
+                                R.string.content_description_about
+                            )
+                        )
+                    },
+                    headlineContent = {
+                        Text(
+                            stringResource(
+                                R.string.about_systemui_plus
+                            )
+                        )
+                    },
+                    supportingContent = {
+                        Text(
+                            stringResource(
+                                R.string.about_summary
+                            )
+                        )
+                    }
+                )
+            }
+
+            if (showLanguageDialog) {
+                LanguageDialog(
+                    onDismiss = { showLanguageDialog = false }
+                )
+            }
+        }
+    }
+
+    @Composable
+    private fun LanguageDialog(
+        onDismiss: () -> Unit
+    ) {
+        var pendingLanguage by remember(appLanguageMode) {
+            mutableStateOf(appLanguageMode)
+        }
+
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = {
+                Text(stringResource(R.string.language_dialog_title))
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        stringResource(
+                            R.string.language_dialog_message
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    LanguageOption(
+                        label = stringResource(R.string.language_device),
+                        selected =
+                            pendingLanguage == AppLanguageMode.DEVICE,
+                        onSelected = {
+                            pendingLanguage = AppLanguageMode.DEVICE
+                        }
+                    )
+
+                    LanguageOption(
+                        label = stringResource(R.string.language_english),
+                        selected =
+                            pendingLanguage == AppLanguageMode.ENGLISH,
+                        onSelected = {
+                            pendingLanguage = AppLanguageMode.ENGLISH
+                        }
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDismiss()
+                        changeLanguage(pendingLanguage)
+                    }
+                ) {
+                    Text(stringResource(R.string.done))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    @Composable
+    private fun LanguageOption(
+        label: String,
+        selected: Boolean,
+        onSelected: () -> Unit
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onSelected)
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            RadioButton(
+                selected = selected,
+                onClick = onSelected
+            )
+            Text(
+                label,
+                modifier = Modifier.padding(start = 8.dp)
+            )
+        }
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    private fun BackupRestoreScreen(
+        modifier: Modifier = Modifier
+    ) {
+        var pendingRestoreUri by remember {
+            mutableStateOf<Uri?>(null)
+        }
+        var showRestoreConfirmation by remember {
+            mutableStateOf(false)
+        }
+
+        val createBackupLauncher =
+            androidx.activity.compose.rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.CreateDocument(
+                    "application/json"
+                )
+            ) { uri ->
+                if (uri == null) return@rememberLauncherForActivityResult
+
+                val result =
+                    SystemUIPlusBackupManager.export(
+                        this@MainActivity,
+                        uri
+                    )
+
+                toast(
+                    if (result.isSuccess) {
+                        getString(R.string.backup_saved)
+                    } else {
+                        getString(R.string.backup_failed)
+                    }
+                )
+            }
+
+        val restoreLauncher =
+            androidx.activity.compose.rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.OpenDocument()
+            ) { uri ->
+                if (uri != null) {
+                    pendingRestoreUri = uri
+                    showRestoreConfirmation = true
+                }
+            }
+
+        Column(
+            modifier
+                .padding(horizontal = 18.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                stringResource(R.string.backup_restore_subtitle),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(
+                    start = 4.dp,
+                    top = 8.dp,
+                    end = 4.dp
+                )
+            )
+
+            ExpressiveCard(Modifier.fillMaxWidth()) {
+                Column(
+                    Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    ListItem(
+                        leadingContent = {
+                            Icon(
+                                Icons.Default.Backup,
+                                contentDescription = stringResource(
+                                    R.string.content_description_backup_restore
+                                )
+                            )
+                        },
+                        headlineContent = {
+                            Text(stringResource(R.string.backup))
+                        },
+                        supportingContent = {
+                            Text(
+                                stringResource(
+                                    R.string.backup_description
+                                )
+                            )
+                        }
+                    )
+                    Button(
+                        onClick = {
+                            createBackupLauncher.launch(
+                                getString(R.string.backup_file_name)
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            stringResource(
+                                R.string.backup_settings
+                            )
+                        )
+                    }
+                }
+            }
+
+            ExpressiveCard(Modifier.fillMaxWidth()) {
+                Column(
+                    Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    ListItem(
+                        leadingContent = {
+                            Icon(
+                                Icons.Default.Info,
+                                contentDescription = stringResource(
+                                    R.string.content_description_backup_restore
+                                )
+                            )
+                        },
+                        headlineContent = {
+                            Text(stringResource(R.string.restore))
+                        },
+                        supportingContent = {
+                            Text(
+                                stringResource(
+                                    R.string.restore_description
+                                )
+                            )
+                        }
+                    )
+                    Button(
+                        onClick = {
+                            restoreLauncher.launch(
+                                arrayOf(
+                                    "application/json",
+                                    "text/plain"
+                                )
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            stringResource(
+                                R.string.restore_settings
+                            )
+                        )
+                    }
+                }
+            }
+
+            ExpressiveCard(Modifier.fillMaxWidth()) {
+                Column(
+                    Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.backup_info_title),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        stringResource(R.string.backup_info_body),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 6.dp)
+                    )
+                }
+            }
+        }
+
+        if (showRestoreConfirmation) {
+            AlertDialog(
+                onDismissRequest = {
+                    showRestoreConfirmation = false
+                    pendingRestoreUri = null
+                },
+                title = {
+                    Text(
+                        stringResource(
+                            R.string.restore_confirm_title
+                        )
+                    )
+                },
+                text = {
+                    Text(
+                        stringResource(
+                            R.string.restore_confirm_body
+                        )
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val uri = pendingRestoreUri
+                            showRestoreConfirmation = false
+                            pendingRestoreUri = null
+
+                            if (uri == null) {
+                                toast(
+                                    getString(
+                                        R.string.restore_cancelled
+                                    )
+                                )
+                                return@TextButton
+                            }
+
+                            val result =
+                                SystemUIPlusBackupManager.restore(
+                                    this@MainActivity,
+                                    uri
+                                )
+
+                            if (result.isSuccess) {
+                                val restoredLanguage =
+                                    result.getOrThrow()
+
+                                appLanguageMode =
+                                    restoredLanguage
+                                loadSettings()
+
+                                try {
+                                    startService(
+                                        Intent(
+                                            this@MainActivity,
+                                            ClockOverlayService::class.java
+                                        ).setAction(
+                                            ClockOverlayService.ACTION_SETTINGS_CHANGED
+                                        )
+                                    )
+                                } catch (_: Throwable) {
+                                }
+
+                                val changed =
+                                    SystemUIPlusAppSettings.applyLanguage(
+                                        this@MainActivity,
+                                        restoredLanguage
+                                    )
+
+                                if (changed) {
+                                    recreate()
+                                } else {
+                                    toast(
+                                        getString(
+                                            R.string.restore_complete
+                                        )
+                                    )
+                                }
+                            } else {
+                                toast(
+                                    getString(
+                                        R.string.restore_failed
+                                    )
+                                )
+                            }
+                        }
+                    ) {
+                        Text(stringResource(R.string.restore))
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showRestoreConfirmation = false
+                            pendingRestoreUri = null
+                        }
+                    ) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
+            )
+        }
+    }
+
+    @Composable
+    private fun AboutScreen(
+        modifier: Modifier = Modifier
+    ) {
+        Column(
+            modifier
+                .padding(horizontal = 18.dp)
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                Icons.Default.Info,
+                contentDescription = stringResource(
+                    R.string.content_description_about
+                ),
+                modifier = Modifier
+                    .padding(top = 28.dp)
+                    .size(72.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+
+            Text(
+                stringResource(R.string.systemui_plus),
+                style = MaterialTheme.typography.headlineSmall
+            )
+
+            Text(
+                stringResource(
+                    R.string.version,
+                    BuildConfig.VERSION_NAME
+                ),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Text(
+                stringResource(R.string.about_description),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            ExpressiveCard(Modifier.fillMaxWidth()) {
+                Column {
+                    ListItem(
+                        headlineContent = {
+                            Text(
+                                stringResource(
+                                    R.string.developer
+                                )
+                            )
+                        },
+                        supportingContent = {
+                            Text(
+                                stringResource(
+                                    R.string.developer_name
+                                )
+                            )
+                        }
+                    )
+                }
+            }
+
+            ExpressiveCard(Modifier.fillMaxWidth()) {
+                Column {
+                    AboutLinkRow(
+                        icon = Icons.Default.Code,
+                        title = stringResource(R.string.source_code),
+                        summary = stringResource(
+                            R.string.source_code_summary
+                        ),
+                        contentDescription = stringResource(
+                            R.string.content_description_source
+                        ),
+                        onClick = {
+                            openWebLink(
+                                "https://github.com/aldiandrew/SystemUIPlus"
+                            )
+                        }
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+
+                    AboutLinkRow(
+                        icon = Icons.Default.Description,
+                        title = stringResource(R.string.licenses),
+                        summary = stringResource(
+                            R.string.licenses_summary
+                        ),
+                        contentDescription = stringResource(
+                            R.string.content_description_licenses
+                        ),
+                        onClick = {
+                            openWebLink(
+                                "https://github.com/aldiandrew/SystemUIPlus#licenses"
+                            )
+                        }
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+
+                    AboutLinkRow(
+                        icon = Icons.Default.PrivacyTip,
+                        title = stringResource(R.string.privacy_policy),
+                        summary = stringResource(
+                            R.string.privacy_policy_summary
+                        ),
+                        contentDescription = stringResource(
+                            R.string.content_description_privacy
+                        ),
+                        onClick = {
+                            openWebLink(
+                                "https://github.com/aldiandrew/SystemUIPlus#privacy-policy"
+                            )
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun AboutLinkRow(
+        icon: androidx.compose.ui.graphics.vector.ImageVector,
+        title: String,
+        summary: String,
+        contentDescription: String,
+        onClick: () -> Unit
+    ) {
+        ListItem(
+            modifier = Modifier.clickable(onClick = onClick),
+            leadingContent = {
+                Icon(
+                    icon,
+                    contentDescription = contentDescription
+                )
+            },
+            headlineContent = {
+                Text(title)
+            },
+            supportingContent = {
+                Text(summary)
+            }
+        )
     }
 
     @Composable
@@ -916,7 +1776,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         Text(
-            "Preview updates with clock size/date/position and indicator size/style.",
+            stringResource(R.string.preview_updates),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -1000,7 +1860,7 @@ class MainActivity : ComponentActivity() {
             supportingContent = if (ready) {
                 {
                     Text(
-                        "READY",
+                        stringResource(R.string.ready),
                         color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.labelMedium
                     )
@@ -1055,9 +1915,11 @@ class MainActivity : ComponentActivity() {
                 ) {
                     androidx.compose.material3.Icon(
                         Icons.Default.Refresh,
-                        contentDescription = "Reset"
+                        contentDescription = stringResource(
+                            R.string.reset
+                        )
                     )
-                    Text("Reset")
+                    Text(stringResource(R.string.reset))
                 }
             }
             Slider(
