@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.BatteryManager
 import android.provider.Settings
 import android.net.Uri
 import android.os.PowerManager
@@ -26,7 +27,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BatteryFull
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SignalCellular4Bar
 import androidx.compose.material.icons.filled.Wifi
@@ -848,12 +848,12 @@ class MainActivity : ComponentActivity() {
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text("Battery protection", style = MaterialTheme.typography.titleLarge)
-                        Text(if (batteryOptimizationIgnored) "Battery optimization is enabled for SystemUI Plus." else "Android may stop background components when battery optimization is active.")
+                        Text(if (!batteryOptimizationIgnored) "Battery optimization is disabled for SystemUI Plus." else "Android may stop background components when battery optimization is active.")
                         OutlinedButton(
                             enabled = !batteryOptimizationIgnored,
                             onClick = ::requestBatteryOptimizationExemption,
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text(if (batteryOptimizationIgnored) "Battery protection enabled" else "Allow background operation") }
+                        ) { Text(if (!batteryOptimizationIgnored) "Battery protection enabled" else "Allow background operation") }
                     }
                 }
 
@@ -973,7 +973,6 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 )
-                }
             }
         }
         Text(
