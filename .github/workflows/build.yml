@@ -197,6 +197,27 @@ jobs:
               flags=re.S
           )
 
+          # Re-assert native SystemUI hiding after rotation/configuration changes.
+          if "override fun onConfigurationChanged" not in text:
+              marker = "    override fun onDestroy()"
+              pos = text.find(marker)
+              if pos >= 0:
+                  method = """    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+          super.onConfigurationChanged(newConfig)
+          try {
+              com.aldiandrew.systemuiplus.SystemUIPlusController.reapply(applicationContext)
+          } catch (_: Throwable) {
+          }
+          if (::statusBarContentView.isInitialized) {
+              statusBarContentView.post {
+                  updatePosition(statusBarContentView, statusBarContentView.rootWindowInsets)
+              }
+          }
+      }
+
+"""
+                  text = text[:pos] + method + text[pos:]
+
           clock.write_text(text)
           PY
 
