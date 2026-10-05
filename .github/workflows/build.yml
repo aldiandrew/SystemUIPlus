@@ -165,7 +165,7 @@ jobs:
                   Result.success("SystemUI Plus master controller owns native SystemUI visibility")
           }
           
-          private object AppContextHolder {
+          internal object AppContextHolder {
               lateinit var context: android.content.Context
           }
           EOF
