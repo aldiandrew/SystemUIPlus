@@ -15,10 +15,8 @@ enum class DuoVisualStyle {
 data class DuoStatusState(
     val batteryLevel: Int = 100,
     val charging: Boolean = false,
-    val powerSaver: Boolean = false,
     val wifiLevel: Int = 0,
     val wifiConnected: Boolean = false,
-    val wifiValidated: Boolean = false,
     val cellLevel: Int = 0,
     val networkGeneration: String = "",
     val airplane: Boolean = false,
