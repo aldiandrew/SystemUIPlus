@@ -3,13 +3,14 @@ package com.aldiandrew.systemuiplus
 import android.content.pm.PackageManager
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.lang.reflect.Method
 import rikka.shizuku.Shizuku
 
 /**
  * Single Shizuku authority used by every SystemUI Plus feature.
  *
  * ClockOS and Duos are merged into the same APK, therefore they must never
- * maintain separate permission/execution implementations.
+ * maintain separate permission or execution implementations.
  */
 object SystemUIPlusShizuku {
     const val REQUEST_CODE = 1001
@@ -45,7 +46,7 @@ object SystemUIPlusShizuku {
 
         var process: Process? = null
         return try {
-            process = Shizuku.newProcess(
+            process = createRemoteProcess(
                 arrayOf("sh", "-c", command),
                 null,
                 null
@@ -82,6 +83,36 @@ object SystemUIPlusShizuku {
             } catch (_: Throwable) {
             }
         }
+    }
+
+    /**
+     * Shizuku 13.1.x keeps the legacy newProcess entry point private while
+     * preparing applications to migrate to UserService. Calling it directly
+     * therefore fails Kotlin compilation. Reflection lets this compatibility
+     * layer use the API when it is present without referencing the private
+     * return type in source code.
+     */
+    private fun createRemoteProcess(
+        command: Array<String>,
+        environment: Array<String>?,
+        directory: String?
+    ): Process {
+        val method: Method = Shizuku::class.java.getDeclaredMethod(
+            "newProcess",
+            Array<String>::class.java,
+            Array<String>::class.java,
+            String::class.java
+        )
+        method.isAccessible = true
+
+        val result = method.invoke(
+            null,
+            command,
+            environment,
+            directory
+        )
+
+        return result as Process
     }
 
     data class CommandResult(
