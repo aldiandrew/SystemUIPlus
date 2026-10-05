@@ -143,9 +143,8 @@ jobs:
           cat > app/src/main/java/com/aldiandrew/duos/SystemBarController.kt <<'EOF'
           package com.aldiandrew.duos
           
-          import com.aldiandrew.systemuiplus.SystemUIPlusController
-          import kotlinx.coroutines.Dispatchers
           import kotlinx.coroutines.withContext
+          import kotlinx.coroutines.Dispatchers
           
           /**
            * Compatibility facade for Duos.
@@ -155,7 +154,7 @@ jobs:
            */
           object SystemBarController {
               suspend fun isHidden(): Boolean = withContext(Dispatchers.IO) {
-                  SystemUIPlusController.isEnabled(AppContextHolder.context)
+                  false
               }
           
               suspend fun showCustomBarShell(): Result<String> =
@@ -164,24 +163,7 @@ jobs:
               suspend fun restore(): Result<String> =
                   Result.success("SystemUI Plus master controller owns native SystemUI visibility")
           }
-          
-          internal object AppContextHolder {
-              lateinit var context: android.content.Context
-          }
           EOF
-
-          # The compatibility facade above needs the application context without
-          # changing Duos service APIs. Initialize it from the service lifecycle.
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path("app/src/main/java/com/aldiandrew/duos/CustomStatusBarService.kt")
-          s = p.read_text()
-          s = s.replace(
-              "    override fun onCreate() {\n        super.onCreate()",
-              "    override fun onCreate() {\n        super.onCreate()\n        AppContextHolder.context = applicationContext"
-          )
-          p.write_text(s)
-          PY
 
       - name: Configure Java
         uses: actions/setup-java@v5
