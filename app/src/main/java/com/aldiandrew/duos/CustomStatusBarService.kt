@@ -160,6 +160,7 @@ class CustomStatusBarService : Service() {
             lastError = t.stackTraceToString()
             isRunning = false
             Log.e(TAG, "Custom status bar failed", t)
+            restoreSystemBarInBackground()
             stopSelf()
         }
     }
@@ -197,6 +198,8 @@ class CustomStatusBarService : Service() {
         isRunning = false
 
         // Safety rule: once the custom bar disappears, never leave the user with no status bar.
+        restoreSystemBarInBackground()
+
         Log.i(TAG, "Compact custom status bar stopped")
         scope.cancel()
         super.onDestroy()
@@ -620,8 +623,32 @@ class CustomStatusBarService : Service() {
             false
         }
 
-    private fun readLightStatusBar(): Boolean =
-        !isNightMode()
+    private fun readLightStatusBar(): Boolean {
+        return try {
+            val output = runBlocking(Dispatchers.IO) {
+                ShizukuManager.executeCommand(
+                    "dumpsys statusbar"
+                ).getOrDefault("")
+            }
+
+            val appearanceLine =
+                output.lineSequence()
+                    .firstOrNull {
+                        it.trimStart().startsWith("mAppearance=")
+                    }
+
+            appearanceLine?.contains(
+                "LIGHT_STATUS_BARS",
+                ignoreCase = true
+            ) ?: !isNightMode()
+        } catch (t: Throwable) {
+            Log.w(
+                TAG,
+                "appearance read failed: ${t.javaClass.simpleName}"
+            )
+            !isNightMode()
+        }
+    }
 
     private fun isNightMode(): Boolean =
         (
@@ -741,4 +768,23 @@ class CustomStatusBarService : Service() {
             .toInt()
             .coerceAtLeast(1)
 
+    private fun restoreSystemBarInBackground() {
+        Thread {
+            try {
+                runBlocking {
+                    SystemBarController.restore()
+                }
+            } catch (t: Throwable) {
+                Log.e(
+                    TAG,
+                    "Automatic system status bar restore failed",
+                    t
+                )
+            }
+        }.apply {
+            name = "Duos-SystemBar-Restore"
+            isDaemon = true
+            start()
+        }
+    }
 }
