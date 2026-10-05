@@ -378,7 +378,6 @@ class CustomStatusBarService : Service() {
         if (!isLandscape()) {
             startStateMonitoring()
         }
-        handler.postDelayed(appearanceRunnable, 500L)
     }
 
     private fun isLandscape(): Boolean =
