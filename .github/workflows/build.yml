@@ -177,191 +177,32 @@ jobs:
               text
           )
 
-          # Keep the upstream clock color logic; SystemUI Plus settings controls its preview theme.
-          # Follow the device light/dark theme when the OEM appearance dump
-          # cannot be used reliably. This also prevents white custom content
-          # from disappearing against a light status-bar surface.
-          text = text.replace(
-              '        view.setTextColor(Color.WHITE)',
-              '''        val deviceIsNight = (
-              (resources.configuration.uiMode and
-                  android.content.res.Configuration.UI_MODE_NIGHT_MASK)
-                  == android.content.res.Configuration.UI_MODE_NIGHT_YES
-              )
-              view.setTextColor(if (deviceIsNight) Color.WHITE else Color.BLACK)'''
-          )
-          text = re.sub(
-              r'null -> nativeClockColor\(\)\s*\?:\s*if \(fallbackNight\) \{\s*Color\.WHITE\s*\}\s*else \{\s*Color\.BLACK\s*\}',
-              'null -> if (fallbackNight) {\n                            Color.WHITE\n                        } else {\n                            Color.BLACK\n                        }',
-              text,
-              flags=re.S
-          )
-
-          # Re-assert native SystemUI hiding after rotation/configuration changes.
-          if "override fun onConfigurationChanged" not in text:
-              marker = "    override fun onDestroy()"
-              pos = text.find(marker)
-              if pos >= 0:
-                  method = """    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
-          super.onConfigurationChanged(newConfig)
-          try {
-              com.aldiandrew.systemuiplus.SystemUIPlusController.reapply(applicationContext)
-          } catch (_: Throwable) {
-          }
-          if (::statusBarContentView.isInitialized) {
-              statusBarContentView.post {
-                  updatePosition(statusBarContentView, statusBarContentView.rootWindowInsets)
-              }
-          }
-      }
-
-"""
-                  text = text[:pos] + method + text[pos:]
-
           clock.write_text(text)
           PY
 
           # Duos must never restore native SystemUI when its renderer stops.
-          # SystemBarController is replaced below by a no-op compatibility facade.
+          # SystemBarController is already replaced above by a no-op facade.
           python3 <<'PY'
           from pathlib import Path
           import re
 
           duos = Path("app/src/main/java/com/aldiandrew/duos/CustomStatusBarService.kt")
           text = duos.read_text()
-
-          # Match Duos' Wi-Fi detection but do not depend on validated internet.
-          old_wifi = """            val network = cm.activeNetwork
-            val caps = network?.let { cm.getNetworkCapabilities(it) }
-                ?: return Triple(0, false, false)
-
-            val transportWifi =
-                caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
-
-            if (!transportWifi) {
-                return Triple(0, false, false)
-            }
-
-            val validated =
-                caps.hasCapability(
-                    NetworkCapabilities.NET_CAPABILITY_VALIDATED
-                )
-
-            @Suppress("DEPRECATION")
-            val rssi = wifi.connectionInfo?.rssi ?: -127
-
-            val stockBars =
-                if (rssi == -127) {
-                    0
-                } else {
-                    @Suppress("DEPRECATION")
-                    (WifiManager.calculateSignalLevel(rssi, 5) + 1)
-                        .coerceIn(0, 4)
-                }
-
-            // Only a validated Wi-Fi network owns the middle slot; otherwise the mobile generation
-            // remains visible, matching the active data path.
-            Triple(
-                DuoStatusMapper.wifiBars(stockBars),
-                validated,
-                validated
-            )"""
-          new_wifi = """            val network = cm.activeNetwork
-            val caps = network?.let { cm.getNetworkCapabilities(it) }
-            val transportWifi =
-                caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
-
-            @Suppress("DEPRECATION")
-            val connectionInfo = runCatching { wifi.connectionInfo }.getOrNull()
-            @Suppress("DEPRECATION")
-            val connectedByWifiInfo =
-                connectionInfo?.networkId?.let { it != -1 } == true
-
-            if (!transportWifi && !connectedByWifiInfo) {
-                return Triple(0, false, false)
-            }
-
-            val validated =
-                caps?.hasCapability(
-                    NetworkCapabilities.NET_CAPABILITY_VALIDATED
-                ) == true
-
-            @Suppress("DEPRECATION")
-            val rssi = connectionInfo?.rssi ?: -127
-
-            val stockBars =
-                if (rssi == -127) {
-                    1
-                } else {
-                    @Suppress("DEPRECATION")
-                    (WifiManager.calculateSignalLevel(rssi, 5) + 1)
-                        .coerceIn(0, 4)
-                }
-
-            Triple(
-                DuoStatusMapper.wifiBars(stockBars),
-                true,
-                validated
-            )"""
-          if old_wifi in text:
-              text = text.replace(old_wifi, new_wifi)
-
-          # Remove legacy native SystemUI restoration from the renderer.
+          # Remove every legacy call to native SystemUI restoration, regardless
+          # of indentation, because the master SystemUIPlusController owns this.
           text = re.sub(
-              r'^\s*restoreSystemBarInBackground\(\)\s*$\n?',
+              r'^\\s*restoreSystemBarInBackground\\(\\)\\s*$\\n?',
               '',
               text,
               flags=re.M
           )
+          # Remove the complete legacy helper if it exists in the upstream source.
           text = re.sub(
-              r'\n?    private fun restoreSystemBarInBackground\(\) \{.*?^    \}\n',
-              '\n',
+              r'\\n?    private fun restoreSystemBarInBackground\\(\\) \\{.*?^    \\}\\n',
+              '\\n',
               text,
               flags=re.S | re.M
           )
-
-          # Wi-Fi must be drawn whenever the Wi-Fi link is connected, not only
-          # when Android reports validated internet access.
-          text = text.replace(
-              """                DuoStatusMapper.wifiBars(stockBars),
-              validated,
-              validated""",
-              """                DuoStatusMapper.wifiBars(stockBars),
-              true,
-              validated"""
-          )
-
-          # Use the device light/dark mode directly. Some OEM statusbar dumps
-          # do not expose mAppearance/LIGHT_STATUS_BARS reliably.
-          start = text.find("    private fun readLightStatusBar(): Boolean {")
-          end_marker = "    private fun isNightMode(): Boolean =\n"
-          end = text.find(end_marker, start)
-          if start >= 0 and end >= 0:
-              text = text[:start] + (
-                  "    private fun readLightStatusBar(): Boolean =\n"
-                  "        !isNightMode()\n\n"
-              ) + text[end:]
-
-          # Re-assert native SystemUI hiding after rotation/configuration changes.
-          start = text.find("    override fun onStartCommand(")
-          if start >= 0:
-              marker = "    override fun onBind(intent: Intent?): IBinder? = null"
-              pos = text.find(marker, start)
-              if pos >= 0 and "override fun onConfigurationChanged" not in text:
-                  method = """    override fun onConfigurationChanged(newConfig: Configuration) {
-          super.onConfigurationChanged(newConfig)
-          try {
-              val context = applicationContext
-              com.aldiandrew.systemuiplus.SystemUIPlusController.reapply(context)
-          } catch (_: Throwable) {
-          }
-          handler.removeCallbacks(positionRefreshRunnable)
-          handler.post(positionRefreshRunnable)
-      }
-
-"""
-                  text = text[:pos] + method + text[pos:]
-
           duos.write_text(text)
           PY
 
