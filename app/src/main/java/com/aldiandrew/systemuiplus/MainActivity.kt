@@ -321,7 +321,7 @@ class MainActivity : ComponentActivity() {
         }.start()
     }
 
-    private fun toast(    private fun toast(message: String) {
+    private fun toast(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
