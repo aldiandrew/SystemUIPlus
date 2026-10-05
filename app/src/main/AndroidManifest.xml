@@ -43,6 +43,7 @@
         <service
             android:name="com.aldiandrew.clockos.ClockOverlayService"
             android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode"
             android:foregroundServiceType="specialUse"
             android:stopWithTask="false">
             <property
