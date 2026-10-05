@@ -3,13 +3,12 @@ package com.aldiandrew.systemuiplus
 // Unified SystemUI Plus controller: ClockOS + Duos.
 
 import android.content.Intent
+import android.net.Uri
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.BatteryManager
 import android.provider.Settings
-import android.net.Uri
-import android.os.PowerManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -39,6 +38,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -48,7 +50,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Box
@@ -70,16 +71,14 @@ import rikka.shizuku.Shizuku
 class MainActivity : ComponentActivity() {
     companion object { private const val PHONE_PERMISSION_REQUEST = 4107 }
     private lateinit var clockPrefs: ClockPrefs
-    private lateinit var clockShell: ShizukuShell
-
     private var shizukuReady by mutableStateOf(false)
     private var systemUiHidden by mutableStateOf(false)
     private var notificationAccess by mutableStateOf(false)
     private var clockActive by mutableStateOf(false)
     private var duosActive by mutableStateOf(false)
     private var busy by mutableStateOf(false)
-    private var batteryOptimizationIgnored by mutableStateOf(false)
     private var phoneStateGranted by mutableStateOf(true)
+    private var overlayPermissionGranted by mutableStateOf(false)
 
     private var clockSettings by mutableStateOf(ClockSettings())
     private var duoSize by mutableStateOf(36f)
@@ -108,16 +107,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         clockPrefs = ClockPrefs(this)
-        clockShell = ShizukuShell(this)
         loadSettings()
-        refreshBatteryOptimizationState()
         refreshPhonePermission()
 
         Shizuku.addRequestPermissionResultListener(permissionListener)
         Shizuku.addBinderReceivedListener(binderReceived)
         Shizuku.addBinderDeadListener(binderDead)
         refreshState()
-        refreshBatteryOptimizationState()
 
         setContent {
             SystemUIPlusTheme {
@@ -171,7 +167,6 @@ class MainActivity : ComponentActivity() {
             Thread { SystemUIPlusController.reapply(this) }.start()
         }
         loadSettings()
-        refreshBatteryOptimizationState()
     }
 
     private fun refreshPhonePermission() {
@@ -187,6 +182,20 @@ class MainActivity : ComponentActivity() {
                 arrayOf(android.Manifest.permission.READ_PHONE_STATE),
                 PHONE_PERMISSION_REQUEST
             )
+        }
+    }
+
+    private fun openOverlayPermission() {
+        if (Build.VERSION.SDK_INT < 23) return
+        try {
+            startActivity(
+                Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:$packageName")
+                )
+            )
+        } catch (_: Throwable) {
+            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION))
         }
     }
 
@@ -206,34 +215,6 @@ class MainActivity : ComponentActivity() {
             refreshPhonePermission()
             if (phoneStateGranted) {
                 toast("Phone state permission granted")
-            }
-        }
-    }
-
-    private fun refreshBatteryOptimizationState() {
-        val power = getSystemService(PowerManager::class.java)
-        batteryOptimizationIgnored =
-            if (android.os.Build.VERSION.SDK_INT >= 23) {
-                !power.isIgnoringBatteryOptimizations(packageName)
-            } else {
-                true
-            }
-    }
-
-    private fun requestBatteryOptimizationExemption() {
-        if (android.os.Build.VERSION.SDK_INT < 23) return
-        try {
-            startActivity(
-                Intent(
-                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                    Uri.parse("package:$packageName")
-                )
-            )
-        } catch (_: Throwable) {
-            try {
-                startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
-            } catch (t: Throwable) {
-                toast(t.message ?: "Battery optimization settings unavailable")
             }
         }
     }
@@ -287,15 +268,8 @@ class MainActivity : ComponentActivity() {
             return
         }
 
-        if (!phoneStateGranted) {
-            requestPhonePermission()
-            toast("Phone permission is needed to show the active mobile network and signal.")
-            return
-        }
-
-        if (!notificationAccess) {
-            openNotificationAccess()
-            toast("Grant notification access before enabling SystemUI Plus")
+        if (!phoneStateGranted || !notificationAccess || !overlayPermissionGranted) {
+            toast("Grant all required permissions in SystemUI control first")
             return
         }
 
@@ -336,11 +310,33 @@ class MainActivity : ComponentActivity() {
                     }
 
                     try {
-                        clockShell.execute(
-                            "appops set " + packageName +
-                                " android:system_alert_window allow"
-                        ) { appOp ->
-                            if (!appOp.startsWith("exit=0")) {
+                        runCatching {
+                            startForegroundService(
+                                Intent(this, ClockOverlayService::class.java)
+                            )
+                            clockActive = true
+                            getPreferences(0)
+                                .edit()
+                                .putBoolean("clock_active", true)
+                                .apply()
+                            duosActive = true
+                            busy = false
+                            toast("SystemUI Plus is active")
+                        }.onFailure { t ->
+                            ShizukuOverlayController.stop(this, restoreSystemBar = false) {
+                                Thread {
+                                    SystemUIPlusController.restore(this)
+                                    runOnUiThread {
+                                        systemUiHidden = false
+                                        busy = false
+                                        toast(t.message ?: "Could not start custom clock")
+                                    }
+                                }.start()
+                            }
+                        }
+                        return@runOnUiThread
+                        
+                        if (false) {
                                 ShizukuOverlayController.stop(this, restoreSystemBar = false) {
                                     Thread {
                                         SystemUIPlusController.restore(this)
@@ -382,8 +378,6 @@ class MainActivity : ComponentActivity() {
                                         }.start()
                                     }
                                 }
-                            }
-                        }
                     } catch (t: Throwable) {
                         ShizukuOverlayController.stop(this, restoreSystemBar = false) {
                             Thread {
@@ -391,10 +385,7 @@ class MainActivity : ComponentActivity() {
                                 runOnUiThread {
                                     systemUiHidden = false
                                     busy = false
-                                    toast(
-                                        t.message
-                                            ?: "Could not start SystemUI Plus"
-                                    )
+                                    toast(t.message ?: "Could not start SystemUI Plus")
                                 }
                             }.start()
                         }
@@ -483,18 +474,16 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun SystemUIScreen() {
         Scaffold(
-            topBar = { TopAppBar(
-                title = {
-                    Column {
-                        Text("SystemUI Plus", style = MaterialTheme.typography.titleLarge)
+            topBar = {
+                TopAppBar(
+                    title = {
                         Text(
-                            "Your Android status experience",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            "SystemUI Plus",
+                            style = MaterialTheme.typography.titleLarge
                         )
                     }
-                }
-            ) }
+                )
+            }
         ) { padding ->
             Column(
                 Modifier
@@ -505,18 +494,63 @@ class MainActivity : ComponentActivity() {
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 ExpressiveCard(Modifier.fillMaxWidth()) {
-                    Column(
-                        Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text("SystemUI control", style = MaterialTheme.typography.headlineSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-                        Text(if (shizukuReady) "Shizuku: READY" else "Shizuku: NOT READY")
-                        if (!shizukuReady) {
-                            Button(onClick = ::requestShizuku, Modifier.fillMaxWidth()) {
-                                Text("Connect Shizuku")
+                    Column {
+                        Text(
+                            "SystemUI control",
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier.padding(
+                                start = 16.dp,
+                                top = 16.dp,
+                                end = 16.dp,
+                                bottom = 6.dp
+                            )
+                        )
+
+                        PermissionRow(
+                            title = "Shizuku",
+                            ready = shizukuReady,
+                            actionLabel = "Connect",
+                            onAction = ::requestShizuku
+                        )
+                        PermissionRow(
+                            title = "Notification access",
+                            ready = notificationAccess,
+                            actionLabel = "Grant",
+                            onAction = ::openNotificationAccess
+                        )
+                        PermissionRow(
+                            title = "Phone state",
+                            ready = phoneStateGranted,
+                            actionLabel = "Allow",
+                            onAction = ::requestPhonePermission
+                        )
+                        PermissionRow(
+                            title = "Display over other apps",
+                            ready = overlayPermissionGranted,
+                            actionLabel = "Allow",
+                            onAction = ::openOverlayPermission
+                        )
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+
+                        ListItem(
+                            headlineContent = {
+                                Text("SystemUI Plus")
+                            },
+                            trailingContent = {
+                                Switch(
+                                    checked = systemUiHidden,
+                                    onCheckedChange = { toggleMasterSystemUi() },
+                                    enabled = shizukuReady &&
+                                        notificationAccess &&
+                                        phoneStateGranted &&
+                                        overlayPermissionGranted &&
+                                        !busy
+                                )
                             }
-                        }
-                        Text("No root, no Xposed, and no accessibility service are used.")
+                        )
                     }
                 }
 
@@ -525,26 +559,11 @@ class MainActivity : ComponentActivity() {
                         Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("SystemUI Plus", style = MaterialTheme.typography.titleLarge)
                         Text(
-                            if (systemUiHidden) {
-                                "ACTIVE — the entire native status bar is hidden and replaced by SystemUI Plus."
-                            } else {
-                                "OFF — native Android SystemUI is active."
-                            }
+                            "Live preview",
+                            style = MaterialTheme.typography.titleLarge
                         )
-                        Switch(
-                            checked = systemUiHidden,
-                            onCheckedChange = { toggleMasterSystemUi() },
-                            enabled = shizukuReady && !busy
-                        )
-                        Text(
-                            if (systemUiHidden) {
-                                "Status bar and navigation SystemUI are hidden together; custom indicators are managed as one system."
-                            } else {
-                                "One switch controls the complete custom status bar. There are no separate Clock/Duos lifecycle switches."
-                            }
-                        )
+                        SystemUiPreview()
                     }
                 }
 
@@ -554,43 +573,8 @@ class MainActivity : ComponentActivity() {
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            "Live preview",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                        )
-                        Text(
-                            "Preview of the custom SystemUI that replaces the native bar.",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        SystemUiPreview()
-                    }
-                }
-
-                ExpressiveCard(Modifier.fillMaxWidth()) {
-                    Column(
-                        Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text("Custom Clock", style = MaterialTheme.typography.titleLarge)
-                        Text(if (clockActive) "ACTIVE" else "OFF")
-                        if (!systemUiHidden) Text("Disabled until Native SystemUI is hidden.")
-
-                        if (!notificationAccess) {
-                            OutlinedButton(
-                                onClick = ::openNotificationAccess,
-                                enabled = !systemUiHidden && !busy,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Grant notification access")
-                            }
-                        }
-
-                        Text(
-                            if (systemUiHidden && clockActive) {
-                                "ACTIVE — clock and notification icons are part of SystemUI Plus."
-                            } else {
-                                "Managed automatically by the master SystemUI Plus switch."
-                            }
+                            "Custom Clock",
+                            style = MaterialTheme.typography.titleLarge
                         )
 
                         SettingSwitch("24-hour", clockSettings.format24) {
@@ -630,66 +614,31 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text("Clock size", style = MaterialTheme.typography.titleMedium)
-                                Text(
-                                    clockSettings.sizeSp.toInt().toString() + " sp",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            androidx.compose.material3.TextButton(onClick = { saveClock("sizeSp", 14f) }) {
-                                androidx.compose.material3.Icon(Icons.Default.Refresh, contentDescription = "Reset size")
-                                Text("Reset")
-                            }
-                        }
-                        Slider(
+                        SliderSetting(
+                            title = "Clock size",
+                            valueText = clockSettings.sizeSp.toInt().toString() + " sp",
                             value = clockSettings.sizeSp,
+                            range = 10f..22f,
                             onValueChange = { saveClock("sizeSp", it) },
-                            valueRange = 10f..22f,
-                            modifier = Modifier.fillMaxWidth()
+                            onReset = { saveClock("sizeSp", 14f) }
                         )
 
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text("Clock position", style = MaterialTheme.typography.titleMedium)
-                                Text(
-                                    "Horizontal " + clockSettings.horizontalPositionDp.toInt() +
-                                        " dp · Vertical " + clockSettings.verticalPositionDp.toInt() + " dp",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            androidx.compose.material3.TextButton(
-                                onClick = {
-                                    saveClock("horizontalPositionDp", 0f)
-                                    saveClock("verticalPositionDp", 0f)
-                                }
-                            ) {
-                                androidx.compose.material3.Icon(Icons.Default.Refresh, contentDescription = "Reset position")
-                                Text("Reset")
-                            }
-                        }
-                        Text("Horizontal")
-                        Slider(
+                        SliderSetting(
+                            title = "Clock horizontal position",
+                            valueText = clockSettings.horizontalPositionDp.toInt().toString() + " dp",
                             value = clockSettings.horizontalPositionDp,
+                            range = -100f..100f,
                             onValueChange = { saveClock("horizontalPositionDp", it) },
-                            valueRange = -100f..100f,
-                            modifier = Modifier.fillMaxWidth()
+                            onReset = { saveClock("horizontalPositionDp", 0f) }
                         )
-                        Text("Vertical")
-                        Slider(
+
+                        SliderSetting(
+                            title = "Clock vertical position",
+                            valueText = clockSettings.verticalPositionDp.toInt().toString() + " dp",
                             value = clockSettings.verticalPositionDp,
+                            range = -20f..20f,
                             onValueChange = { saveClock("verticalPositionDp", it) },
-                            valueRange = -20f..20f,
-                            modifier = Modifier.fillMaxWidth()
+                            onReset = { saveClock("verticalPositionDp", 0f) }
                         )
                     }
                 }
@@ -697,104 +646,87 @@ class MainActivity : ComponentActivity() {
                 ExpressiveCard(Modifier.fillMaxWidth()) {
                     Column(
                         Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text("Custom System Indicators", style = MaterialTheme.typography.titleLarge)
-                        if (!systemUiHidden) Text("Disabled until Native SystemUI is hidden.")
                         Text(
-                            if (duosActive) {
-                                "ACTIVE — battery, Wi-Fi and cellular indicators are rendered by Duos."
-                            } else {
-                                "OFF — native SystemUI is restored."
-                            }
+                            "Custom System Indicators",
+                            style = MaterialTheme.typography.titleLarge
                         )
 
-                        Text(
-                            if (systemUiHidden && duosActive) {
-                                "ACTIVE — battery, Wi-Fi, cellular, network and notification indicators belong to the same custom status bar."
-                            } else {
-                                "Managed automatically by the master SystemUI Plus switch."
-                            }
-                        )
-
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text("Indicator size", style = MaterialTheme.typography.titleMedium)
-                                Text(
-                                    duoSize.toInt().toString() + " dp",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            androidx.compose.material3.TextButton(
-                                onClick = {
-                                    DuoPreferences.setIndicatorSizeDp(this@MainActivity, 36f)
-                                    loadSettings()
-                                }
-                            ) {
-                                androidx.compose.material3.Icon(Icons.Default.Refresh, contentDescription = "Reset size")
-                                Text("Reset")
-                            }
-                        }
-                        Slider(
+                        SliderSetting(
+                            title = "Indicator size",
+                            valueText = duoSize.toInt().toString() + " dp",
                             value = duoSize,
+                            range = 28f..60f,
                             onValueChange = {
                                 duoSize = it
-                                DuoPreferences.setIndicatorSizeDp(this@MainActivity, it)
+                                DuoPreferences.setIndicatorSizeDp(
+                                    this@MainActivity,
+                                    it
+                                )
                             },
-                            valueRange = 28f..60f,
-                            modifier = Modifier.fillMaxWidth()
+                            onReset = {
+                                DuoPreferences.setIndicatorSizeDp(
+                                    this@MainActivity,
+                                    36f
+                                )
+                                loadSettings()
+                            }
                         )
 
-                        SettingSwitch("Automatic position", duoAutomatic) {
+                        SettingSwitch(
+                            "Automatic position",
+                            duoAutomatic
+                        ) {
                             duoAutomatic = it
-                            DuoPreferences.setAutomaticPosition(this@MainActivity, it)
+                            DuoPreferences.setAutomaticPosition(
+                                this@MainActivity,
+                                it
+                            )
                         }
 
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text("Indicator position", style = MaterialTheme.typography.titleMedium)
-                                Text(
-                                    "Horizontal " + duoX.toInt() +
-                                        " dp · Vertical " + duoY.toInt() + " dp",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            androidx.compose.material3.TextButton(onClick = ::resetDuoPosition) {
-                                androidx.compose.material3.Icon(Icons.Default.Refresh, contentDescription = "Reset position")
-                                Text("Reset")
-                            }
-                        }
-                        Text("Horizontal")
-                        Slider(
+                        SliderSetting(
+                            title = "Indicator horizontal position",
+                            valueText = duoX.toInt().toString() + " dp",
                             value = duoX,
+                            range = -24f..24f,
                             onValueChange = {
                                 duoX = it
                                 duoAutomatic = false
-                                DuoPreferences.setHorizontalOffsetDp(this@MainActivity, it)
-                                DuoPreferences.setAutomaticPosition(this@MainActivity, false)
+                                DuoPreferences.setHorizontalOffsetDp(
+                                    this@MainActivity,
+                                    it
+                                )
+                                DuoPreferences.setAutomaticPosition(
+                                    this@MainActivity,
+                                    false
+                                )
                             },
-                            valueRange = -24f..24f,
-                            modifier = Modifier.fillMaxWidth()
+                            onReset = {
+                                resetDuoPosition()
+                            }
                         )
-                        Text("Vertical")
-                        Slider(
+
+                        SliderSetting(
+                            title = "Indicator vertical position",
+                            valueText = duoY.toInt().toString() + " dp",
                             value = duoY,
+                            range = -24f..24f,
                             onValueChange = {
                                 duoY = it
                                 duoAutomatic = false
-                                DuoPreferences.setVerticalOffsetDp(this@MainActivity, it)
-                                DuoPreferences.setAutomaticPosition(this@MainActivity, false)
+                                DuoPreferences.setVerticalOffsetDp(
+                                    this@MainActivity,
+                                    it
+                                )
+                                DuoPreferences.setAutomaticPosition(
+                                    this@MainActivity,
+                                    false
+                                )
                             },
-                            valueRange = -24f..24f,
-                            modifier = Modifier.fillMaxWidth()
+                            onReset = {
+                                resetDuoPosition()
+                            }
                         )
 
                         Text(
@@ -802,7 +734,7 @@ class MainActivity : ComponentActivity() {
                             style = MaterialTheme.typography.titleMedium
                         )
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             listOf(
@@ -850,27 +782,13 @@ class MainActivity : ComponentActivity() {
 
                 ExpressiveCard(Modifier.fillMaxWidth()) {
                     Column(
-                        Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        Modifier.padding(16.dp)
                     ) {
-                        Text("Battery protection", style = MaterialTheme.typography.titleLarge)
-                        Text(if (!batteryOptimizationIgnored) "Battery optimization is disabled for SystemUI Plus." else "Android may stop background components when battery optimization is active.")
-                        OutlinedButton(
-                            enabled = batteryOptimizationIgnored,
-                            onClick = ::requestBatteryOptimizationExemption,
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text(if (!batteryOptimizationIgnored) "Battery protection enabled" else "Allow background operation") }
-                    }
-                }
-
-                ExpressiveCard(Modifier.fillMaxWidth()) {
-                    Column(
-                        Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text("Safety", style = MaterialTheme.typography.titleLarge)
-                        Text("If SystemUI Plus is turned off or startup fails, the previously saved native SystemUI policy is restored.")
-                        OutlinedButton(
+                        Text(
+                            "Safety",
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        TextButton(
                             enabled = !busy,
                             onClick = ::restoreNativeSystemUi,
                             modifier = Modifier.fillMaxWidth()
@@ -1050,6 +968,84 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+
+    @Composable
+    private fun PermissionRow(
+        title: String,
+        ready: Boolean,
+        actionLabel: String,
+        onAction: () -> Unit
+    ) {
+        ListItem(
+            headlineContent = {
+                Text(title)
+            },
+            supportingContent = if (ready) {
+                {
+                    Text(
+                        "READY",
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+            } else {
+                null
+            },
+            trailingContent = if (ready) {
+                null
+            } else {
+                {
+                    TextButton(onClick = onAction) {
+                        Text(actionLabel)
+                    }
+                }
+            }
+        )
+    }
+
+    @Composable
+    private fun SliderSetting(
+        title: String,
+        valueText: String,
+        value: Float,
+        range: ClosedFloatingPointRange<Float>,
+        onValueChange: (Float) -> Unit,
+        onReset: () -> Unit
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        valueText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                TextButton(onClick = onReset) {
+                    androidx.compose.material3.Icon(
+                        Icons.Default.Refresh,
+                        contentDescription = "Reset"
+                    )
+                    Text("Reset")
+                }
+            }
+            Slider(
+                value = value,
+                onValueChange = onValueChange,
+                valueRange = range,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
 
     @Composable
     private fun SettingSwitch(
