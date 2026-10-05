@@ -177,31 +177,8 @@ jobs:
               text
           )
 
-          # Keep the custom clock color aligned with the Material 3 dynamic theme.
-          text = text.replace(
-              'import java.util.Locale',
-              'import java.util.Locale\\nimport androidx.compose.material3.darkColorScheme\\nimport androidx.compose.material3.dynamicDarkColorScheme\\nimport androidx.compose.material3.dynamicLightColorScheme\\nimport androidx.compose.material3.lightColorScheme\\nimport androidx.compose.ui.graphics.toArgb'
-          )
-          text = re.sub(
-              r'            val color =\\s*when \\(appearance\\) \\{.*?\\n                \\}',
-              '            val color = appThemeClockColor()',
-              text,
-              flags=re.S
-          )
-          marker = '    private fun nativeClockColor(): Int? {'
-          theme_fn = (
-              '    private fun appThemeClockColor(): Int {\\n'
-              '        val dark = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES\\n'
-              '        val scheme = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {\\n'
-              '            if (dark) dynamicDarkColorScheme(this) else dynamicLightColorScheme(this)\\n'
-              '        } else {\\n'
-              '            if (dark) darkColorScheme() else lightColorScheme()\\n'
-              '        }\\n'
-              '        return scheme.onSurface.toArgb()\\n'
-              '    }\\n\\n'
-          )
-          text = text.replace(marker, theme_fn + marker)
-          clock.write_text(text)
+          # Keep the upstream clock color logic; SystemUI Plus settings controls its preview theme.
+                    clock.write_text(text)
           PY
 
           # Duos must never restore native SystemUI when its renderer stops.
