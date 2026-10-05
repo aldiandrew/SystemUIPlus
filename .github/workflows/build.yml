@@ -321,6 +321,26 @@ jobs:
                   "        !isNightMode()\n\n"
               ) + text[end:]
 
+          # Re-assert native SystemUI hiding after rotation/configuration changes.
+          start = text.find("    override fun onStartCommand(")
+          if start >= 0:
+              marker = "    override fun onBind(intent: Intent?): IBinder? = null"
+              pos = text.find(marker, start)
+              if pos >= 0 and "override fun onConfigurationChanged" not in text:
+                  method = """    override fun onConfigurationChanged(newConfig: Configuration) {
+          super.onConfigurationChanged(newConfig)
+          try {
+              val context = applicationContext
+              com.aldiandrew.systemuiplus.SystemUIPlusController.reapply(context)
+          } catch (_: Throwable) {
+          }
+          handler.removeCallbacks(positionRefreshRunnable)
+          handler.post(positionRefreshRunnable)
+      }
+
+"""
+                  text = text[:pos] + method + text[pos:]
+
           duos.write_text(text)
           PY
 
