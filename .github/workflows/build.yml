@@ -50,92 +50,92 @@ jobs:
           # Replace those layers with compatibility facades backed by the
           # single SystemUIPlusShizuku manager in the host application.
           cat > app/src/main/java/com/aldiandrew/duos/ShizukuManager.kt <<'EOF'
-package com.aldiandrew.duos
-
-import com.aldiandrew.systemuiplus.SystemUIPlusShizuku
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-
-object ShizukuManager {
-    const val REQUEST_CODE = SystemUIPlusShizuku.REQUEST_CODE
-
-    fun isAvailable(): Boolean = SystemUIPlusShizuku.isAvailable()
-
-    fun hasPermission(): Boolean = SystemUIPlusShizuku.hasPermission()
-
-    fun requestPermission(listener: rikka.shizuku.Shizuku.OnRequestPermissionResultListener) {
-        try {
-            rikka.shizuku.Shizuku.removeRequestPermissionResultListener(listener)
-        } catch (_: Throwable) {
-        }
-        SystemUIPlusShizuku.requestPermission()
-    }
-
-    suspend fun executeCommand(command: String): Result<String> =
-        withContext(Dispatchers.IO) {
-            SystemUIPlusShizuku.execute(command).fold(
-                onSuccess = { result ->
-                    if (result.exitCode == 0) {
-                        Result.success(result.stdout)
-                    } else {
-                        Result.failure(
-                            RuntimeException(
-                                result.stderr.ifBlank { "Command failed: $command" }
-                            )
-                        )
-                    }
-                },
-                onFailure = { Result.failure(it) }
-            )
-        }
-}
-EOF
+          package com.aldiandrew.duos
+          
+          import com.aldiandrew.systemuiplus.SystemUIPlusShizuku
+          import kotlinx.coroutines.Dispatchers
+          import kotlinx.coroutines.withContext
+          
+          object ShizukuManager {
+              const val REQUEST_CODE = SystemUIPlusShizuku.REQUEST_CODE
+          
+              fun isAvailable(): Boolean = SystemUIPlusShizuku.isAvailable()
+          
+              fun hasPermission(): Boolean = SystemUIPlusShizuku.hasPermission()
+          
+              fun requestPermission(listener: rikka.shizuku.Shizuku.OnRequestPermissionResultListener) {
+                  try {
+                      rikka.shizuku.Shizuku.removeRequestPermissionResultListener(listener)
+                  } catch (_: Throwable) {
+                  }
+                  SystemUIPlusShizuku.requestPermission()
+              }
+          
+              suspend fun executeCommand(command: String): Result<String> =
+                  withContext(Dispatchers.IO) {
+                      SystemUIPlusShizuku.execute(command).fold(
+                          onSuccess = { result ->
+                              if (result.exitCode == 0) {
+                                  Result.success(result.stdout)
+                              } else {
+                                  Result.failure(
+                                      RuntimeException(
+                                          result.stderr.ifBlank { "Command failed: $command" }
+                                      )
+                                  )
+                              }
+                          },
+                          onFailure = { Result.failure(it) }
+                      )
+                  }
+          }
+          EOF
 
           cat > app/src/main/java/com/aldiandrew/clockos/ShizukuShell.kt <<'EOF'
-package com.aldiandrew.clockos
-
-import com.aldiandrew.systemuiplus.SystemUIPlusShizuku
-
-class ShizukuShell(private val context: android.content.Context) {
-
-    fun hasPermission(): Boolean = SystemUIPlusShizuku.hasPermission()
-
-    fun requestPermission() {
-        SystemUIPlusShizuku.requestPermission()
-    }
-
-    fun isAvailable(): Boolean = SystemUIPlusShizuku.isAvailable()
-
-    fun execute(command: String, callback: (String) -> Unit) {
-        if (!isAvailable()) {
-            callback("Shizuku is not running")
-            return
-        }
-
-        if (!hasPermission()) {
-            requestPermission()
-            callback("Shizuku permission required")
-            return
-        }
-
-        Thread {
-            val result = SystemUIPlusShizuku.execute(command)
-            val output = result.fold(
-                onSuccess = { it.asClockShellString() },
-                onFailure = { "error=$it" }
-            )
-            try {
-                callback(output)
-            } catch (_: Throwable) {
-            }
-        }.start()
-    }
-
-    fun unbind() {
-        // The merged app has one shared Shizuku command executor.
-    }
-}
-EOF
+          package com.aldiandrew.clockos
+          
+          import com.aldiandrew.systemuiplus.SystemUIPlusShizuku
+          
+          class ShizukuShell(private val context: android.content.Context) {
+          
+              fun hasPermission(): Boolean = SystemUIPlusShizuku.hasPermission()
+          
+              fun requestPermission() {
+                  SystemUIPlusShizuku.requestPermission()
+              }
+          
+              fun isAvailable(): Boolean = SystemUIPlusShizuku.isAvailable()
+          
+              fun execute(command: String, callback: (String) -> Unit) {
+                  if (!isAvailable()) {
+                      callback("Shizuku is not running")
+                      return
+                  }
+          
+                  if (!hasPermission()) {
+                      requestPermission()
+                      callback("Shizuku permission required")
+                      return
+                  }
+          
+                  Thread {
+                      val result = SystemUIPlusShizuku.execute(command)
+                      val output = result.fold(
+                          onSuccess = { it.asClockShellString() },
+                          onFailure = { "error=$it" }
+                      )
+                      try {
+                          callback(output)
+                      } catch (_: Throwable) {
+                      }
+                  }.start()
+              }
+          
+              fun unbind() {
+                  // The merged app has one shared Shizuku command executor.
+              }
+          }
+          EOF
 
       - name: Configure Java
         uses: actions/setup-java@v5
