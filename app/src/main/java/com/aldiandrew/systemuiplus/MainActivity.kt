@@ -105,6 +105,15 @@ class MainActivity : ComponentActivity() {
         loadSettings()
         refreshPhonePermission()
 
+        if (
+            SystemUIPlusController.isEnabled(this) &&
+            isLandscape()
+        ) {
+            // When the app process is recreated directly in landscape, keep
+            // the native status bar instead of starting the custom renderer.
+            SystemUIPlusController.reapplyAfterConfiguration(this)
+        }
+
         Shizuku.addRequestPermissionResultListener(permissionListener)
         Shizuku.addBinderReceivedListener(binderReceived)
         Shizuku.addBinderDeadListener(binderDead)
@@ -123,6 +132,12 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         refreshState()
         loadSettings()
+
+        if (systemUiHidden && isLandscape()) {
+            // Landscape intentionally uses the stock Motorola SystemUI.
+            SystemUIPlusController.reapplyAfterConfiguration(this)
+            return
+        }
 
         // If the master state persisted as ON but one custom renderer is no
         // longer alive, rebuild the complete custom status bar as one unit.
@@ -163,12 +178,35 @@ class MainActivity : ComponentActivity() {
         newConfig: android.content.res.Configuration
     ) {
         super.onConfigurationChanged(newConfig)
+
         if (SystemUIPlusController.isEnabled(this)) {
-            SystemUIPlusController.reapplyAfterConfiguration(this)
+            if (
+                newConfig.orientation ==
+                    android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            ) {
+                SystemUIPlusController.reapplyAfterConfiguration(this)
+            } else {
+                SystemUIPlusController.reapplyAfterConfiguration(this)
+
+                if (
+                    shizukuReady &&
+                    notificationAccess &&
+                    overlayPermissionGranted &&
+                    (!clockActive || !duosActive) &&
+                    !busy
+                ) {
+                    startUnifiedSystemUi()
+                }
+            }
         }
+
         loadSettings()
         refreshState()
     }
+
+    private fun isLandscape(): Boolean =
+        resources.configuration.orientation ==
+            android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
     private fun refreshPhonePermission() {
         phoneStateGranted =
