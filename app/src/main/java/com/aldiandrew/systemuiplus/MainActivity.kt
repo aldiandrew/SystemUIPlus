@@ -6,6 +6,8 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.net.Uri
+import android.os.PowerManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -43,6 +45,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.sp
@@ -58,6 +61,8 @@ import com.aldiandrew.clockos.ShizukuShell
 import com.aldiandrew.clockos.hasClockNotificationAccess
 import com.aldiandrew.duos.DuoPreferences
 import com.aldiandrew.duos.DuoVisualStyle
+import com.aldiandrew.duos.DuoStatusState
+import com.aldiandrew.duos.DuoIndicatorView
 import com.aldiandrew.duos.ShizukuOverlayController
 import rikka.shizuku.Shizuku
 
@@ -71,6 +76,7 @@ class MainActivity : ComponentActivity() {
     private var clockActive by mutableStateOf(false)
     private var duosActive by mutableStateOf(false)
     private var busy by mutableStateOf(false)
+    private var batteryOptimizationIgnored by mutableStateOf(false)
 
     private var clockSettings by mutableStateOf(ClockSettings())
     private var duoSize by mutableStateOf(36f)
@@ -101,11 +107,13 @@ class MainActivity : ComponentActivity() {
         clockPrefs = ClockPrefs(this)
         clockShell = ShizukuShell(this)
         loadSettings()
+        refreshBatteryOptimizationState()
 
         Shizuku.addRequestPermissionResultListener(permissionListener)
         Shizuku.addBinderReceivedListener(binderReceived)
         Shizuku.addBinderDeadListener(binderDead)
         refreshState()
+        refreshBatteryOptimizationState()
 
         setContent {
             SystemUIPlusTheme {
@@ -150,6 +158,34 @@ class MainActivity : ComponentActivity() {
 
         if (SystemUIPlusShizuku.isAvailable() && !SystemUIPlusShizuku.hasPermission()) {
             SystemUIPlusShizuku.requestPermission()
+        }
+    }
+
+    private fun refreshBatteryOptimizationState() {
+        val power = getSystemService(PowerManager::class.java)
+        batteryOptimizationIgnored =
+            if (android.os.Build.VERSION.SDK_INT >= 23) {
+                !power.isIgnoringBatteryOptimizations(packageName)
+            } else {
+                true
+            }
+    }
+
+    private fun requestBatteryOptimizationExemption() {
+        if (android.os.Build.VERSION.SDK_INT < 23) return
+        try {
+            startActivity(
+                Intent(
+                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    Uri.parse("package:$packageName")
+                )
+            )
+        } catch (_: Throwable) {
+            try {
+                startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+            } catch (t: Throwable) {
+                toast(t.message ?: "Battery optimization settings unavailable")
+            }
         }
     }
 
@@ -762,6 +798,21 @@ class MainActivity : ComponentActivity() {
                         Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        Text("Battery protection", style = MaterialTheme.typography.titleLarge)
+                        Text(if (batteryOptimizationIgnored) "Battery optimization is enabled for SystemUI Plus." else "Android may stop background components when battery optimization is active.")
+                        OutlinedButton(
+                            enabled = !batteryOptimizationIgnored,
+                            onClick = ::requestBatteryOptimizationExemption,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text(if (batteryOptimizationIgnored) "Battery protection enabled" else "Allow background operation") }
+                    }
+                }
+
+                ExpressiveCard(Modifier.fillMaxWidth()) {
+                    Column(
+                        Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         Text("Safety", style = MaterialTheme.typography.titleLarge)
                         Text("If SystemUI Plus is turned off or startup fails, the previously saved native SystemUI policy is restored.")
                         OutlinedButton(
@@ -840,36 +891,39 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(
-                        (6.dp * indicatorScale).coerceAtLeast(4.dp)
-                    ),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    androidx.compose.material3.Icon(
-                        Icons.Default.Notifications,
-                        contentDescription = null,
-                        modifier = Modifier.size(17.dp * indicatorScale),
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                    androidx.compose.material3.Icon(
-                        Icons.Default.Wifi,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp * indicatorScale),
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                    androidx.compose.material3.Icon(
-                        Icons.Default.SignalCellular4Bar,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp * indicatorScale),
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                    androidx.compose.material3.Icon(
-                        Icons.Default.BatteryFull,
-                        contentDescription = null,
-                        modifier = Modifier.size(19.dp * indicatorScale),
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
+                AndroidView(
+                    modifier = Modifier
+                        .size((72.dp * indicatorScale).coerceIn(56.dp, 104.dp)),
+                    factory = { context -> DuoIndicatorView(context) },
+                    update = { view ->
+                        val battery = runCatching {
+                            (getSystemService(android.content.Context.BATTERY_SERVICE) as BatteryManager)
+                                .getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                                .coerceIn(0, 100)
+                        }.getOrDefault(100)
+                        val wifi = runCatching {
+                            val cm = getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+                            val network = cm.activeNetwork
+                            val caps = network?.let { cm.getNetworkCapabilities(it) }
+                            val connected = caps?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) == true
+                            val info = (getSystemService(android.content.Context.WIFI_SERVICE) as android.net.wifi.WifiManager).connectionInfo
+                            val bars = if (info.rssi == -127) 1 else
+                                (android.net.wifi.WifiManager.calculateSignalLevel(info.rssi, 5) + 1).coerceIn(0, 4)
+                            Triple(com.aldiandrew.duos.DuoStatusMapper.wifiBars(bars), connected, caps?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true)
+                        }.getOrDefault(Triple(0, false, false))
+                        val light = !isSystemInDarkTheme()
+                        view.update(
+                            DuoStatusState(
+                                batteryLevel = battery,
+                                wifiLevel = wifi.first,
+                                wifiConnected = wifi.second,
+                                wifiValidated = wifi.third,
+                                foregroundColor = if (light) android.graphics.Color.BLACK else android.graphics.Color.WHITE,
+                                visualStyle = duoStyle
+                            )
+                        )
+                    }
+                )
                 }
             }
         }
