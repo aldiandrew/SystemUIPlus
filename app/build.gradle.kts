@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "com.aldiandrew.systemuiplus"
-        minSdk = 26
+        minSdk = 33
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
