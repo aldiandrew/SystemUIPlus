@@ -2,6 +2,7 @@ package com.aldiandrew.systemuiplus
 
 import android.content.Context
 import android.net.Uri
+import java.io.InputStream
 import com.aldiandrew.clockos.ClockPrefs
 import com.aldiandrew.duos.DuoPreferences
 import com.aldiandrew.duos.DuoVisualStyle
@@ -10,6 +11,9 @@ import java.time.Instant
 
 object SystemUIPlusBackupManager {
     private const val FORMAT_VERSION = 1
+    private const val MAX_BACKUP_BYTES = 256 * 1024
+    private const val MAX_DATE_FORMAT_LENGTH = 128
+    private const val MAX_CUSTOM_DATE_FORMAT_LENGTH = 256
     private const val CLOCK_PREFS = "clockos"
     private const val DUO_PREFS = "duos_preferences"
 
@@ -159,8 +163,8 @@ object SystemUIPlusBackupManager {
                     ?: error("Unable to open the selected backup file.")
 
             val jsonText =
-                input.bufferedReader(Charsets.UTF_8).use { reader ->
-                    reader.readText()
+                input.use { stream ->
+                    readLimitedUtf8(stream)
                 }
 
             val backup = JSONObject(jsonText)
@@ -274,6 +278,28 @@ object SystemUIPlusBackupManager {
         }
 
         editor.apply()
+    }
+
+    private fun readLimitedUtf8(
+        input: InputStream
+    ): String {
+        val output = java.io.ByteArrayOutputStream()
+        val buffer = ByteArray(8 * 1024)
+        var total = 0
+
+        while (true) {
+            val count = input.read(buffer)
+            if (count < 0) break
+
+            total += count
+            if (total > MAX_BACKUP_BYTES) {
+                error("Backup file is too large.")
+            }
+
+            output.write(buffer, 0, count)
+        }
+
+        return output.toString(Charsets.UTF_8.name())
     }
 
     private fun restoreIndicatorPreferences(
