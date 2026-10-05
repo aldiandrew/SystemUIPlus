@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -785,10 +786,10 @@ class MainActivity : ComponentActivity() {
                 Column(
                     Modifier
                         .weight(1f)
-                        .graphicsLayer {
-                            translationX = clockSettings.horizontalPositionDp.dp.toPx()
-                            translationY = clockSettings.verticalPositionDp.dp.toPx()
-                        }
+                        .offset(
+                            x = clockSettings.horizontalPositionDp.dp,
+                            y = clockSettings.verticalPositionDp.dp
+                        )
                 ) {
                     Text(
                         timeText,
