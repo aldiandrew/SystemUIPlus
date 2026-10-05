@@ -997,8 +997,6 @@ class ClockOverlayService : Service() {
     }
 
     private fun refreshSystemUiAppearance() {
-        if (!::shell.isInitialized) return
-
         val color = SystemUIPlusAppearance.foregroundColor(this)
 
         handler.post {
