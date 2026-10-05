@@ -82,11 +82,15 @@ object NotificationIconStore {
                 }
 
                 val currentIsSummary =
-                    current.notification.notification
-                        .isGroupSummary
+                    (
+                        current.notification.notification.flags and
+                            android.app.Notification.FLAG_GROUP_SUMMARY
+                    ) != 0
                 val entryIsSummary =
-                    notification.notification
-                        .isGroupSummary
+                    (
+                        notification.notification.flags and
+                            android.app.Notification.FLAG_GROUP_SUMMARY
+                    ) != 0
 
                 if (
                     (!currentIsSummary && entryIsSummary) ||
