@@ -1,3 +1,7 @@
+concurrency:
+  group: systemuiplus-main-build
+  cancel-in-progress: false
+
 name: Build SystemUI Plus
 
 on:
@@ -194,15 +198,16 @@ jobs:
             exit 0
           fi
 
-          # Commit the generated merge first so the worktree is clean.
-          # Rebase must never run while the merge step has local changes.
+          # The workflow already checked out the current main commit.
+          # Do not rebase after generating the merge: the generated
+          # SystemBarController.kt and other merged files can also be changed
+          # by the merge itself, which makes a post-commit rebase prone to
+          # content conflicts.
           git commit -m "Merge ClockOS and Duos implementations"
 
-          # The repository may have received another commit while the build
-          # was running. Rebase the clean merge commit, then push it.
-          git fetch origin main
-          git rebase origin/main
-          git push
+          # Push the generated commit directly. Workflow runs are serialized
+          # below, so another merge workflow cannot race this push.
+          git push origin HEAD:main
 
       - name: Prepare installable APK
         shell: bash
