@@ -53,8 +53,8 @@ class ClockOverlayService : Service() {
     private lateinit var clockView: TextView
     private lateinit var notificationIconView: SakuraNotificationIconContainer
     private lateinit var params: WindowManager.LayoutParams
-    private lateinit var systemUiContext: Context
     private lateinit var shell: ShizukuShell
+    private lateinit var systemUiContext: Context
 
     private val handler = Handler(Looper.getMainLooper())
 
@@ -112,8 +112,6 @@ class ClockOverlayService : Service() {
     override fun onCreate() {
         super.onCreate()
 
-        shell = ShizukuShell(this)
-
         if (
             Build.VERSION.SDK_INT >= 23 &&
             !Settings.canDrawOverlays(this)
@@ -123,10 +121,13 @@ class ClockOverlayService : Service() {
         }
 
         try {
+            shell = ShizukuShell(this)
+
             if (!hasClockNotificationAccess(this)) {
                 stopSelf()
                 return
             }
+
 
             systemUiContext =
                 try {
@@ -259,9 +260,7 @@ class ClockOverlayService : Service() {
         } catch (_: Throwable) {
         }
 
-        if (::shell.isInitialized) {
-            shell.unbind()
-        }
+
 
         super.onDestroy()
     }

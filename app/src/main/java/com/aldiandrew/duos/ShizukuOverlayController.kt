@@ -128,7 +128,7 @@ object ShizukuOverlayController {
 
     fun stop(
         context: Context,
-        restoreSystemBar: Boolean = false,
+        restoreSystemBar: Boolean = true,
         callback: (() -> Unit)? = null
     ) {
         val appContext = context.applicationContext
