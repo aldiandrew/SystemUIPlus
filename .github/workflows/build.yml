@@ -177,6 +177,97 @@ jobs:
               text
           )
 
+          # Unify ClockOS foreground color with the same SystemUI appearance logic used by Duos.
+          text = text.replace('import android.content.Intent\n', 'import android.content.Intent\nimport android.content.res.Configuration\n')
+          text = text.replace('import android.graphics.Typeface\n', 'import android.graphics.Typeface\nimport com.aldiandrew.systemuiplus.SystemUIPlusAppearance\nimport com.aldiandrew.systemuiplus.SystemUIPlusController\n')
+          text = text.replace('        // android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS\\n        private const val APPEARANCE_LIGHT_STATUS_BARS = 8L\\n\\n', '')
+          text = text.replace('        view.setTextColor(Color.WHITE)', '        view.setTextColor(SystemUIPlusAppearance.foregroundColor(this))')
+
+          text = text.replace(
+              '    override fun onBind(\\n        intent: Intent?\\n    ): android.os.IBinder? = null\\n\\n',
+              '''    override fun onBind(
+                intent: Intent?
+            ): android.os.IBinder? = null
+
+            override fun onConfigurationChanged(newConfig: Configuration) {
+                super.onConfigurationChanged(newConfig)
+                lastColor = Int.MIN_VALUE
+                lastWidth = 0
+                lastHeight = 0
+                lastX = Int.MIN_VALUE
+                lastY = Int.MIN_VALUE
+
+                if (SystemUIPlusController.isEnabled(this)) {
+                    Thread {
+                        SystemUIPlusController.reapply(this)
+                    }.start()
+                }
+
+                handler.post {
+                    if (::statusBarContentView.isInitialized) {
+                        statusBarContentView.requestApplyInsets()
+                        updateClock()
+                        refreshSystemUiAppearance()
+                    }
+                }
+            }
+
+            '''
+          )
+
+          text = re.sub(
+              r'    private fun refreshSystemUiAppearance\\(\\) \\{.*?^    private fun parseStatusBarAppearance',
+              '''    private fun refreshSystemUiAppearance() {
+                if (!::shell.isInitialized) return
+
+                val color = SystemUIPlusAppearance.foregroundColor(this)
+
+                handler.post {
+                    if (
+                        ::clockView.isInitialized &&
+                        color != lastColor
+                    ) {
+                        lastColor = color
+                        clockView.setTextColor(color)
+                        renderNotificationIcons()
+                    }
+                }
+            }
+
+            private fun parseStatusBarAppearance''',
+              text,
+              flags=re.S | re.M
+          )
+
+          text = re.sub(
+              r'    private fun parseStatusBarAppearance\\(.*?^    private fun [A-Za-z0-9_]+\\(\\):',
+              '',
+              text,
+              flags=re.S | re.M
+          )
+
+          # The parser/native color helper is removed by the previous block;
+          # keep the workflow resilient when the upstream implementation changes.
+          text = re.sub(
+              r'    private fun refreshSystemUiAppearance\\(\\) \\{.*?^    private fun [A-Za-z0-9_]+\\(',
+              '''    private fun refreshSystemUiAppearance() {
+                if (!::shell.isInitialized) return
+                val color = SystemUIPlusAppearance.foregroundColor(this)
+                handler.post {
+                    if (::clockView.isInitialized && color != lastColor) {
+                        lastColor = color
+                        clockView.setTextColor(color)
+                        renderNotificationIcons()
+                    }
+                }
+            }
+
+            private fun ''',
+              text,
+              count=0,
+              flags=re.S | re.M
+          )
+
           clock.write_text(text)
           PY
 
@@ -203,13 +294,81 @@ jobs:
               text,
               flags=re.S | re.M
           )
+          # Use the same shared foreground color as ClockOS/SystemUI Plus.
+          text = text.replace('import android.content.res.Configuration\\n', 'import android.content.res.Configuration\\nimport com.aldiandrew.systemuiplus.SystemUIPlusAppearance\\nimport com.aldiandrew.systemuiplus.SystemUIPlusController\\n')
+          text = text.replace('        private const val APPEARANCE_REFRESH_MS = 15000L', '        private const val APPEARANCE_REFRESH_MS = 3000L')
+          text = text.replace(
+              '                val light = readLightStatusBar()\\n                val snapshot = readState(foregroundOverride = if (light) Color.BLACK else Color.WHITE)',
+              '                val color = SystemUIPlusAppearance.foregroundColor(this@CustomStatusBarService)\\n                val snapshot = readState(foregroundOverride = color)'
+          )
+          text = text.replace(
+              '        customView.update(\\n            readState(\\n                foregroundOverride =\\n                    if (isNightMode()) Color.WHITE else Color.BLACK\\n            )\\n        )',
+              '        customView.update(\\n            readState(\\n                foregroundOverride = SystemUIPlusAppearance.foregroundColor(this)\\n            )\\n        )'
+          )
+          text = text.replace(
+              '            foregroundColor =\\n                foregroundOverride\\n                    ?: if (isNightMode()) Color.WHITE else Color.BLACK,',
+              '            foregroundColor =\\n                foregroundOverride ?: SystemUIPlusAppearance.foregroundColor(this),'
+          )
+          text = text.replace(
+              '    override fun onBind(intent: Intent?): IBinder? = null\\n\\n',
+              '''    override fun onBind(intent: Intent?): IBinder? = null
+
+            override fun onConfigurationChanged(newConfig: Configuration) {
+                super.onConfigurationChanged(newConfig)
+                lastOverlayY = null
+                lastOverlayX = null
+
+                if (SystemUIPlusController.isEnabled(this)) {
+                    Thread {
+                        SystemUIPlusController.reapply(this)
+                    }.start()
+                }
+
+                handler.post {
+                    val view = rootView ?: return@post
+                    view.requestApplyInsets()
+                    requestPositionRefresh()
+                    requestStateRefresh()
+                }
+            }
+
+            '''
+          )
           duos.write_text(text)
           PY
 
           # Duos is a renderer only in the merged app. Its legacy SystemBarController
           # must never restore or hide native SystemUI independently because the host
           # SystemUIPlusController owns that state.
-          cat > app/src/main/java/com/aldiandrew/duos/SystemBarController.kt <<'EOF'
+          python3 <<'PY'
+          from pathlib import Path
+
+          model = Path("app/src/main/java/com/aldiandrew/duos/DuoStatusModel.kt")
+          text = model.read_text()
+          text = text.replace(
+              '''    val batteryColor: Int
+        get() = when {
+            charging -> batteryChargingColorOverride
+            powerSaver -> batteryPowerSaverColorOverride
+            batteryLevel <= 15 -> batteryLowColorOverride
+            else -> batteryNormalColorOverride
+        } ?: foregroundColor''',
+              '''    val batteryColor: Int
+        get() = foregroundColor'''
+          )
+          model.write_text(text)
+
+          view = Path("app/src/main/java/com/aldiandrew/duos/DuoIndicatorView.kt")
+          text = view.read_text()
+          text = text.replace("current.networkColorOverride ?: current.foregroundColor", "current.foregroundColor")
+          text = text.replace("current.wifiColorOverride ?: current.foregroundColor", "current.foregroundColor")
+          text = text.replace("current.signalColorOverride ?: current.foregroundColor", "current.foregroundColor")
+          text = text.replace("                current.networkGeneration,\n                k,\n                cx,\n                cy + 10f * k", "                current.networkGeneration,\n                k,\n                cx,\n                cy")
+          text = text.replace('                "VPN",\n                k,\n                cx,\n                cy + 10f * k', '                "VPN",\n                k,\n                cx,\n                cy')
+          view.write_text(text)
+          PY
+
+          # Duos is a renderer only in the merged app.
           package com.aldiandrew.duos
           
           import kotlinx.coroutines.withContext
