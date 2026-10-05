@@ -850,7 +850,7 @@ class MainActivity : ComponentActivity() {
                         Text("Battery protection", style = MaterialTheme.typography.titleLarge)
                         Text(if (!batteryOptimizationIgnored) "Battery optimization is disabled for SystemUI Plus." else "Android may stop background components when battery optimization is active.")
                         OutlinedButton(
-                            enabled = !batteryOptimizationIgnored,
+                            enabled = batteryOptimizationIgnored,
                             onClick = ::requestBatteryOptimizationExemption,
                             modifier = Modifier.fillMaxWidth()
                         ) { Text(if (!batteryOptimizationIgnored) "Battery protection enabled" else "Allow background operation") }
