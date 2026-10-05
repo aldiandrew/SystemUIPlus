@@ -267,8 +267,7 @@ jobs:
                                 "EEE dd MMM",
                                 "EEE MMM dd",
                                 "EEEE dd/MM",
-                                "EEEE MM/dd",
-                                "CUSTOM"
+                                "EEEE MM/dd"
                             )
                         ) { value ->
                             saveClock("dateFormat", value)
@@ -461,7 +460,7 @@ jobs:
         options: List<String>,
         onSelected: (String) -> Unit
     ) {
-        var expanded by mutableStateOf(false)
+        var expanded by androidx.compose.runtime.remember { mutableStateOf(false) }
 
         Box(Modifier.fillMaxWidth()) {
             OutlinedButton(
