@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
@@ -38,9 +39,6 @@ class ClockOverlayService : Service() {
         private const val CHANNEL_ID = "clockos"
         private const val CHANNEL_NAME = "ClockOS"
         private const val SYSTEM_UI_PACKAGE = "com.android.systemui"
-
-        // android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
-        private const val APPEARANCE_LIGHT_STATUS_BARS = 8L
 
         private const val EXTRA_RELATIVE_SIZE = 0.70f
         private const val CLOCK_EDGE_MARGIN_DP = 4f
@@ -241,6 +239,29 @@ class ClockOverlayService : Service() {
         intent: Intent?
     ): android.os.IBinder? = null
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        lastColor = Int.MIN_VALUE
+        lastWidth = 0
+        lastHeight = 0
+        lastX = Int.MIN_VALUE
+        lastY = Int.MIN_VALUE
+
+        if (SystemUIPlusController.isEnabled(this)) {
+            Thread {
+                SystemUIPlusController.reapply(this)
+            }.start()
+        }
+
+        handler.post {
+            if (::statusBarContentView.isInitialized) {
+                statusBarContentView.requestApplyInsets()
+                updateClock()
+                refreshSystemUiAppearance()
+            }
+        }
+    }
+
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
 
@@ -311,7 +332,7 @@ class ClockOverlayService : Service() {
         // Fully transparent window surface: the custom text is drawn directly
         // over the real SystemUI status-bar background.
         view.background = null
-        view.setTextColor(Color.WHITE)
+        view.setTextColor(SystemUIPlusAppearance.foregroundColor(this))
 
         view.importantForAccessibility =
             View.IMPORTANT_FOR_ACCESSIBILITY_NO
@@ -981,125 +1002,20 @@ class ClockOverlayService : Service() {
     private fun refreshSystemUiAppearance() {
         if (!::shell.isInitialized) return
 
-        val fallbackNight =
-            (
-                resources.configuration.uiMode and
-                    android.content.res.Configuration
-                        .UI_MODE_NIGHT_MASK
-            ) ==
-                android.content.res.Configuration
-                    .UI_MODE_NIGHT_YES
+        val color = SystemUIPlusAppearance.foregroundColor(this)
 
-        shell.execute(
-            "dumpsys statusbar"
-        ) { result ->
-            val appearance =
-                parseStatusBarAppearance(
-                    result
-                )
-
-            val color =
-                when (appearance) {
-                    true -> Color.BLACK
-                    false -> Color.WHITE
-                    null -> nativeClockColor()
-                        ?: if (fallbackNight) {
-                            Color.WHITE
-                        } else {
-                            Color.BLACK
-                        }
-                }
-
-            handler.post {
-                if (
-                    ::clockView.isInitialized &&
-                    color != lastColor
-                ) {
-                    lastColor = color
-                    clockView.setTextColor(color)
-                    renderNotificationIcons()
-                }
-            }
-        }
-    }
-
-    private fun parseStatusBarAppearance(
-        dump: String
-    ): Boolean? {
-        val line =
-            dump.lineSequence()
-                .firstOrNull {
-                    it.trimStart()
-                        .startsWith("mAppearance=")
-                }
-                ?: return null
-
-        val valueText =
-            line.substringAfter('=')
-                .trim()
-                .takeWhile {
-                    it.isDigit() ||
-                        it in "abcdefABCDEFxX"
-                }
-
-        if (valueText.isBlank()) {
+        handler.post {
             if (
-                line.contains(
-                    "LIGHT_STATUS_BARS",
-                    true
-                )
+                ::clockView.isInitialized &&
+                color != lastColor
             ) {
-                return true
+                lastColor = color
+                clockView.setTextColor(color)
+                renderNotificationIcons()
             }
-
-            return null
-        }
-
-        val value =
-            try {
-                if (
-                    valueText.startsWith(
-                        "0x",
-                        true
-                    )
-                ) {
-                    valueText
-                        .substring(2)
-                        .toLongOrNull(16)
-                } else {
-                    valueText.toLongOrNull()
-                }
-            } catch (_: Throwable) {
-                null
-            }
-
-        return value?.let {
-            (it and APPEARANCE_LIGHT_STATUS_BARS) != 0L
         }
     }
 
-    private fun nativeClockColor(): Int? {
-        val resources =
-            systemUiContext.resources
-
-        val id =
-            resources.getIdentifier(
-                "status_bar_clock_color",
-                "color",
-                SYSTEM_UI_PACKAGE
-            )
-
-        if (id == 0) return null
-
-        return try {
-            resources.getColor(
-                id,
-                systemUiContext.theme
-            )
-        } catch (_: Throwable) {
-            null
-        }
-    }
 
     private fun clockViewOrNull(): TextView? =
         if (::clockView.isInitialized) {
