@@ -203,6 +203,21 @@ jobs:
               text,
               flags=re.S | re.M
           )
+          wifi_old = '''            # Only a validated Wi-Fi network owns the middle slot; otherwise the mobile generation
+            # remains visible, matching the active data path.
+            Triple(
+                DuoStatusMapper.wifiBars(stockBars),
+                validated,
+                validated
+            )'''
+          wifi_new = '''            # Wi-Fi owns the middle slot whenever the active network is Wi-Fi.
+            # Validation remains available as state but must not hide the Wi-Fi indicator.
+            Triple(
+                DuoStatusMapper.wifiBars(stockBars),
+                true,
+                validated
+            )'''
+          text = text.replace(wifi_old, wifi_new)
           duos.write_text(text)
           PY
 
