@@ -82,6 +82,31 @@ object SystemUIPlusController {
         }
     }
 
+    /**
+     * Re-assert the hidden native SystemUI state after configuration changes.
+     * This never changes the persisted master state and never restores native SystemUI.
+     */
+    fun reapply(context: Context): Result<Unit> {
+        if (!isEnabled(context)) return Result.success(Unit)
+        return try {
+            if (!SystemUIPlusShizuku.hasPermission()) {
+                return Result.failure(SecurityException("Shizuku permission is not granted"))
+            }
+            SystemUIPlusShizuku.execute(
+                "am broadcast -a com.android.systemui.demo -e command exit"
+            )
+            SystemUIPlusShizuku.execute(
+                "cmd statusbar send-disable-flag system-icons clock notification-icons"
+            )
+            SystemUIPlusShizuku.execute(
+                "settings put global policy_control immersive.full=*"
+            ).getOrThrow()
+            Result.success(Unit)
+        } catch (t: Throwable) {
+            Result.failure(t)
+        }
+    }
+
     fun restore(context: Context): Result<Unit> {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
