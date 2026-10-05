@@ -160,7 +160,6 @@ class CustomStatusBarService : Service() {
             lastError = t.stackTraceToString()
             isRunning = false
             Log.e(TAG, "Custom status bar failed", t)
-            restoreSystemBarInBackground()
             stopSelf()
         }
     }
@@ -198,8 +197,6 @@ class CustomStatusBarService : Service() {
         isRunning = false
 
         // Safety rule: once the custom bar disappears, never leave the user with no status bar.
-        restoreSystemBarInBackground()
-
         Log.i(TAG, "Compact custom status bar stopped")
         scope.cancel()
         super.onDestroy()
@@ -480,41 +477,37 @@ class CustomStatusBarService : Service() {
 
             val network = cm.activeNetwork
             val caps = network?.let { cm.getNetworkCapabilities(it) }
+                ?: return Triple(0, false, false)
+
             val transportWifi =
-                caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+                caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
 
-            @Suppress("DEPRECATION")
-            val connectionInfo = runCatching { wifi.connectionInfo }.getOrNull()
-            @Suppress("DEPRECATION")
-            val connectedByWifiInfo =
-                connectionInfo?.networkId?.let { it != -1 } == true
-
-            // Wi-Fi is shown whenever the Wi-Fi link is connected; internet
-            // validation must not make the icon disappear.
-            if (!transportWifi && !connectedByWifiInfo) {
+            if (!transportWifi) {
                 return Triple(0, false, false)
             }
 
             val validated =
-                caps?.hasCapability(
+                caps.hasCapability(
                     NetworkCapabilities.NET_CAPABILITY_VALIDATED
-                ) == true
+                )
 
             @Suppress("DEPRECATION")
-            val rssi = connectionInfo?.rssi ?: -127
+            val rssi = wifi.connectionInfo?.rssi ?: -127
 
             val stockBars =
                 if (rssi == -127) {
-                    1
+                    0
                 } else {
                     @Suppress("DEPRECATION")
                     (WifiManager.calculateSignalLevel(rssi, 5) + 1)
                         .coerceIn(0, 4)
                 }
 
+            // Only a validated Wi-Fi network owns the middle slot; otherwise the mobile generation
+            // remains visible, matching the active data path.
             Triple(
                 DuoStatusMapper.wifiBars(stockBars),
-                true,
+                validated,
                 validated
             )
         } catch (t: Throwable) {
@@ -748,23 +741,4 @@ class CustomStatusBarService : Service() {
             .toInt()
             .coerceAtLeast(1)
 
-    private fun restoreSystemBarInBackground() {
-        Thread {
-            try {
-                runBlocking {
-                    SystemBarController.restore()
-                }
-            } catch (t: Throwable) {
-                Log.e(
-                    TAG,
-                    "Automatic system status bar restore failed",
-                    t
-                )
-            }
-        }.apply {
-            name = "Duos-SystemBar-Restore"
-            isDaemon = true
-            start()
-        }
-    }
 }
