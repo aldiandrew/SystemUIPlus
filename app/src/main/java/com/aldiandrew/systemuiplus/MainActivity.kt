@@ -24,11 +24,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BatteryFull
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.SignalCellular4Bar
-import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -59,7 +55,6 @@ import com.aldiandrew.clockos.ClockOverlayService
 import com.aldiandrew.systemuiplus.SystemUIPlusController
 import com.aldiandrew.clockos.ClockPrefs
 import com.aldiandrew.clockos.ClockSettings
-import com.aldiandrew.clockos.ShizukuShell
 import com.aldiandrew.clockos.hasClockNotificationAccess
 import com.aldiandrew.duos.DuoPreferences
 import com.aldiandrew.duos.DuoVisualStyle
@@ -150,23 +145,29 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun refreshState() {
-        shizukuReady = SystemUIPlusShizuku.isAvailable() && SystemUIPlusShizuku.hasPermission()
+        shizukuReady =
+            SystemUIPlusShizuku.isAvailable() &&
+                SystemUIPlusShizuku.hasPermission()
         notificationAccess = hasClockNotificationAccess(this)
         systemUiHidden = SystemUIPlusController.isEnabled(this)
         clockActive = getPreferences(0).getBoolean("clock_active", false)
         duosActive = ShizukuOverlayController.isBound()
-
-        if (SystemUIPlusShizuku.isAvailable() && !SystemUIPlusShizuku.hasPermission()) {
-            SystemUIPlusShizuku.requestPermission()
-        }
+        phoneStateGranted =
+            Build.VERSION.SDK_INT < 23 ||
+                checkSelfPermission(android.Manifest.permission.READ_PHONE_STATE) ==
+                    PackageManager.PERMISSION_GRANTED
+        overlayPermissionGranted = Settings.canDrawOverlays(this)
     }
 
-    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+    override fun onConfigurationChanged(
+        newConfig: android.content.res.Configuration
+    ) {
         super.onConfigurationChanged(newConfig)
         if (SystemUIPlusController.isEnabled(this)) {
-            Thread { SystemUIPlusController.reapply(this) }.start()
+            SystemUIPlusController.reapplyAfterConfiguration(this)
         }
         loadSettings()
+        refreshState()
     }
 
     private fun refreshPhonePermission() {
@@ -264,7 +265,7 @@ class MainActivity : ComponentActivity() {
 
     private fun startUnifiedSystemUi() {
         if (!shizukuReady) {
-            toast("Shizuku permission is required")
+            toast("Grant Shizuku permission in SystemUI control first")
             return
         }
 
@@ -275,8 +276,6 @@ class MainActivity : ComponentActivity() {
 
         busy = true
 
-        // Native SystemUI is hidden first. From this point there is exactly
-        // one owner of the status-bar lifecycle: SystemUI Plus.
         Thread {
             val hidden = SystemUIPlusController.hide(this)
 
@@ -292,7 +291,9 @@ class MainActivity : ComponentActivity() {
 
                 systemUiHidden = true
 
-                ShizukuOverlayController.start(this) { indicatorsStarted, indicatorMessage ->
+                ShizukuOverlayController.start(
+                    this
+                ) { indicatorsStarted, indicatorMessage ->
                     if (!indicatorsStarted) {
                         Thread {
                             SystemUIPlusController.restore(this)
@@ -310,82 +311,38 @@ class MainActivity : ComponentActivity() {
                     }
 
                     try {
-                        runCatching {
-                            startForegroundService(
-                                Intent(this, ClockOverlayService::class.java)
+                        startForegroundService(
+                            Intent(
+                                this,
+                                ClockOverlayService::class.java
                             )
-                            clockActive = true
-                            getPreferences(0)
-                                .edit()
-                                .putBoolean("clock_active", true)
-                                .apply()
-                            duosActive = true
-                            busy = false
-                            toast("SystemUI Plus is active")
-                        }.onFailure { t ->
-                            ShizukuOverlayController.stop(this, restoreSystemBar = false) {
-                                Thread {
-                                    SystemUIPlusController.restore(this)
-                                    runOnUiThread {
-                                        systemUiHidden = false
-                                        busy = false
-                                        toast(t.message ?: "Could not start custom clock")
-                                    }
-                                }.start()
-                            }
-                        }
-                        return@runOnUiThread
-                        
-                        if (false) {
-                                ShizukuOverlayController.stop(this, restoreSystemBar = false) {
-                                    Thread {
-                                        SystemUIPlusController.restore(this)
-                                        runOnUiThread {
-                                            systemUiHidden = false
-                                            busy = false
-                                            toast(appOp.take(300))
-                                        }
-                                    }.start()
-                                }
-                                return@execute
-                            }
+                        )
 
-                            runOnUiThread {
-                                try {
-                                    startForegroundService(
-                                        Intent(this, ClockOverlayService::class.java)
-                                    )
-                                    clockActive = true
-                                    getPreferences(0)
-                                        .edit()
-                                        .putBoolean("clock_active", true)
-                                        .apply()
-                                    duosActive = true
-                                    busy = false
-                                    toast("SystemUI Plus is active")
-                                } catch (t: Throwable) {
-                                    ShizukuOverlayController.stop(this, restoreSystemBar = false) {
-                                        Thread {
-                                            SystemUIPlusController.restore(this)
-                                            runOnUiThread {
-                                                systemUiHidden = false
-                                                busy = false
-                                                toast(
-                                                    t.message
-                                                        ?: "Could not start custom clock"
-                                                )
-                                            }
-                                        }.start()
-                                    }
-                                }
+                        clockActive = true
+                        duosActive = true
+                        getPreferences(0)
+                            .edit()
+                            .putBoolean("clock_active", true)
+                            .apply()
+
+                        busy = false
+                        toast("SystemUI Plus is active")
                     } catch (t: Throwable) {
-                        ShizukuOverlayController.stop(this, restoreSystemBar = false) {
+                        ShizukuOverlayController.stop(
+                            this,
+                            restoreSystemBar = false
+                        ) {
                             Thread {
                                 SystemUIPlusController.restore(this)
                                 runOnUiThread {
                                     systemUiHidden = false
+                                    clockActive = false
+                                    duosActive = false
                                     busy = false
-                                    toast(t.message ?: "Could not start SystemUI Plus")
+                                    toast(
+                                        t.message
+                                            ?: "Could not start custom SystemUI"
+                                    )
                                 }
                             }.start()
                         }
