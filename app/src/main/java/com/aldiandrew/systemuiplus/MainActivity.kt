@@ -615,7 +615,12 @@ class MainActivity : ComponentActivity() {
                             value = clockSettings.sizeSp,
                             range = 10f..22f,
                             onValueChange = { saveClock("sizeSp", it) },
-                            onReset = { saveClock("sizeSp", 14f) }
+                            onReset = {
+                                saveClock(
+                                    "sizeSp",
+                                    clockPrefs.nativeDefaultClockSizeSp()
+                                )
+                            }
                         )
 
                         SliderSetting(
