@@ -164,11 +164,27 @@ class MainActivity : ComponentActivity() {
 
     private fun requestShizuku() {
         if (!SystemUIPlusShizuku.isAvailable()) {
-            toast("Shizuku is not running")
+            openShizukuApp()
             return
         }
         try { SystemUIPlusShizuku.requestPermission() } catch (t: Throwable) {
             toast(t.message ?: "Shizuku permission failed")
+        }
+    }
+
+    private fun openShizukuApp() {
+        try {
+            val intent =
+                packageManager.getLaunchIntentForPackage(
+                    "moe.shizuku.privileged.api"
+                )
+            if (intent != null) {
+                startActivity(intent)
+            } else {
+                toast("Shizuku app is not installed")
+            }
+        } catch (t: Throwable) {
+            toast(t.message ?: "Could not open Shizuku")
         }
     }
 
@@ -690,38 +706,43 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        Text("Style: " + duoStyle.name)
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        Text(
+                            "Style",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        androidx.compose.material3.SingleChoiceSegmentedButtonRow(
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             listOf(
                                 DuoVisualStyle.DUO,
                                 DuoVisualStyle.COMPACT
-                            ).forEach { style ->
-                                Button(
+                            ).forEachIndexed { index, style ->
+                                androidx.compose.material3.SegmentedButton(
+                                    selected = duoStyle == style,
                                     onClick = {
                                         duoStyle = style
-                                        DuoPreferences.setVisualStyle(this@MainActivity, style)
+                                        DuoPreferences.setVisualStyle(
+                                            this@MainActivity,
+                                            style
+                                        )
                                     },
-                                    modifier = Modifier.weight(1f),
-                                    enabled = duoStyle != style
-                                ) {
-                                    Text(if (style == DuoVisualStyle.DUO) "Duo" else "Compact")
-                                }
+                                    shape =
+                                        androidx.compose.material3.SegmentedButtonDefaults.itemShape(
+                                            index = index,
+                                            count = 2
+                                        ),
+                                    label = {
+                                        Text(
+                                            if (style == DuoVisualStyle.DUO) {
+                                                "Duo"
+                                            } else {
+                                                "Compact"
+                                            }
+                                        )
+                                    }
+                                )
                             }
                         }
-                    }
-                }
-
-                ExpressiveCard(Modifier.fillMaxWidth()) {
-                    Column(
-                        Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text("Color overrides", style = MaterialTheme.typography.titleLarge)
-                        Text("Duos retains separate color overrides for battery normal, charging, low, power-saver, Wi-Fi, signal and network.")
-                        Text("The original Duos JSON import/export data format remains compatible with the merged implementation.")
                     }
                 }
 
