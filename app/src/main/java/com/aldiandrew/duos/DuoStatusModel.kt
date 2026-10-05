@@ -11,9 +11,6 @@ enum class DuoVisualStyle {
 
 /**
  * Immutable snapshot consumed by the compact custom status-bar indicator.
- *
- * The drawing model is intentionally independent from the Service so a failed read can keep the
- * previous value instead of breaking the overlay.
  */
 data class DuoStatusState(
     val batteryLevel: Int = 100,
@@ -28,29 +25,12 @@ data class DuoStatusState(
     val dnd: Boolean = false,
     val vpnConnected: Boolean = false,
     val foregroundColor: Int = Color.WHITE,
-    val batteryNormalColorOverride: Int? = null,
-    val batteryChargingColorOverride: Int? = null,
-    val batteryLowColorOverride: Int? = null,
-    val batteryPowerSaverColorOverride: Int? = null,
-    val wifiColorOverride: Int? = null,
-    val signalColorOverride: Int? = null,
-    val networkColorOverride: Int? = null,
     val visualStyle: DuoVisualStyle = DuoVisualStyle.DUO
 ) {
-    /**
-     * Each state falls back to the SystemUI foreground color when no custom
-     * override is configured.
-     */
     val batteryColor: Int
         get() = foregroundColor
 }
 
-/**
- * Small pure mappings used by the indicator.
- *
- * These follow the same visual model as the GPL-3.0 Duo Status Bar reference project, but are
- * implemented here for Duos' application-overlay architecture.
- */
 object DuoStatusMapper {
 
     fun wifiBars(stockBars: Int): Int = when {
