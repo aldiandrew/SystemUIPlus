@@ -141,6 +141,62 @@ jobs:
           }
           EOF
 
+          # The native Android status bar is owned exclusively by the master
+          # SystemUIPlusController. ClockOS must not send independent
+          # SystemUI disable/restore flags because the entire native status
+          # bar is already hidden by the master controller.
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          clock = Path("app/src/main/java/com/aldiandrew/clockos/ClockOverlayService.kt")
+          text = clock.read_text()
+
+          text = text.replace(
+              '            shell.execute(\n                "cmd statusbar send-disable-flag clock"\n            ) { }\n\n',
+              ''
+          )
+
+          text = re.sub(
+              r'    private fun syncNativeNotificationIcons\(\) \{.*?\n    private fun renderNotificationIcons\(\)',
+              '    private fun renderNotificationIcons()',
+              text,
+              flags=re.S
+          )
+
+          text = text.replace('            syncNativeNotificationIcons()\n', '')
+          text = text.replace('    private var nativeNotificationIconsHidden = false\n', '')
+          text = text.replace('    private var notificationIconFlagSyncPending = false\n', '')
+          text = text.replace('        nativeNotificationIconsHidden = false\n', '')
+          text = text.replace('        notificationIconFlagSyncPending = false\n', '')
+
+          text = re.sub(
+              r'\n        if \(::shell\.isInitialized\) \{\n            shell\.execute\(\n                "cmd statusbar send-disable-flag none"\n            \) \{\n                shell\.unbind\(\)\n            \}\n        \}\n',
+              '\n',
+              text
+          )
+
+          clock.write_text(text)
+          PY
+
+          # Duos must never restore native SystemUI when its renderer stops.
+          # SystemBarController is already replaced above by a no-op facade.
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          duos = Path("app/src/main/java/com/aldiandrew/duos/CustomStatusBarService.kt")
+          text = duos.read_text()
+          text = text.replace('            restoreSystemBarInBackground()\n', '')
+          text = re.sub(
+              r'\n    private fun restoreSystemBarInBackground\(\) \{.*?\n    \}\n\}',
+              '\n}',
+              text,
+              flags=re.S
+          )
+          duos.write_text(text)
+          PY
+
           # Duos is a renderer only in the merged app. Its legacy SystemBarController
           # must never restore or hide native SystemUI independently because the host
           # SystemUIPlusController owns that state.
