@@ -250,9 +250,7 @@ class ClockOverlayService : Service() {
         lastY = Int.MIN_VALUE
 
         if (SystemUIPlusController.isEnabled(this)) {
-            Thread {
-                SystemUIPlusController.reapply(this)
-            }.start()
+            SystemUIPlusController.reapplyAfterConfiguration(this)
         }
 
         handler.post {
