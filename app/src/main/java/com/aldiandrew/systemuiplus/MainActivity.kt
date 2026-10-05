@@ -390,8 +390,7 @@ class MainActivity : ComponentActivity() {
                         toast(getString(R.string.toast_active))
                     } catch (t: Throwable) {
                         ShizukuOverlayController.stop(
-                            this,
-                            restoreSystemBar = false
+                            this
                         ) {
                             Thread {
                                 SystemUIPlusController.restore(this)
