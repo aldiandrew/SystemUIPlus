@@ -28,6 +28,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import com.aldiandrew.systemuiplus.SystemUIPlusAppearance
 import com.aldiandrew.systemuiplus.SystemUIPlusController
+import com.aldiandrew.systemuiplus.SystemUIPlusShizuku
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
