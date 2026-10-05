@@ -25,7 +25,7 @@ object SystemUIPlusAppearance {
     @Volatile
     private var cachedAtMs: Long = 0L
 
-    private const val CACHE_MS = 1500L
+    private const val CACHE_MS = 1200L
 
     fun snapshot(context: Context): Snapshot {
         val now = System.currentTimeMillis()
@@ -37,7 +37,7 @@ object SystemUIPlusAppearance {
         val output =
             runCatching {
                 SystemUIPlusShizuku.execute(
-                    "dumpsys statusbar; dumpsys activity activities"
+                    "dumpsys statusbar; dumpsys activity activities | grep -E \"mResumedActivity:|packageName=|statusBarColor=|state=RESUMED\""
                 ).getOrNull()?.stdout.orEmpty()
             }.getOrDefault("")
 
