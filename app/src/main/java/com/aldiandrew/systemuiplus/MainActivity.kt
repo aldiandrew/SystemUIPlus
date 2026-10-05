@@ -3,6 +3,7 @@ package com.aldiandrew.systemuiplus
 // Unified SystemUI Plus controller: ClockOS + Duos.
 
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -67,6 +68,7 @@ import com.aldiandrew.duos.ShizukuOverlayController
 import rikka.shizuku.Shizuku
 
 class MainActivity : ComponentActivity() {
+    companion object { private const val PHONE_PERMISSION_REQUEST = 4107 }
     private lateinit var clockPrefs: ClockPrefs
     private lateinit var clockShell: ShizukuShell
 
@@ -77,6 +79,7 @@ class MainActivity : ComponentActivity() {
     private var duosActive by mutableStateOf(false)
     private var busy by mutableStateOf(false)
     private var batteryOptimizationIgnored by mutableStateOf(false)
+    private var phoneStateGranted by mutableStateOf(true)
 
     private var clockSettings by mutableStateOf(ClockSettings())
     private var duoSize by mutableStateOf(36f)
@@ -108,6 +111,7 @@ class MainActivity : ComponentActivity() {
         clockShell = ShizukuShell(this)
         loadSettings()
         refreshBatteryOptimizationState()
+        refreshPhonePermission()
 
         Shizuku.addRequestPermissionResultListener(permissionListener)
         Shizuku.addBinderReceivedListener(binderReceived)
@@ -158,6 +162,45 @@ class MainActivity : ComponentActivity() {
 
         if (SystemUIPlusShizuku.isAvailable() && !SystemUIPlusShizuku.hasPermission()) {
             SystemUIPlusShizuku.requestPermission()
+        }
+    }
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (SystemUIPlusController.isEnabled(this)) {
+            Thread { SystemUIPlusController.reapply(this) }.start()
+        }
+        loadSettings()
+        refreshBatteryOptimizationState()
+    }
+
+    private fun refreshPhonePermission() {
+        phoneStateGranted =
+            android.os.Build.VERSION.SDK_INT < 23 ||
+                checkSelfPermission(android.Manifest.permission.READ_PHONE_STATE) ==
+                    PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun requestPhonePermission() {
+        if (android.os.Build.VERSION.SDK_INT >= 23) {
+            requestPermissions(
+                arrayOf(android.Manifest.permission.READ_PHONE_STATE),
+                PHONE_PERMISSION_REQUEST
+            )
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == PHONE_PERMISSION_REQUEST) {
+            refreshPhonePermission()
+            if (phoneStateGranted) {
+                toast("Phone state permission granted")
+            }
         }
     }
 
@@ -235,6 +278,12 @@ class MainActivity : ComponentActivity() {
     private fun startUnifiedSystemUi() {
         if (!shizukuReady) {
             toast("Shizuku permission is required")
+            return
+        }
+
+        if (!phoneStateGranted) {
+            requestPhonePermission()
+            toast("Phone permission is needed to show the active mobile network and signal.")
             return
         }
 
