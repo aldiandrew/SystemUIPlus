@@ -1,9 +1,4 @@
-concurrency:
-  group: systemuiplus-main-build
-  cancel-in-progress: false
-
 name: Build SystemUI Plus
-# Ensure legacy native SystemUI restoration is removed before every build.
 
 on:
   push:
@@ -14,413 +9,17 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: systemuiplus-main-build
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout SystemUIPlus
+      - name: Checkout SystemUI Plus
         uses: actions/checkout@v5
-
-      - name: Checkout ClockOS and Duos
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -rf /tmp/ClockOS /tmp/Duos
-          git clone --depth 1 https://github.com/aldiandrew/ClockOS.git /tmp/ClockOS
-          git clone --depth 1 https://github.com/aldiandrew/Duos.git /tmp/Duos
-
-      - name: Merge application implementations
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          rm -rf app/src/main/java/com/aldiandrew/clockos
-          rm -rf app/src/main/java/com/aldiandrew/duos
-          rm -rf app/src/main/aidl/com/aldiandrew/clockos
-
-          mkdir -p app/src/main/java/com/aldiandrew
-          mkdir -p app/src/main/aidl/com/aldiandrew
-
-          cp -R /tmp/ClockOS/app/src/main/java/com/aldiandrew/clockos app/src/main/java/com/aldiandrew/
-          rm -f app/src/main/java/com/aldiandrew/clockos/MainActivity.kt
-          rm -rf app/src/main/java/com/aldiandrew/clockos/ui
-
-          cp -R /tmp/ClockOS/app/src/main/aidl/com/aldiandrew/clockos app/src/main/aidl/com/aldiandrew/
-
-          cp -R /tmp/Duos/app/src/main/java/com/aldiandrew/duos app/src/main/java/com/aldiandrew/
-          rm -f app/src/main/java/com/aldiandrew/duos/MainActivity.kt
-
-          # Both upstream apps originally carry their own Shizuku layer.
-          # Replace those layers with compatibility facades backed by the
-          # single SystemUIPlusShizuku manager in the host application.
-          cat > app/src/main/java/com/aldiandrew/duos/ShizukuManager.kt <<'EOF'
-          package com.aldiandrew.duos
-          
-          import com.aldiandrew.systemuiplus.SystemUIPlusShizuku
-          import kotlinx.coroutines.Dispatchers
-          import kotlinx.coroutines.withContext
-          
-          object ShizukuManager {
-              const val REQUEST_CODE = SystemUIPlusShizuku.REQUEST_CODE
-          
-              fun isAvailable(): Boolean = SystemUIPlusShizuku.isAvailable()
-          
-              fun hasPermission(): Boolean = SystemUIPlusShizuku.hasPermission()
-          
-              fun requestPermission(listener: rikka.shizuku.Shizuku.OnRequestPermissionResultListener) {
-                  try {
-                      rikka.shizuku.Shizuku.removeRequestPermissionResultListener(listener)
-                  } catch (_: Throwable) {
-                  }
-                  SystemUIPlusShizuku.requestPermission()
-              }
-          
-              suspend fun executeCommand(command: String): Result<String> =
-                  withContext(Dispatchers.IO) {
-                      SystemUIPlusShizuku.execute(command).fold(
-                          onSuccess = { result ->
-                              if (result.exitCode == 0) {
-                                  Result.success(result.stdout)
-                              } else {
-                                  Result.failure(
-                                      RuntimeException(
-                                          result.stderr.ifBlank { "Command failed: $command" }
-                                      )
-                                  )
-                              }
-                          },
-                          onFailure = { Result.failure(it) }
-                      )
-                  }
-          }
-          EOF
-
-          cat > app/src/main/java/com/aldiandrew/clockos/ShizukuShell.kt <<'EOF'
-          package com.aldiandrew.clockos
-          
-          import com.aldiandrew.systemuiplus.SystemUIPlusShizuku
-          
-          class ShizukuShell(private val context: android.content.Context) {
-          
-              fun hasPermission(): Boolean = SystemUIPlusShizuku.hasPermission()
-          
-              fun requestPermission() {
-                  SystemUIPlusShizuku.requestPermission()
-              }
-          
-              fun isAvailable(): Boolean = SystemUIPlusShizuku.isAvailable()
-          
-              fun execute(command: String, callback: (String) -> Unit) {
-                  if (!isAvailable()) {
-                      callback("Shizuku is not running")
-                      return
-                  }
-          
-                  if (!hasPermission()) {
-                      requestPermission()
-                      callback("Shizuku permission required")
-                      return
-                  }
-          
-                  Thread {
-                      val result = SystemUIPlusShizuku.execute(command)
-                      val output = result.fold(
-                          onSuccess = { it.asClockShellString() },
-                          onFailure = { "error=$it" }
-                      )
-                      try {
-                          callback(output)
-                      } catch (_: Throwable) {
-                      }
-                  }.start()
-              }
-          
-              fun unbind() {
-                  // The merged app has one shared Shizuku command executor.
-              }
-          }
-          EOF
-
-          # The native Android status bar is owned exclusively by the master
-          # SystemUIPlusController. ClockOS and Duos never change native
-          # SystemUI visibility independently.
-          python3 <<'PY'
-          from pathlib import Path
-          import re
-
-          clock = Path("app/src/main/java/com/aldiandrew/clockos/ClockOverlayService.kt")
-          text = clock.read_text()
-
-          text = text.replace(
-              '''            shell.execute(
-                "cmd statusbar send-disable-flag clock"
-            ) { }
-
-''',
-              ""
-          )
-
-          text = re.sub(
-              r'    private fun syncNativeNotificationIcons\(\) \{.*?^    private fun renderNotificationIcons\(\)',
-              '    private fun renderNotificationIcons()',
-              text,
-              flags=re.S | re.M
-          )
-
-          text = text.replace('            syncNativeNotificationIcons()\n', '')
-          text = text.replace('    private var nativeNotificationIconsHidden = false\n', '')
-          text = text.replace('    private var notificationIconFlagSyncPending = false\n', '')
-          text = text.replace('        nativeNotificationIconsHidden = false\n', '')
-          text = text.replace('        notificationIconFlagSyncPending = false\n', '')
-
-          text = re.sub(
-              r'\n        if \(::shell\.isInitialized\) \{\n            shell\.execute\(\n                "cmd statusbar send-disable-flag none"\n            \) \{\n                shell\.unbind\(\)\n            \}\n        \}\n',
-              '\n',
-              text
-          )
-
-          text = text.replace(
-              """import android.content.Intent
-""",
-              """import android.content.Intent
-import android.content.res.Configuration
-"""
-          )
-          text = text.replace(
-              """import android.graphics.Typeface
-""",
-              """import android.graphics.Typeface
-import com.aldiandrew.systemuiplus.SystemUIPlusAppearance
-import com.aldiandrew.systemuiplus.SystemUIPlusController
-"""
-          )
-          text = text.replace(
-              "        view.setTextColor(Color.WHITE)",
-              "        view.setTextColor(SystemUIPlusAppearance.foregroundColor(this))"
-          )
-
-          bind_anchor = """    override fun onBind(
-        intent: Intent?
-    ): android.os.IBinder? = null
-
-"""
-          if bind_anchor in text and "override fun onConfigurationChanged(newConfig: Configuration)" not in text:
-              text = text.replace(
-                  bind_anchor,
-                  bind_anchor + """    override fun onConfigurationChanged(newConfig: Configuration) {
-        super.onConfigurationChanged(newConfig)
-        lastColor = Int.MIN_VALUE
-        lastWidth = 0
-        lastHeight = 0
-        lastX = Int.MIN_VALUE
-        lastY = Int.MIN_VALUE
-
-        if (SystemUIPlusController.isEnabled(this)) {
-            Thread {
-                SystemUIPlusController.reapply(this)
-            }.start()
-        }
-
-        handler.post {
-            if (::statusBarContentView.isInitialized) {
-                statusBarContentView.requestApplyInsets()
-                updateClock()
-                refreshSystemUiAppearance()
-            }
-        }
-    }
-
-"""
-              )
-
-          start = text.find("    private fun refreshSystemUiAppearance()")
-          end = text.find("    private fun clockViewOrNull()", start)
-          if start >= 0 and end > start:
-              text = (
-                  text[:start]
-                  + """    private fun refreshSystemUiAppearance() {
-        if (!::shell.isInitialized) return
-
-        val color = SystemUIPlusAppearance.foregroundColor(this)
-
-        handler.post {
-            if (
-                ::clockView.isInitialized &&
-                color != lastColor
-            ) {
-                lastColor = color
-                clockView.setTextColor(color)
-                renderNotificationIcons()
-            }
-        }
-    }
-
-"""
-                  + text[end:]
-              )
-
-          clock.write_text(text)
-          PY
-
-          # Duos must never restore native SystemUI when its renderer stops.
-          python3 <<'PY'
-          from pathlib import Path
-          import re
-
-          duos = Path("app/src/main/java/com/aldiandrew/duos/CustomStatusBarService.kt")
-          text = duos.read_text()
-
-          text = re.sub(
-              r'^\s*restoreSystemBarInBackground\(\)\s*$\n?',
-              '',
-              text,
-              flags=re.M
-          )
-
-          text = re.sub(
-              r'\n?    private fun restoreSystemBarInBackground\(\) \{.*?^    \}\n',
-              '\n',
-              text,
-              flags=re.S | re.M
-          )
-
-          text = text.replace(
-              """import android.content.res.Configuration
-""",
-              """import android.content.res.Configuration
-import com.aldiandrew.systemuiplus.SystemUIPlusAppearance
-import com.aldiandrew.systemuiplus.SystemUIPlusController
-"""
-          )
-          text = text.replace(
-              "        private const val APPEARANCE_REFRESH_MS = 15000L",
-              "        private const val APPEARANCE_REFRESH_MS = 3000L"
-          )
-          text = text.replace(
-              """                val light = readLightStatusBar()
-                val snapshot = readState(foregroundOverride = if (light) Color.BLACK else Color.WHITE)""",
-              """                val color = SystemUIPlusAppearance.foregroundColor(this@CustomStatusBarService)
-                val snapshot = readState(foregroundOverride = color)"""
-          )
-          text = text.replace(
-              """        customView.update(
-            readState(
-                foregroundOverride =
-                    if (isNightMode()) Color.WHITE else Color.BLACK
-            )
-        )""",
-              """        customView.update(
-            readState(
-                foregroundOverride = SystemUIPlusAppearance.foregroundColor(this)
-            )
-        )"""
-          )
-          text = text.replace(
-              """            foregroundColor =
-                foregroundOverride
-                    ?: if (isNightMode()) Color.WHITE else Color.BLACK,""",
-              """            foregroundColor =
-                foregroundOverride ?: SystemUIPlusAppearance.foregroundColor(this),"""
-          )
-
-          bind_anchor = """    override fun onBind(intent: Intent?): IBinder? = null
-
-"""
-          if bind_anchor in text and "override fun onConfigurationChanged(newConfig: Configuration)" not in text:
-              text = text.replace(
-                  bind_anchor,
-                  bind_anchor + """    override fun onConfigurationChanged(newConfig: Configuration) {
-        super.onConfigurationChanged(newConfig)
-        lastOverlayY = null
-        lastOverlayX = null
-
-        if (SystemUIPlusController.isEnabled(this)) {
-            Thread {
-                SystemUIPlusController.reapply(this)
-            }.start()
-        }
-
-        handler.post {
-            val view = rootView ?: return@post
-            view.requestApplyInsets()
-            requestPositionRefresh()
-            requestStateRefresh()
-        }
-    }
-
-"""
-              )
-
-          duos.write_text(text)
-          PY
-
-          python3 <<'PY'
-          from pathlib import Path
-
-          model = Path("app/src/main/java/com/aldiandrew/duos/DuoStatusModel.kt")
-          text = model.read_text()
-          text = text.replace(
-              """    val batteryColor: Int
-        get() = when {
-            charging -> batteryChargingColorOverride
-            powerSaver -> batteryPowerSaverColorOverride
-            batteryLevel <= 15 -> batteryLowColorOverride
-            else -> batteryNormalColorOverride
-        } ?: foregroundColor""",
-              """    val batteryColor: Int
-        get() = foregroundColor"""
-          )
-          model.write_text(text)
-
-          view = Path("app/src/main/java/com/aldiandrew/duos/DuoIndicatorView.kt")
-          text = view.read_text()
-          text = text.replace("current.networkColorOverride ?: current.foregroundColor", "current.foregroundColor")
-          text = text.replace("current.wifiColorOverride ?: current.foregroundColor", "current.foregroundColor")
-          text = text.replace("current.signalColorOverride ?: current.foregroundColor", "current.foregroundColor")
-          text = text.replace(
-              """                current.networkGeneration,
-                k,
-                cx,
-                cy + 10f * k""",
-              """                current.networkGeneration,
-                k,
-                cx,
-                cy"""
-          )
-          text = text.replace(
-              """                "VPN",
-                k,
-                cx,
-                cy + 10f * k""",
-              """                "VPN",
-                k,
-                cx,
-                cy"""
-          )
-          view.write_text(text)
-          PY
-
-          # Duos is a renderer only in the merged app. Its legacy SystemBarController
-          # must remain a no-op compatibility facade.
-          cat > app/src/main/java/com/aldiandrew/duos/SystemBarController.kt <<'EOF'
-          package com.aldiandrew.duos
-
-          import kotlinx.coroutines.Dispatchers
-          import kotlinx.coroutines.withContext
-
-          object SystemBarController {
-              suspend fun isHidden(): Boolean = withContext(Dispatchers.IO) {
-                  false
-              }
-
-              suspend fun showCustomBarShell(): Result<String> =
-                  Result.success("SystemUI Plus master controller owns native SystemUI visibility")
-
-              suspend fun restore(): Result<String> =
-                  Result.success("SystemUI Plus master controller owns native SystemUI visibility")
-          }
-          EOF
 
       - name: Configure Java
         uses: actions/setup-java@v5
@@ -436,42 +35,16 @@ import com.aldiandrew.systemuiplus.SystemUIPlusController
       - name: Build release APK
         run: gradle --no-daemon assembleRelease
 
-      - name: Commit merged source
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/src/main/java/com/aldiandrew/clockos
-          git add app/src/main/java/com/aldiandrew/duos
-          git add app/src/main/aidl/com/aldiandrew/clockos
-
-          if git diff --cached --quiet; then
-            echo "Merged source is already committed."
-            exit 0
-          fi
-
-          # The workflow already checked out the current main commit.
-          # Do not rebase after generating the merge: the generated
-          # SystemBarController.kt and other merged files can also be changed
-          # by the merge itself, which makes a post-commit rebase prone to
-          # content conflicts.
-          git commit -m "Merge ClockOS and Duos implementations"
-
-          # Push the generated commit directly. Workflow runs are serialized
-          # below, so another merge workflow cannot race this push.
-          git push origin HEAD:main
-
       - name: Prepare installable APK
         shell: bash
         run: |
           set -euo pipefail
 
           OUTPUT_DIR="app/build/outputs/apk/release"
-          APK="$(find "$OUTPUT_DIR" -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          APK="$(find "$OUTPUT_DIR" -maxdepth 1 -type f -name '*.apk' ! -name 'app-release.apk' | head -n 1)"
 
           if [ -z "$APK" ]; then
-            echo "No release APK found."
+            echo "No unsigned/unaligned release APK found."
             find app/build/outputs -type f -print || true
             exit 1
           fi
@@ -488,13 +61,13 @@ import com.aldiandrew.systemuiplus.SystemUIPlusController
           fi
 
           ALIGNED="/tmp/SystemUIPlus-release-aligned.apk"
-          SIGNED="app-release.apk"
+          SIGNED="$OUTPUT_DIR/app-release.apk"
 
           "$ZIPALIGN" -f -p 4 "$APK" "$ALIGNED"
 
-          "$APKSIGNER" sign             --ks "$KEYSTORE"             --ks-pass pass:android             --key-pass pass:android             --ks-key-alias androiddebugkey             --out "$OUTPUT_DIR/$SIGNED"             "$ALIGNED"
+          "$APKSIGNER" sign             --ks "$KEYSTORE"             --ks-pass pass:android             --key-pass pass:android             --ks-key-alias androiddebugkey             --out "$SIGNED"             "$ALIGNED"
 
-          "$APKSIGNER" verify --verbose "$OUTPUT_DIR/$SIGNED"
+          "$APKSIGNER" verify --verbose "$SIGNED"
           rm -f "$ALIGNED"
 
       - name: Upload APK
