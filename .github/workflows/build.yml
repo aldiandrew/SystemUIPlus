@@ -3,7 +3,7 @@ concurrency:
   cancel-in-progress: false
 
 name: Build SystemUI Plus
-# Trigger a fresh release build after the unified SystemUI merge.
+# Ensure legacy native SystemUI restoration is removed before every build.
 
 on:
   push:
@@ -188,12 +188,20 @@ jobs:
 
           duos = Path("app/src/main/java/com/aldiandrew/duos/CustomStatusBarService.kt")
           text = duos.read_text()
-          text = text.replace('            restoreSystemBarInBackground()\n', '')
+          # Remove every legacy call to native SystemUI restoration, regardless
+          # of indentation, because the master SystemUIPlusController owns this.
           text = re.sub(
-              r'\n    private fun restoreSystemBarInBackground\(\) \{.*?\n    \}\n\}',
-              '\n}',
+              r'^\\s*restoreSystemBarInBackground\\(\\)\\s*$\\n?',
+              '',
               text,
-              flags=re.S
+              flags=re.M
+          )
+          # Remove the complete legacy helper if it exists in the upstream source.
+          text = re.sub(
+              r'\\n?    private fun restoreSystemBarInBackground\\(\\) \\{.*?^    \\}\\n',
+              '\\n',
+              text,
+              flags=re.S | re.M
           )
           duos.write_text(text)
           PY
