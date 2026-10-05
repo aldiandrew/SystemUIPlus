@@ -26,6 +26,8 @@ import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.TextView
+import com.aldiandrew.systemuiplus.SystemUIPlusAppearance
+import com.aldiandrew.systemuiplus.SystemUIPlusController
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
