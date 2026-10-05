@@ -998,10 +998,17 @@ class ClockOverlayService : Service() {
                     result
                 )
 
-            // Match the same Material 3 dynamic color source used by the
-            // SystemUI Plus settings UI. The clock must not become invisible
-            // simply because native SystemUI reports a different icon appearance.
-            val color = if (isNightMode()) Color.WHITE else Color.BLACK
+            val color =
+                when (appearance) {
+                    true -> Color.BLACK
+                    false -> Color.WHITE
+                    null -> nativeClockColor()
+                        ?: if (fallbackNight) {
+                            Color.WHITE
+                        } else {
+                            Color.BLACK
+                        }
+                }
 
             handler.post {
                 if (

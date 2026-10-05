@@ -506,11 +506,11 @@ class CustomStatusBarService : Service() {
                         .coerceIn(0, 4)
                 }
 
-            // Wi-Fi owns the middle slot whenever the active network is Wi-Fi.
-            // Validation is kept as state information but must not hide the Wi-Fi indicator.
+            // Only a validated Wi-Fi network owns the middle slot; otherwise the mobile generation
+            // remains visible, matching the active data path.
             Triple(
                 DuoStatusMapper.wifiBars(stockBars),
-                true,
+                validated,
                 validated
             )
         } catch (t: Throwable) {
