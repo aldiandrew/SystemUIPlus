@@ -45,39 +45,14 @@ jobs:
             --output app/src/main/res/font/plus_jakarta_sans_700.ttf
 
           curl --fail --location --silent --show-error --retry 3 \
-            "https://cdn.jsdelivr.net/fontsource/fonts/iosevka@5.3.0/latin-400-normal.ttf" \
-            --output app/src/main/res/font/iosevka_400.ttf
-
-          curl --fail --location --silent --show-error --retry 3 \
-            "https://cdn.jsdelivr.net/fontsource/fonts/iosevka@5.3.0/latin-500-normal.ttf" \
-            --output app/src/main/res/font/iosevka_500.ttf
-
-          curl --fail --location --silent --show-error --retry 3 \
-            "https://cdn.jsdelivr.net/fontsource/fonts/iosevka@5.3.0/latin-600-normal.ttf" \
-            --output app/src/main/res/font/iosevka_600.ttf
-
-          curl --fail --location --silent --show-error --retry 3 \
-            "https://cdn.jsdelivr.net/fontsource/fonts/iosevka@5.3.0/latin-700-normal.ttf" \
-            --output app/src/main/res/font/iosevka_700.ttf
-
-          curl --fail --location --silent --show-error --retry 3 \
             "https://raw.githubusercontent.com/tokotype/PlusJakartaSans/master/OFL.txt" \
             --output app/src/main/assets/fonts/PLUS_JAKARTA_SANS_OFL.txt
-
-          curl --fail --location --silent --show-error --retry 3 \
-            "https://raw.githubusercontent.com/be5invis/Iosevka/main/LICENSE.md" \
-            --output app/src/main/assets/fonts/IOSEVKA_LICENSE.md
 
           test -s app/src/main/res/font/plus_jakarta_sans_400.ttf
           test -s app/src/main/res/font/plus_jakarta_sans_500.ttf
           test -s app/src/main/res/font/plus_jakarta_sans_600.ttf
           test -s app/src/main/res/font/plus_jakarta_sans_700.ttf
-          test -s app/src/main/res/font/iosevka_400.ttf
-          test -s app/src/main/res/font/iosevka_500.ttf
-          test -s app/src/main/res/font/iosevka_600.ttf
-          test -s app/src/main/res/font/iosevka_700.ttf
           test -s app/src/main/assets/fonts/PLUS_JAKARTA_SANS_OFL.txt
-          test -s app/src/main/assets/fonts/IOSEVKA_LICENSE.md
 
           cat > app/src/main/assets/fonts/THIRD_PARTY_NOTICES.txt <<'EOF'
           SystemUI Plus bundled fonts
@@ -86,11 +61,6 @@ jobs:
           Source: https://github.com/tokotype/PlusJakartaSans
           License: SIL Open Font License 1.1
           License text: PLUS_JAKARTA_SANS_OFL.txt
-
-          Iosevka
-          Source: https://github.com/be5invis/Iosevka
-          License: SIL Open Font License 1.1
-          License text: IOSEVKA_LICENSE.md
           EOF
 
       - name: Configure Java
