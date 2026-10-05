@@ -28,6 +28,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import com.aldiandrew.systemuiplus.SystemUIPlusAppearance
 import com.aldiandrew.systemuiplus.SystemUIPlusController
+import com.aldiandrew.systemuiplus.SystemUIPlusShizuku
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -215,7 +216,7 @@ class ClockOverlayService : Service() {
                 }
             }
 
-            if (!isLandscape()) {
+            if (!isLandscape() || !SystemUIPlusShizuku.hasPermission()) {
                 attachOverlay()
             }
 
@@ -242,10 +243,13 @@ class ClockOverlayService : Service() {
         lastY = Int.MIN_VALUE
 
         if (SystemUIPlusController.isEnabled(this)) {
-            if (
+            val shizukuReady = SystemUIPlusShizuku.hasPermission()
+            val useNativeLandscape =
                 newConfig.orientation ==
-                    Configuration.ORIENTATION_LANDSCAPE
-            ) {
+                    Configuration.ORIENTATION_LANDSCAPE &&
+                    shizukuReady
+
+            if (useNativeLandscape) {
                 stopClockUpdates()
                 detachOverlay()
             } else {
@@ -254,7 +258,9 @@ class ClockOverlayService : Service() {
             }
 
             SystemUIPlusAppearance.invalidate()
-            SystemUIPlusController.reapplyAfterConfiguration(this)
+            if (shizukuReady) {
+                SystemUIPlusController.reapplyAfterConfiguration(this)
+            }
         }
 
         handler.post {

@@ -202,11 +202,15 @@ class CustomStatusBarService : Service() {
 
         if (SystemUIPlusController.isEnabled(this)) {
             val view = rootView
-
-            if (
+            val shizukuReady =
+                com.aldiandrew.systemuiplus.SystemUIPlusShizuku
+                    .hasPermission()
+            val useNativeLandscape =
                 newConfig.orientation ==
-                    Configuration.ORIENTATION_LANDSCAPE
-            ) {
+                    Configuration.ORIENTATION_LANDSCAPE &&
+                    shizukuReady
+
+            if (useNativeLandscape) {
                 if (view != null) {
                     detachOverlay(view)
                 }
@@ -219,7 +223,9 @@ class CustomStatusBarService : Service() {
             }
 
             com.aldiandrew.systemuiplus.SystemUIPlusAppearance.invalidate()
-            SystemUIPlusController.reapplyAfterConfiguration(this)
+            if (shizukuReady) {
+                SystemUIPlusController.reapplyAfterConfiguration(this)
+            }
         }
 
         handler.post {

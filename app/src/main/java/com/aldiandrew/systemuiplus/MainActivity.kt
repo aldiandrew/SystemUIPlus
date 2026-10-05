@@ -32,9 +32,6 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -116,9 +113,10 @@ class MainActivity : ComponentActivity() {
     private val binderDead =
         object : Shizuku.OnBinderDeadListener {
             override fun onBinderDead() {
+                // Shizuku may be restarted while SystemUI Plus is active.
+                // Existing overlay services must keep running; only new
+                // privileged SystemUI operations are temporarily unavailable.
                 shizukuReady = false
-                clockActive = false
-                duosActive = false
             }
         }
 
@@ -426,8 +424,7 @@ class MainActivity : ComponentActivity() {
         stopService(Intent(this, ClockOverlayService::class.java))
 
         ShizukuOverlayController.stop(
-            this,
-            restoreSystemBar = false
+            this
         ) {
             Thread {
                 val restored = SystemUIPlusController.restore(this)
@@ -640,11 +637,11 @@ class MainActivity : ComponentActivity() {
                                         onCheckedChange = {
                                             toggleMasterSystemUi()
                                         },
-                                        enabled = shizukuReady &&
-                                            notificationAccess &&
+                                        enabled = notificationAccess &&
                                             phoneStateGranted &&
                                             overlayPermissionGranted &&
-                                            !busy
+                                            !busy &&
+                                            (shizukuReady || !systemUiHidden)
                                     )
                                 }
                             )
@@ -1592,63 +1589,23 @@ class MainActivity : ComponentActivity() {
             }
 
             ExpressiveCard(Modifier.fillMaxWidth()) {
-                Column {
-                    AboutLinkRow(
-                        icon = Icons.Default.Code,
-                        title = stringResource(R.string.source_code),
-                        summary = stringResource(
-                            R.string.source_code_summary
-                        ),
-                        contentDescription = stringResource(
-                            R.string.content_description_source
-                        ),
-                        onClick = {
-                            openWebLink(
-                                "https://github.com/aldiandrew/SystemUIPlus"
-                            )
-                        }
-                    )
-
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-
-                    AboutLinkRow(
-                        icon = Icons.Default.Description,
-                        title = stringResource(R.string.licenses),
-                        summary = stringResource(
-                            R.string.licenses_summary
-                        ),
-                        contentDescription = stringResource(
-                            R.string.content_description_licenses
-                        ),
-                        onClick = {
-                            openWebLink(
-                                "https://github.com/aldiandrew/SystemUIPlus#licenses"
-                            )
-                        }
-                    )
-
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-
-                    AboutLinkRow(
-                        icon = Icons.Default.PrivacyTip,
-                        title = stringResource(R.string.privacy_policy),
-                        summary = stringResource(
-                            R.string.privacy_policy_summary
-                        ),
-                        contentDescription = stringResource(
-                            R.string.content_description_privacy
-                        ),
-                        onClick = {
-                            openWebLink(
-                                "https://github.com/aldiandrew/SystemUIPlus#privacy-policy"
-                            )
-                        }
-                    )
-                }
+                AboutLinkRow(
+                    icon = Icons.Default.Info,
+                    title = stringResource(
+                        R.string.about_project_information
+                    ),
+                    summary = stringResource(
+                        R.string.about_project_information_summary
+                    ),
+                    contentDescription = stringResource(
+                        R.string.content_description_project_information
+                    ),
+                    onClick = {
+                        openWebLink(
+                            "https://github.com/aldiandrew/SystemUIPlus"
+                        )
+                    }
+                )
             }
         }
     }

@@ -2,6 +2,8 @@
 
 SystemUI Plus combines the ClockOS and Duos status-bar customization features into one Android application.
 
+**Developer: Insomdroid**
+
 It is designed to work without root, Xposed, or Accessibility permission. Shizuku is used only where privileged SystemUI shell operations are required.
 
 ## Features
@@ -69,6 +71,12 @@ Backup files are not uploaded by SystemUI Plus.
 
 The Source Code, Licenses, and Privacy Policy links in the application open GitHub or another external page in the user's browser. The browser and the linked website may have their own privacy policies and data practices.
 
+### Shizuku availability
+
+SystemUI Plus requests Shizuku permission only when it has not already been granted. The permission grant is managed by Shizuku and is not requested again merely because the Shizuku service is restarted.
+
+While SystemUI Plus is already active, its custom clock and system-indicator overlay services can continue running if the Shizuku service temporarily stops. Privileged operations that change native SystemUI state, including disabling or restoring the native status bar, require Shizuku to be available again. SystemUI Plus therefore keeps the active custom mode instead of disabling its overlays when Shizuku temporarily goes offline.
+
 ## Licenses
 
 SystemUI Plus uses open-source Android libraries and the bundled Plus Jakarta Sans font. Each dependency remains subject to its own license.
@@ -98,10 +106,6 @@ The bundled Plus Jakarta Sans font is distributed under the SIL Open Font Licens
 https://scripts.sil.org/OFL
 
 The build also includes the font license in its third-party notices.
-
-## Developer
-
-Aldi Andrew
 
 ## Repository
 

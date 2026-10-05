@@ -198,6 +198,10 @@ object SystemUIPlusController {
     ) {
         if (!isEnabled(context)) return
 
+        // Existing overlays can continue while Shizuku is temporarily stopped.
+        // Do not attempt a privileged orientation transition until it returns.
+        if (!SystemUIPlusShizuku.hasPermission()) return
+
         val landscape =
             newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE
         val mode = if (landscape) 1 else 0

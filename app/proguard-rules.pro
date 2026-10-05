@@ -1,2 +1,0 @@
--keep class com.aldiandrew.clockos.** { *; }
--keep class com.aldiandrew.duos.** { *; }
