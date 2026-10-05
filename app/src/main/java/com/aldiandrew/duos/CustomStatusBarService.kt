@@ -79,6 +79,7 @@ class CustomStatusBarService : Service() {
 
     private val appearanceRunnable = object : Runnable {
         override fun run() {
+            val nextRun = this
             scope.launch {
                 try {
                     val color =
@@ -94,11 +95,11 @@ class CustomStatusBarService : Service() {
                                 rootView?.update(updated)
                             }
                         }
-                        handler.postDelayed(this@CustomStatusBarService.appearanceRunnable, APPEARANCE_REFRESH_MS)
+                        handler.postDelayed(nextRun, APPEARANCE_REFRESH_MS)
                     }
                 } catch (t: Throwable) {
                     Log.w(TAG, "appearance refresh failed: " + t.javaClass.simpleName + ": " + t.message)
-                    handler.postDelayed(this@CustomStatusBarService.appearanceRunnable, APPEARANCE_REFRESH_MS)
+                    handler.postDelayed(nextRun, APPEARANCE_REFRESH_MS)
                 }
             }
         }
