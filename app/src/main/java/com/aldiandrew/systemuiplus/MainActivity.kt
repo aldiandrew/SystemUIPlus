@@ -12,7 +12,6 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -45,6 +44,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Alignment
@@ -825,7 +827,7 @@ class MainActivity : ComponentActivity() {
         val indicatorScale =
             (duoSize / 36f).coerceIn(0.78f, 1.45f) *
                 if (duoStyle == DuoVisualStyle.COMPACT) 0.88f else 1f
-        val previewDarkTheme = isSystemInDarkTheme()
+        val previewDarkTheme = true
 
         Surface(
             modifier = Modifier.fillMaxWidth().height(92.dp),
@@ -851,6 +853,7 @@ class MainActivity : ComponentActivity() {
                     Text(
                         timeText,
                         style = MaterialTheme.typography.titleLarge.copy(
+                            fontFamily = SystemUIPlusIosevka,
                             fontSize = clockSettings.sizeSp.sp
                         ),
                         color = MaterialTheme.colorScheme.onSurface,
@@ -1025,7 +1028,9 @@ class MainActivity : ComponentActivity() {
                     )
                     Text(
                         valueText,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = SystemUIPlusIosevka
+                        ),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -1062,27 +1067,140 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+private val SystemUIPlusJakartaSans =
+    FontFamily(
+        Font(
+            R.font.plus_jakarta_sans_400,
+            FontWeight.Normal
+        ),
+        Font(
+            R.font.plus_jakarta_sans_500,
+            FontWeight.Medium
+        ),
+        Font(
+            R.font.plus_jakarta_sans_600,
+            FontWeight.SemiBold
+        ),
+        Font(
+            R.font.plus_jakarta_sans_700,
+            FontWeight.Bold
+        )
+    )
+
+private val SystemUIPlusIosevka =
+    FontFamily(
+        Font(
+            R.font.iosevka_400,
+            FontWeight.Normal
+        ),
+        Font(
+            R.font.iosevka_500,
+            FontWeight.Medium
+        ),
+        Font(
+            R.font.iosevka_600,
+            FontWeight.SemiBold
+        ),
+        Font(
+            R.font.iosevka_700,
+            FontWeight.Bold
+        )
+    )
+
+private val SystemUIPlusTypography =
+    androidx.compose.material3.Typography().copy(
+        displayLarge = androidx.compose.material3.Typography().displayLarge.copy(
+            fontFamily = SystemUIPlusJakartaSans
+        ),
+        displayMedium = androidx.compose.material3.Typography().displayMedium.copy(
+            fontFamily = SystemUIPlusJakartaSans
+        ),
+        displaySmall = androidx.compose.material3.Typography().displaySmall.copy(
+            fontFamily = SystemUIPlusJakartaSans
+        ),
+        headlineLarge = androidx.compose.material3.Typography().headlineLarge.copy(
+            fontFamily = SystemUIPlusJakartaSans
+        ),
+        headlineMedium = androidx.compose.material3.Typography().headlineMedium.copy(
+            fontFamily = SystemUIPlusJakartaSans
+        ),
+        headlineSmall = androidx.compose.material3.Typography().headlineSmall.copy(
+            fontFamily = SystemUIPlusJakartaSans
+        ),
+        titleLarge = androidx.compose.material3.Typography().titleLarge.copy(
+            fontFamily = SystemUIPlusJakartaSans
+        ),
+        titleMedium = androidx.compose.material3.Typography().titleMedium.copy(
+            fontFamily = SystemUIPlusJakartaSans
+        ),
+        titleSmall = androidx.compose.material3.Typography().titleSmall.copy(
+            fontFamily = SystemUIPlusJakartaSans
+        ),
+        bodyLarge = androidx.compose.material3.Typography().bodyLarge.copy(
+            fontFamily = SystemUIPlusJakartaSans
+        ),
+        bodyMedium = androidx.compose.material3.Typography().bodyMedium.copy(
+            fontFamily = SystemUIPlusJakartaSans
+        ),
+        bodySmall = androidx.compose.material3.Typography().bodySmall.copy(
+            fontFamily = SystemUIPlusJakartaSans
+        ),
+        labelLarge = androidx.compose.material3.Typography().labelLarge.copy(
+            fontFamily = SystemUIPlusJakartaSans
+        ),
+        labelMedium = androidx.compose.material3.Typography().labelMedium.copy(
+            fontFamily = SystemUIPlusJakartaSans
+        ),
+        labelSmall = androidx.compose.material3.Typography().labelSmall.copy(
+            fontFamily = SystemUIPlusJakartaSans
+        )
+    )
+
 @Composable
 private fun SystemUIPlusTheme(content: @Composable () -> Unit) {
-    val dark = isSystemInDarkTheme()
-    val context = androidx.compose.ui.platform.LocalContext.current
     val scheme =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (dark) {
-                androidx.compose.material3.dynamicDarkColorScheme(context)
-            } else {
-                androidx.compose.material3.dynamicLightColorScheme(context)
-            }
-        } else {
-            if (dark) {
-                androidx.compose.material3.darkColorScheme()
-            } else {
-                androidx.compose.material3.lightColorScheme()
-            }
-        }
+        androidx.compose.material3.darkColorScheme(
+            primary = androidx.compose.ui.graphics.Color(0xFF8BE8FF),
+            onPrimary = androidx.compose.ui.graphics.Color(0xFF002027),
+            primaryContainer = androidx.compose.ui.graphics.Color(0xFF004D5A),
+            onPrimaryContainer = androidx.compose.ui.graphics.Color(0xFFB7F0FF),
+
+            secondary = androidx.compose.ui.graphics.Color(0xFFB8CBD0),
+            onSecondary = androidx.compose.ui.graphics.Color(0xFF223236),
+            secondaryContainer = androidx.compose.ui.graphics.Color(0xFF394A4F),
+            onSecondaryContainer = androidx.compose.ui.graphics.Color(0xFFD4E7EC),
+
+            tertiary = androidx.compose.ui.graphics.Color(0xFFB9CDD0),
+            onTertiary = androidx.compose.ui.graphics.Color(0xFF243234),
+            tertiaryContainer = androidx.compose.ui.graphics.Color(0xFF3A4B4E),
+            onTertiaryContainer = androidx.compose.ui.graphics.Color(0xFFD5E8EA),
+
+            background = androidx.compose.ui.graphics.Color(0xFF000000),
+            onBackground = androidx.compose.ui.graphics.Color(0xFFF5F5F5),
+
+            surface = androidx.compose.ui.graphics.Color(0xFF050505),
+            onSurface = androidx.compose.ui.graphics.Color(0xFFF5F5F5),
+            surfaceVariant = androidx.compose.ui.graphics.Color(0xFF111111),
+            onSurfaceVariant = androidx.compose.ui.graphics.Color(0xFFB7B7B7),
+
+            surfaceContainerLowest = androidx.compose.ui.graphics.Color(0xFF000000),
+            surfaceContainerLow = androidx.compose.ui.graphics.Color(0xFF080808),
+            surfaceContainer = androidx.compose.ui.graphics.Color(0xFF0D0D0D),
+            surfaceContainerHigh = androidx.compose.ui.graphics.Color(0xFF121212),
+            surfaceContainerHighest = androidx.compose.ui.graphics.Color(0xFF181818),
+
+            outline = androidx.compose.ui.graphics.Color(0xFF626262),
+            outlineVariant = androidx.compose.ui.graphics.Color(0xFF303030),
+
+            scrim = androidx.compose.ui.graphics.Color(0xFF000000),
+            inverseSurface = androidx.compose.ui.graphics.Color(0xFFF0F0F0),
+            inverseOnSurface = androidx.compose.ui.graphics.Color(0xFF1A1A1A),
+            inversePrimary = androidx.compose.ui.graphics.Color(0xFF006778)
+        )
 
     MaterialTheme(
         colorScheme = scheme,
+        typography = SystemUIPlusTypography,
         content = content
     )
 }
