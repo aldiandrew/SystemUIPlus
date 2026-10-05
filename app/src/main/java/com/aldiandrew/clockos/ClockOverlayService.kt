@@ -53,7 +53,6 @@ class ClockOverlayService : Service() {
     private lateinit var clockView: TextView
     private lateinit var notificationIconView: SakuraNotificationIconContainer
     private lateinit var params: WindowManager.LayoutParams
-    private lateinit var shell: ShizukuShell
     private lateinit var systemUiContext: Context
 
     private val handler = Handler(Looper.getMainLooper())
@@ -66,13 +65,10 @@ class ClockOverlayService : Service() {
 
     private var lastRendered = ""
     private var lastSizeSp = Float.NaN
-    private var nativeNotificationIconsHidden = false
-    private var notificationIconFlagSyncPending = false
 
     private val notificationStoreListener: () -> Unit = {
         handler.post {
             renderNotificationIcons()
-            syncNativeNotificationIcons()
         }
     }
 
@@ -126,16 +122,10 @@ class ClockOverlayService : Service() {
         }
 
         try {
-            shell = ShizukuShell(this)
-
             if (!hasClockNotificationAccess(this)) {
                 stopSelf()
                 return
             }
-
-            shell.execute(
-                "cmd statusbar send-disable-flag clock"
-            ) { }
 
             syncNativeNotificationIcons()
 
