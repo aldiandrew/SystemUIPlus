@@ -193,9 +193,15 @@ class MainActivity : ComponentActivity() {
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
-        grantResults: IntArray
+        grantResults: IntArray,
+        deviceId: Int
     ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        super.onRequestPermissionsResult(
+            requestCode,
+            permissions,
+            grantResults,
+            deviceId
+        )
         if (requestCode == PHONE_PERMISSION_REQUEST) {
             refreshPhonePermission()
             if (phoneStateGranted) {
@@ -901,6 +907,7 @@ class MainActivity : ComponentActivity() {
         val indicatorScale =
             (duoSize / 36f).coerceIn(0.78f, 1.45f) *
                 if (duoStyle == DuoVisualStyle.COMPACT) 0.88f else 1f
+        val previewDarkTheme = isSystemInDarkTheme()
 
         Surface(
             modifier = Modifier.fillMaxWidth().height(92.dp),
@@ -960,7 +967,7 @@ class MainActivity : ComponentActivity() {
                                 (android.net.wifi.WifiManager.calculateSignalLevel(info.rssi, 5) + 1).coerceIn(0, 4)
                             Triple(com.aldiandrew.duos.DuoStatusMapper.wifiBars(bars), connected, caps?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true)
                         }.getOrDefault(Triple(0, false, false))
-                        val light = !isSystemInDarkTheme()
+                        val light = !previewDarkTheme
                         view.update(
                             DuoStatusState(
                                 batteryLevel = battery,
