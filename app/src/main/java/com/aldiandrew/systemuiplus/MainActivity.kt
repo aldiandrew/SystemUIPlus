@@ -105,6 +105,18 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         refreshState()
         loadSettings()
+
+        // If the master state persisted as ON but one custom renderer is no
+        // longer alive, rebuild the complete custom status bar as one unit.
+        if (
+            systemUiHidden &&
+            shizukuReady &&
+            notificationAccess &&
+            (!clockActive || !duosActive) &&
+            !busy
+        ) {
+            startUnifiedSystemUi()
+        }
     }
 
     override fun onDestroy() {
