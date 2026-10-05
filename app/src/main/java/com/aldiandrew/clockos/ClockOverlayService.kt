@@ -28,11 +28,6 @@ import android.widget.TextView
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
-import androidx.compose.ui.graphics.toArgb
 
 class ClockOverlayService : Service() {
 
@@ -1006,7 +1001,7 @@ class ClockOverlayService : Service() {
             // Match the same Material 3 dynamic color source used by the
             // SystemUI Plus settings UI. The clock must not become invisible
             // simply because native SystemUI reports a different icon appearance.
-            val color = appThemeClockColor()
+            val color = if (isNightMode()) Color.WHITE else Color.BLACK
 
             handler.post {
                 if (
@@ -1074,27 +1069,6 @@ class ClockOverlayService : Service() {
         return value?.let {
             (it and APPEARANCE_LIGHT_STATUS_BARS) != 0L
         }
-    }
-
-    private fun appThemeClockColor(): Int {
-        val dark =
-            (
-                resources.configuration.uiMode and
-                    android.content.res.Configuration.UI_MODE_NIGHT_MASK
-            ) == android.content.res.Configuration.UI_MODE_NIGHT_YES
-
-        val scheme =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                if (dark) {
-                    dynamicDarkColorScheme(this)
-                } else {
-                    dynamicLightColorScheme(this)
-                }
-            } else {
-                if (dark) darkColorScheme() else lightColorScheme()
-            }
-
-        return scheme.onSurface.toArgb()
     }
 
     private fun nativeClockColor(): Int? {
