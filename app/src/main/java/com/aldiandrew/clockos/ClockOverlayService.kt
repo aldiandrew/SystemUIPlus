@@ -248,9 +248,12 @@ class ClockOverlayService : Service() {
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
 
-        NotificationIconStore.unregister(
-            notificationStoreListener
-        )
+        if (notificationStoreRegistered) {
+            NotificationIconStore.unregister(
+                notificationStoreListener
+            )
+            notificationStoreRegistered = false
+        }
 
         detachOverlay()
 
