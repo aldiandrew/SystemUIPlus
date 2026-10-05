@@ -1,8 +1,7 @@
 package com.aldiandrew.duos
 
-import com.aldiandrew.systemuiplus.SystemUIPlusController
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 
 /**
  * Compatibility facade for Duos.
@@ -12,7 +11,7 @@ import kotlinx.coroutines.withContext
  */
 object SystemBarController {
     suspend fun isHidden(): Boolean = withContext(Dispatchers.IO) {
-        SystemUIPlusController.isEnabled(AppContextHolder.context)
+        false
     }
 
     suspend fun showCustomBarShell(): Result<String> =
@@ -20,8 +19,4 @@ object SystemBarController {
 
     suspend fun restore(): Result<String> =
         Result.success("SystemUI Plus master controller owns native SystemUI visibility")
-}
-
-internal object AppContextHolder {
-    lateinit var context: android.content.Context
 }

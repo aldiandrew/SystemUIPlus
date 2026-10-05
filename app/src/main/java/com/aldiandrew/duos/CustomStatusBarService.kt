@@ -141,7 +141,6 @@ class CustomStatusBarService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        AppContextHolder.context = applicationContext
         clearError()
 
         try {
