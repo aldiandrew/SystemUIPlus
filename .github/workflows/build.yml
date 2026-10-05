@@ -234,44 +234,30 @@ jobs:
           }
           EOF
 
-      - name: Apply unified settings UI
-        shell: bash
-        run: |
-          set -euo pipefail
+          # Unified settings UI patch: expose the real ClockOS date
+          # controls, reset actions, and only the two supported Duos styles.
           python3 <<'PY'
           from pathlib import Path
 
           p = Path("app/src/main/java/com/aldiandrew/systemuiplus/MainActivity.kt")
           text = p.read_text()
 
-          # ClockOS exposes these settings already; the merged UI previously
-          # only displayed their values. Replace them with real controls.
-          old = '''                        Text("Date format: " + clockSettings.dateFormat)
+          text = text.replace(
+              '''                        Text("Date format: " + clockSettings.dateFormat)
                         Text("Date style: " + clockSettings.dateStyle)
                         Text("AM/PM style: " + clockSettings.amPmStyle)
 
-                        Text("Size: " + clockSettings.sizeSp.toInt() + " sp")
-'''
-          new = '''                        ExpressiveDropdown(
+''',
+              '''                        ExpressiveDropdown(
                             label = "Date format",
                             selected = clockSettings.dateFormat,
                             options = listOf(
-                                "dd/MM",
-                                "dd/MM/yy",
-                                "yyyy-MM-dd",
-                                "dd-MM-yyyy",
-                                "MMM dd",
-                                "EEE",
-                                "EEE dd",
-                                "EEE dd/MM",
-                                "EEE dd MMM",
-                                "EEE MMM dd",
-                                "EEEE dd/MM",
-                                "EEEE MM/dd"
+                                "dd/MM", "dd/MM/yy", "yyyy-MM-dd",
+                                "dd-MM-yyyy", "MMM dd", "EEE",
+                                "EEE dd", "EEE dd/MM", "EEE dd MMM",
+                                "EEE MMM dd", "EEEE dd/MM", "EEEE MM/dd"
                             )
-                        ) { value ->
-                            saveClock("dateFormat", value)
-                        }
+                        ) { saveClock("dateFormat", it) }
 
                         ExpressiveDropdown(
                             label = "Date style",
@@ -292,27 +278,25 @@ jobs:
                             )
                         }
 
-                        Text("Size: " + clockSettings.sizeSp.toInt() + " sp")
-'''
-          if old not in text:
-              raise SystemExit("Clock settings block not found")
-          text = text.replace(old, new, 1)
-
-          # Remove AM/PM completely. 12/24-hour mode is the only time-format
-          # choice exposed by SystemUI Plus.
-          text = text.replace(
-              '                        Text("AM/PM style: " + clockSettings.amPmStyle)\n',
-              ''
+''',
+              1
           )
 
-          old = '''                        Slider(
+          text = text.replace(
+              '''                        Slider(
                             value = clockSettings.verticalPositionDp,
                             onValueChange = { saveClock("verticalPositionDp", it) },
                             valueRange = -20f..20f,
                             modifier = Modifier.fillMaxWidth()
                         )
-'''
-          new = old + '''
+''',
+              '''                        Slider(
+                            value = clockSettings.verticalPositionDp,
+                            onValueChange = { saveClock("verticalPositionDp", it) },
+                            valueRange = -20f..20f,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
                         Row(
                             Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -326,23 +310,19 @@ jobs:
                             ) {
                                 Text("Reset position")
                             }
-
                             OutlinedButton(
-                                onClick = {
-                                    saveClock("sizeSp", 14f)
-                                },
+                                onClick = { saveClock("sizeSp", 14f) },
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text("Reset size")
                             }
                         }
-'''
-          if old not in text:
-              raise SystemExit("Clock vertical slider block not found")
-          text = text.replace(old, new, 1)
+''',
+              1
+          )
 
-          # Indicator size reset.
-          old = '''                        Slider(
+          text = text.replace(
+              '''                        Slider(
                             value = duoSize,
                             onValueChange = {
                                 duoSize = it
@@ -351,8 +331,17 @@ jobs:
                             valueRange = 28f..60f,
                             modifier = Modifier.fillMaxWidth()
                         )
-'''
-          new = old + '''
+''',
+              '''                        Slider(
+                            value = duoSize,
+                            onValueChange = {
+                                duoSize = it
+                                DuoPreferences.setIndicatorSizeDp(this@MainActivity, it)
+                            },
+                            valueRange = 28f..60f,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
                         OutlinedButton(
                             onClick = {
                                 DuoPreferences.setIndicatorSizeDp(this@MainActivity, 36f)
@@ -362,18 +351,12 @@ jobs:
                         ) {
                             Text("Reset indicator size")
                         }
-'''
-          if old not in text:
-              raise SystemExit("Indicator size block not found")
-          text = text.replace(old, new, 1)
+''',
+              1
+          )
 
-          # Only expose the two requested styles even though the renderer keeps
-          # its legacy implementations for compatibility.
-          old = '''                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            DuoVisualStyle.values().forEach { style ->
+          text = text.replace(
+              '''                            DuoVisualStyle.values().forEach { style ->
                                 OutlinedButton(
                                     onClick = {
                                         duoStyle = style
@@ -387,47 +370,32 @@ jobs:
                                     )
                                 }
                             }
-                        }
-'''
-          new = '''                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            listOf(
+''',
+              '''                            listOf(
                                 DuoVisualStyle.DUO,
                                 DuoVisualStyle.COMPACT
                             ).forEach { style ->
-                                val selected = duoStyle == style
                                 Button(
                                     onClick = {
                                         duoStyle = style
                                         DuoPreferences.setVisualStyle(this@MainActivity, style)
                                     },
                                     modifier = Modifier.weight(1f),
-                                    enabled = !selected
+                                    enabled = duoStyle != style
                                 ) {
-                                    Text(
-                                        if (style == DuoVisualStyle.DUO) "Duo" else "Compact"
-                                    )
+                                    Text(if (style == DuoVisualStyle.DUO) "Duo" else "Compact")
                                 }
                             }
-                        }
-'''
-          if old not in text:
-              raise SystemExit("Indicator style block not found")
-          text = text.replace(old, new, 1)
+''',
+              1
+          )
 
-          # More expressive hierarchy: a larger, personalized app header and
-          # stronger use of dynamic tonal surfaces.
           text = text.replace(
               'TopAppBar(title = { Text("SystemUI Plus") })',
               '''TopAppBar(
                 title = {
                     Column {
-                        Text(
-                            "SystemUI Plus",
-                            style = MaterialTheme.typography.titleLarge
-                        )
+                        Text("SystemUI Plus", style = MaterialTheme.typography.titleLarge)
                         Text(
                             "Your Android status experience",
                             style = MaterialTheme.typography.labelMedium,
@@ -439,15 +407,12 @@ jobs:
               1
           )
 
-          # Replace the generic card surface with the more expressive tonal
-          # surface role provided by the device's dynamic Material theme.
           text = text.replace(
               'containerColor = MaterialTheme.colorScheme.surfaceContainer',
               'containerColor = MaterialTheme.colorScheme.surfaceContainerLow',
               1
           )
 
-          # Add a reusable expressive dropdown to the bottom of the activity.
           marker = '''
     @Composable
     private fun SettingSwitch(
