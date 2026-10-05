@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BatteryFull
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SignalCellular4Bar
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.Button
@@ -41,6 +42,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
@@ -712,43 +714,105 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun SystemUiPreview() {
+        val now = java.time.LocalDateTime.now()
+        val timePattern = if (clockSettings.format24) "HH:mm" else "hh:mm a"
+        val timeText = runCatching {
+            java.time.format.DateTimeFormatter.ofPattern(
+                timePattern,
+                java.util.Locale.getDefault()
+            ).format(now)
+        }.getOrDefault("--:--")
+        val dateTextRaw = runCatching {
+            java.time.format.DateTimeFormatter.ofPattern(
+                clockSettings.dateFormat,
+                java.util.Locale.getDefault()
+            ).format(now)
+        }.getOrDefault(clockSettings.dateFormat)
+        val dateText = when (clockSettings.dateStyle.coerceIn(0, 2)) {
+            1 -> dateTextRaw.lowercase(java.util.Locale.getDefault())
+            2 -> dateTextRaw.uppercase(java.util.Locale.getDefault())
+            else -> dateTextRaw
+        }
+        val indicatorScale =
+            (duoSize / 36f).coerceIn(0.78f, 1.45f) *
+                if (duoStyle == DuoVisualStyle.COMPACT) 0.88f else 1f
+
         Surface(
-            modifier = Modifier.fillMaxWidth().height(76.dp),
-            shape = RoundedCornerShape(26.dp),
+            modifier = Modifier.fillMaxWidth().height(92.dp),
+            shape = RoundedCornerShape(24.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHighest,
-            tonalElevation = 3.dp
+            tonalElevation = 2.dp
         ) {
-            Box(
-                Modifier.fillMaxSize().padding(horizontal = 14.dp),
-                contentAlignment = Alignment.Center
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.CenterVertically)
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .offset(
+                            x = clockSettings.horizontalPositionDp.dp,
+                            y = clockSettings.verticalPositionDp.dp
+                        )
+                ) {
+                    Text(
+                        timeText,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontSize = clockSettings.sizeSp.sp
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                    )
+                    if (clockSettings.showDate) {
+                        Text(
+                            dateText,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
                 Row(
-                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(
+                        (6.dp * indicatorScale).coerceAtLeast(4.dp)
+                    ),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(
-                        Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(1.dp)
-                    ) {
-                        Text(
-                            "14:32",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                        )
-                        Text("5 Oct · Sunday", style = MaterialTheme.typography.labelSmall)
-                    }
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        androidx.compose.material3.Icon(Icons.Default.Notifications, null, Modifier.size(17.dp))
-                        androidx.compose.material3.Icon(Icons.Default.Wifi, null, Modifier.size(18.dp))
-                        androidx.compose.material3.Icon(Icons.Default.SignalCellular4Bar, null, Modifier.size(18.dp))
-                        androidx.compose.material3.Icon(Icons.Default.BatteryFull, null, Modifier.size(19.dp))
-                    }
+                    androidx.compose.material3.Icon(
+                        Icons.Default.Notifications,
+                        contentDescription = null,
+                        modifier = Modifier.size(17.dp * indicatorScale),
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                    androidx.compose.material3.Icon(
+                        Icons.Default.Wifi,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp * indicatorScale),
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                    androidx.compose.material3.Icon(
+                        Icons.Default.SignalCellular4Bar,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp * indicatorScale),
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                    androidx.compose.material3.Icon(
+                        Icons.Default.BatteryFull,
+                        contentDescription = null,
+                        modifier = Modifier.size(19.dp * indicatorScale),
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
                 }
             }
         }
+        Text(
+            "Preview updates with clock size/date/position and indicator size/style.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 
     @Composable
