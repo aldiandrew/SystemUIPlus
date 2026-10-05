@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.SystemUIPlus" parent="android:style/Theme.Material.Light.NoActionBar">
-        <item name="android:fontFamily">sans</item>
+    <style name="Theme.SystemUIPlus" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">@font/plus_jakarta_sans_400</item>
+        <item name="android:windowBackground">#000000</item>
+        <item name="android:colorAccent">#8BE8FF</item>
         <item name="android:windowLightStatusBar">false</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">#000000</item>
+        <item name="android:navigationBarColor">#000000</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 </resources>
