@@ -26,49 +26,73 @@ jobs:
         run: |
           set -euo pipefail
 
-          TMP_DIR="$(mktemp -d)"
-          JAKARTA_DIR="$TMP_DIR/jakarta"
-          IOSEVKA_DIR="$TMP_DIR/iosevka"
+          mkdir -p app/src/main/res/font app/src/main/assets/fonts
 
-          mkdir -p             "$JAKARTA_DIR"             "$IOSEVKA_DIR"             app/src/main/res/font             app/src/main/assets/fonts
+          curl --fail --location --silent --show-error --retry 3 \
+            "https://cdn.jsdelivr.net/fontsource/fonts/plus-jakarta-sans@5.3.0/latin-400-normal.ttf" \
+            --output app/src/main/res/font/plus_jakarta_sans_400.ttf
 
-          npm pack --silent             @fontsource/plus-jakarta-sans@5.3.0             --pack-destination "$TMP_DIR"
+          curl --fail --location --silent --show-error --retry 3 \
+            "https://cdn.jsdelivr.net/fontsource/fonts/plus-jakarta-sans@5.3.0/latin-500-normal.ttf" \
+            --output app/src/main/res/font/plus_jakarta_sans_500.ttf
 
-          npm pack --silent             @fontsource/iosevka@5.3.0             --pack-destination "$TMP_DIR"
+          curl --fail --location --silent --show-error --retry 3 \
+            "https://cdn.jsdelivr.net/fontsource/fonts/plus-jakarta-sans@5.3.0/latin-600-normal.ttf" \
+            --output app/src/main/res/font/plus_jakarta_sans_600.ttf
 
-          JAKARTA_TGZ="$(find "$TMP_DIR" -maxdepth 1 -type f -name 'fontsource-plus-jakarta-sans-5.3.0.tgz' -print -quit)"
-          IOSEVKA_TGZ="$(find "$TMP_DIR" -maxdepth 1 -type f -name 'fontsource-iosevka-5.3.0.tgz' -print -quit)"
+          curl --fail --location --silent --show-error --retry 3 \
+            "https://cdn.jsdelivr.net/fontsource/fonts/plus-jakarta-sans@5.3.0/latin-700-normal.ttf" \
+            --output app/src/main/res/font/plus_jakarta_sans_700.ttf
 
-          tar -xzf "$JAKARTA_TGZ" -C "$JAKARTA_DIR" --strip-components=1
-          tar -xzf "$IOSEVKA_TGZ" -C "$IOSEVKA_DIR" --strip-components=1
+          curl --fail --location --silent --show-error --retry 3 \
+            "https://cdn.jsdelivr.net/fontsource/fonts/iosevka@5.3.0/latin-400-normal.ttf" \
+            --output app/src/main/res/font/iosevka_400.ttf
 
-          for spec in \
-            "400|Regular" \
-            "500|Medium" \
-            "600|SemiBold" \
-            "700|Bold"; do
+          curl --fail --location --silent --show-error --retry 3 \
+            "https://cdn.jsdelivr.net/fontsource/fonts/iosevka@5.3.0/latin-500-normal.ttf" \
+            --output app/src/main/res/font/iosevka_500.ttf
 
-            weight="${spec%%|*}"
-            name="${spec#*|}"
+          curl --fail --location --silent --show-error --retry 3 \
+            "https://cdn.jsdelivr.net/fontsource/fonts/iosevka@5.3.0/latin-600-normal.ttf" \
+            --output app/src/main/res/font/iosevka_600.ttf
 
-            JAKARTA_FONT="$(find "$JAKARTA_DIR" -type f -name "PlusJakartaSans-${name}.ttf" -print -quit)"
-            IOSEVKA_FONT="$(find "$IOSEVKA_DIR" -type f -name "Iosevka-${name}.ttf" -print -quit)"
+          curl --fail --location --silent --show-error --retry 3 \
+            "https://cdn.jsdelivr.net/fontsource/fonts/iosevka@5.3.0/latin-700-normal.ttf" \
+            --output app/src/main/res/font/iosevka_700.ttf
 
-            test -n "$JAKARTA_FONT"
-            test -n "$IOSEVKA_FONT"
+          curl --fail --location --silent --show-error --retry 3 \
+            "https://raw.githubusercontent.com/tokotype/PlusJakartaSans/master/OFL.txt" \
+            --output app/src/main/assets/fonts/PLUS_JAKARTA_SANS_OFL.txt
 
-            cp "$JAKARTA_FONT" "app/src/main/res/font/plus_jakarta_sans_${weight}.ttf"
-            cp "$IOSEVKA_FONT" "app/src/main/res/font/iosevka_${weight}.ttf"
-          done
+          curl --fail --location --silent --show-error --retry 3 \
+            "https://raw.githubusercontent.com/be5invis/Iosevka/main/LICENSE.md" \
+            --output app/src/main/assets/fonts/IOSEVKA_LICENSE.md
 
-          JAKARTA_LICENSE="$(find "$JAKARTA_DIR" -type f -name 'OFL.txt' -print -quit)"
-          IOSEVKA_LICENSE="$(find "$IOSEVKA_DIR" -type f -name 'OFL.txt' -print -quit)"
+          test -s app/src/main/res/font/plus_jakarta_sans_400.ttf
+          test -s app/src/main/res/font/plus_jakarta_sans_500.ttf
+          test -s app/src/main/res/font/plus_jakarta_sans_600.ttf
+          test -s app/src/main/res/font/plus_jakarta_sans_700.ttf
+          test -s app/src/main/res/font/iosevka_400.ttf
+          test -s app/src/main/res/font/iosevka_500.ttf
+          test -s app/src/main/res/font/iosevka_600.ttf
+          test -s app/src/main/res/font/iosevka_700.ttf
+          test -s app/src/main/assets/fonts/PLUS_JAKARTA_SANS_OFL.txt
+          test -s app/src/main/assets/fonts/IOSEVKA_LICENSE.md
 
-          test -n "$JAKARTA_LICENSE"
-          test -n "$IOSEVKA_LICENSE"
+          cat > app/src/main/assets/fonts/THIRD_PARTY_NOTICES.txt <<'EOF'
+          SystemUI Plus bundled fonts
 
-          cp "$JAKARTA_LICENSE" app/src/main/assets/fonts/PLUS_JAKARTA_SANS_OFL.txt
-          cp "$IOSEVKA_LICENSE" app/src/main/assets/fonts/IOSEVKA_OFL.txt
+          Plus Jakarta Sans
+          Source: https://github.com/tokotype/PlusJakartaSans
+          License: SIL Open Font License 1.1
+          License text: PLUS_JAKARTA_SANS_OFL.txt
+
+          Iosevka
+          Source: https://github.com/be5invis/Iosevka
+          License: SIL Open Font License 1.1
+          License text: IOSEVKA_LICENSE.md
+          EOF
+
       - name: Configure Java
         uses: actions/setup-java@v5
         with:
