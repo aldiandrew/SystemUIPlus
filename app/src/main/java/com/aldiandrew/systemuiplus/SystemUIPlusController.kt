@@ -1,6 +1,7 @@
 package com.aldiandrew.systemuiplus
 
 import android.content.Context
+import android.content.res.Configuration
 import android.os.Handler
 import android.os.Looper
 
@@ -17,6 +18,7 @@ object SystemUIPlusController {
     private const val KEY_PREVIOUS_POLICY = "previous_policy_control"
     private const val NO_POLICY = "__SYSTEMUI_PLUS_NO_POLICY__"
     private val handler = Handler(Looper.getMainLooper())
+    private var lastOrientationMode: Int = Int.MIN_VALUE
 
     fun isEnabled(context: Context): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -86,8 +88,8 @@ object SystemUIPlusController {
     }
 
     /**
-     * Re-assert the hidden native SystemUI state after configuration changes.
-     * This never changes the persisted master state and never restores native SystemUI.
+     * Re-assert the hidden native SystemUI state without changing the master
+     * enabled preference or the saved pre-SystemUI policy.
      */
     fun reapply(context: Context): Result<Unit> {
         if (!isEnabled(context)) return Result.success(Unit)
@@ -96,8 +98,6 @@ object SystemUIPlusController {
                 return Result.failure(SecurityException("Shizuku permission is not granted"))
             }
 
-            // Rotation can reset the native status-bar disable flags. Reassert
-            // only those flags instead of rewriting global immersive policy.
             SystemUIPlusShizuku.execute(
                 "cmd statusbar send-disable-flag system-icons clock notification-icons"
             ).getOrThrow()
@@ -108,19 +108,116 @@ object SystemUIPlusController {
         }
     }
 
+    private fun activatePortrait(context: Context): Result<Unit> = try {
+        if (!SystemUIPlusShizuku.hasPermission()) {
+            return Result.failure(
+                SecurityException("Shizuku permission is not granted")
+            )
+        }
+
+        SystemUIPlusShizuku.execute(
+            "cmd statusbar send-disable-flag system-icons clock notification-icons"
+        ).getOrThrow()
+
+        SystemUIPlusShizuku.execute(
+            "settings put global policy_control immersive.full=*"
+        ).getOrThrow()
+
+        Result.success(Unit)
+    } catch (t: Throwable) {
+        Result.failure(t)
+    }
+
+    private fun activateLandscapeNative(context: Context): Result<Unit> {
+        return try {
+            if (!SystemUIPlusShizuku.hasPermission()) {
+                return Result.failure(
+                    SecurityException("Shizuku permission is not granted")
+                )
+            }
+
+            // Landscape deliberately uses the stock Motorola SystemUI.
+            SystemUIPlusShizuku.execute(
+                "cmd statusbar send-disable-flag none"
+            ).getOrThrow()
+
+            val prefs = context.getSharedPreferences(
+                PREFS,
+                Context.MODE_PRIVATE
+            )
+            val previous = prefs.getString(
+                KEY_PREVIOUS_POLICY,
+                NO_POLICY
+            ) ?: NO_POLICY
+
+            if (
+                previous == NO_POLICY ||
+                previous == "null" ||
+                previous.isBlank()
+            ) {
+                SystemUIPlusShizuku.execute(
+                    "settings delete global policy_control"
+                ).getOrThrow()
+                SystemUIPlusShizuku.execute(
+                    "settings put global policy_control null"
+                ).getOrThrow()
+            } else {
+                val escaped = previous.replace("'", "'\\\\''")
+                SystemUIPlusShizuku.execute(
+                    "settings put global policy_control '$escaped'"
+                ).getOrThrow()
+            }
+
+            SystemUIPlusShizuku.execute(
+                "am broadcast -a com.android.systemui.demo -e command exit"
+            )
+
+            Result.success(Unit)
+        } catch (t: Throwable) {
+            Result.failure(t)
+        }
+    }
+
     /**
-     * Rotation-safe reapply with only two lightweight native flag updates.
+     * Orientation-aware native SystemUI policy.
+     *
+     * Portrait keeps the existing custom SystemUI mode. Landscape intentionally
+     * returns ownership of the status bar to the stock SystemUI, while keeping
+     * the master preference enabled so portrait can automatically resume later.
      */
-    fun reapplyAfterConfiguration(context: Context) {
+    fun applyForOrientation(
+        context: Context,
+        newConfig: Configuration
+    ) {
         if (!isEnabled(context)) return
 
-        longArrayOf(80L, 500L).forEach { delay ->
-            handler.postDelayed({
-                if (isEnabled(context)) {
-                    reapply(context)
-                }
-            }, delay)
+        val landscape =
+            newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val mode = if (landscape) 1 else 0
+
+        synchronized(this) {
+            if (lastOrientationMode == mode) return
+            lastOrientationMode = mode
         }
+
+        handler.removeCallbacksAndMessages(null)
+
+        Thread {
+            if (!isEnabled(context)) return@Thread
+
+            if (landscape) {
+                activateLandscapeNative(context)
+            } else {
+                activatePortrait(context)
+            }
+        }.start()
+    }
+
+    /**
+     * Backward-compatible configuration entry point used by existing callers.
+     */
+    fun reapplyAfterConfiguration(context: Context) {
+        applyForOrientation(context, context.resources.configuration)
     }
 
     fun restore(context: Context): Result<Unit> {
