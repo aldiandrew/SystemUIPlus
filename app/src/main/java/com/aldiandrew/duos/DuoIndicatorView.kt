@@ -321,10 +321,10 @@ class DuoIndicatorView(context: Context) : View(context) {
         when {
             current.airplane -> drawAirplane(
                 canvas,
-                current.networkColorOverride ?: current.foregroundColor,
+                current.foregroundColor,
                 k,
                 cx,
-                cy + 10f * k
+                cy
             )
             current.dnd -> drawMoon(
                 canvas,
@@ -339,11 +339,11 @@ class DuoIndicatorView(context: Context) : View(context) {
                 "VPN",
                 k,
                 cx,
-                cy + 10f * k
+                cy
             )
             current.wifiConnected -> drawWifi(
                 canvas,
-                current.wifiColorOverride ?: current.foregroundColor,
+                current.foregroundColor,
                 current.wifiLevel,
                 k,
                 cx,
@@ -355,7 +355,7 @@ class DuoIndicatorView(context: Context) : View(context) {
                 current.networkGeneration,
                 k,
                 cx,
-                cy + 10f * k
+                cy
             )
         }
     }
@@ -460,7 +460,7 @@ class DuoIndicatorView(context: Context) : View(context) {
             val y = cy + DOTS[i][1] * k
             fillPaint.color =
                 withAlpha(
-                    current.signalColorOverride ?: current.foregroundColor,
+                    current.foregroundColor,
                     opacities[i]
                 )
             canvas.drawCircle(
