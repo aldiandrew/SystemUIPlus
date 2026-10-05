@@ -43,6 +43,8 @@ class CustomStatusBarService : Service() {
     private var lastOverlayY: Int? = null
     private var lastOverlayX: Int? = null
     private var overlayAttached = false
+    private var appearanceListenerRegistered = false
+    private var stateListenersRegistered = false
 
     private val handler = Handler(android.os.Looper.getMainLooper())
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -77,30 +79,20 @@ class CustomStatusBarService : Service() {
         }
     }
 
-    private val appearanceRunnable = object : Runnable {
-        override fun run() {
-            val nextRun = this
-            scope.launch {
-                try {
-                    val color =
-                        com.aldiandrew.systemuiplus.SystemUIPlusAppearance
-                            .foregroundColor(this@CustomStatusBarService)
+    private val appearanceListener: (Int) -> Unit = { color ->
+        handler.post {
+            if (!overlayAttached || foregroundColor == color) {
+                return@post
+            }
 
-                    handler.post {
-                        if (foregroundColor != color) {
-                            foregroundColor = color
-                            lastState?.let { state ->
-                                val updated = state.copy(foregroundColor = color)
-                                lastState = updated
-                                rootView?.update(updated)
-                            }
-                        }
-                        handler.postDelayed(nextRun, APPEARANCE_REFRESH_MS)
-                    }
-                } catch (t: Throwable) {
-                    Log.w(TAG, "appearance refresh failed: " + t.javaClass.simpleName + ": " + t.message)
-                    handler.postDelayed(nextRun, APPEARANCE_REFRESH_MS)
-                }
+            foregroundColor = color
+            lastState?.let { state ->
+                val updated =
+                    state.copy(
+                        foregroundColor = color
+                    )
+                lastState = updated
+                rootView?.update(updated)
             }
         }
     }
@@ -141,8 +133,6 @@ class CustomStatusBarService : Service() {
         private const val CHANNEL_ID = "duos_custom_status_bar"
         private const val NOTIFICATION_ID = 1001
         private const val PREFS_NAME = "duos_preferences"
-        private const val APPEARANCE_REFRESH_MS = 10_000L
-
         @Volatile
         var isRunning: Boolean = false
             private set
@@ -210,16 +200,25 @@ class CustomStatusBarService : Service() {
             com.aldiandrew.systemuiplus.SystemUIPlusAppearance
                 .fallbackForegroundColor(this)
 
-        handler.removeCallbacks(appearanceRunnable)
-        handler.postDelayed(appearanceRunnable, 400L)
-
         if (SystemUIPlusController.isEnabled(this)) {
             val view = rootView
-            if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-                if (view != null) detachOverlay(view)
+
+            if (
+                newConfig.orientation ==
+                    Configuration.ORIENTATION_LANDSCAPE
+            ) {
+                if (view != null) {
+                    detachOverlay(view)
+                }
+                stopStateMonitoring()
             } else {
-                if (view != null) attachOverlay(view)
+                if (view != null) {
+                    attachOverlay(view)
+                }
+                startStateMonitoring()
             }
+
+            com.aldiandrew.systemuiplus.SystemUIPlusAppearance.invalidate()
             SystemUIPlusController.reapplyAfterConfiguration(this)
         }
 
@@ -228,8 +227,8 @@ class CustomStatusBarService : Service() {
             if (overlayAttached) {
                 view.requestApplyInsets()
                 requestPositionRefresh()
+                requestStateRefresh()
             }
-            requestStateRefresh()
         }
     }
 
@@ -237,9 +236,14 @@ class CustomStatusBarService : Service() {
         unregisterStateListeners()
         handler.removeCallbacks(stateRefreshRunnable)
         handler.removeCallbacks(positionRefreshRunnable)
-        handler.removeCallbacks(appearanceRunnable)
         stateRefreshJob?.cancel()
         stateRefreshJob = null
+
+        if (appearanceListenerRegistered) {
+            com.aldiandrew.systemuiplus.SystemUIPlusAppearance
+                .unregisterListener(appearanceListener)
+            appearanceListenerRegistered = false
+        }
 
         rootView?.let {
             detachOverlay(it)
@@ -371,8 +375,9 @@ class CustomStatusBarService : Service() {
         // Use the cached/lightweight foreground value for the first frame.
         customView.update(readState())
 
-        registerStateListeners()
-        requestStateRefresh()
+        if (!isLandscape()) {
+            startStateMonitoring()
+        }
         handler.postDelayed(appearanceRunnable, 500L)
     }
 
@@ -429,7 +434,52 @@ class CustomStatusBarService : Service() {
         overlayAttached = false
     }
 
+    private fun startStateMonitoring() {
+        if (!overlayAttached) {
+            return
+        }
+
+        if (!stateListenersRegistered) {
+            registerStateListeners()
+            stateListenersRegistered = true
+        }
+
+        if (!appearanceListenerRegistered) {
+            com.aldiandrew.systemuiplus.SystemUIPlusAppearance
+                .registerListener(
+                    this,
+                    appearanceListener
+                )
+            appearanceListenerRegistered = true
+        }
+
+        requestStateRefresh()
+    }
+
+    private fun stopStateMonitoring() {
+        if (stateListenersRegistered) {
+            unregisterStateListeners()
+            stateListenersRegistered = false
+        }
+
+        if (appearanceListenerRegistered) {
+            com.aldiandrew.systemuiplus.SystemUIPlusAppearance
+                .unregisterListener(
+                    appearanceListener
+                )
+            appearanceListenerRegistered = false
+        }
+
+        handler.removeCallbacks(
+            stateRefreshRunnable
+        )
+    }
+
     private fun registerStateListeners() {
+        if (stateListenersRegistered) {
+            return
+        }
+
         getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .registerOnSharedPreferenceChangeListener(preferencesListener)
 
