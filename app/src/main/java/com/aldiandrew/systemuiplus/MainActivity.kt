@@ -848,7 +848,6 @@ class MainActivity : ComponentActivity() {
                                 batteryLevel = battery,
                                 wifiLevel = wifi.first,
                                 wifiConnected = wifi.second,
-                                wifiValidated = wifi.third,
                                 foregroundColor = if (light) android.graphics.Color.BLACK else android.graphics.Color.WHITE,
                                 visualStyle = duoStyle
                             )
