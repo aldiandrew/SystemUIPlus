@@ -509,19 +509,14 @@ class CustomStatusBarService : Service() {
 
             val network = cm.activeNetwork
             val caps = network?.let { cm.getNetworkCapabilities(it) }
-                ?: return Triple(0, false, false)
+                ?: return 0 to false
 
             val transportWifi =
                 caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
 
             if (!transportWifi) {
-                return Triple(0, false, false)
+                return 0 to false
             }
-
-            val validated =
-                caps.hasCapability(
-                    NetworkCapabilities.NET_CAPABILITY_VALIDATED
-                )
 
             @Suppress("DEPRECATION")
             val rssi = wifi.connectionInfo?.rssi ?: -127
