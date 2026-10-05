@@ -949,7 +949,7 @@ class MainActivity : ComponentActivity() {
 
                 AndroidView(
                     modifier = Modifier
-                        .size((72.dp * indicatorScale).coerceIn(56.dp, 104.dp)),
+                        .size((duoSize * if (duoStyle == DuoVisualStyle.COMPACT) 0.88f else 1f).dp.coerceIn(28.dp, 60.dp)),
                     factory = { context -> DuoIndicatorView(context) },
                     update = { view ->
                         val battery = runCatching {
