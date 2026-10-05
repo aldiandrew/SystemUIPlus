@@ -122,7 +122,7 @@ class CustomStatusBarService : Service() {
         private const val CHANNEL_ID = "duos_custom_status_bar"
         private const val NOTIFICATION_ID = 1001
         private const val PREFS_NAME = "duos_preferences"
-        private const val APPEARANCE_REFRESH_MS = 3000L
+        private const val APPEARANCE_REFRESH_MS = 1500L
 
         @Volatile
         var isRunning: Boolean = false
