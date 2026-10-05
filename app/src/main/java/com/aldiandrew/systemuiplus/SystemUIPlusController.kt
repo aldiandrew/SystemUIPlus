@@ -44,17 +44,17 @@ object SystemUIPlusController {
             }
 
             SystemUIPlusShizuku.execute(
-                "settings put global policy_control immersive.status=*"
+                "settings put global policy_control immersive.full=*"
             ).getOrThrow()
 
             val verify = SystemUIPlusShizuku.execute(
                 "settings get global policy_control"
             ).getOrThrow().stdout.trim()
 
-            if (!verify.contains("immersive.status=*")) {
+            if (!verify.contains("immersive.full=*")) {
                 return Result.failure(
                     IllegalStateException(
-                        "Android did not enable immersive.status=*"
+                        "Android did not enable immersive.full=*"
                     )
                 )
             }
