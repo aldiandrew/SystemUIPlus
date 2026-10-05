@@ -42,6 +42,7 @@ class CustomStatusBarService : Service() {
     private var overlayParams: WindowManager.LayoutParams? = null
     private var lastOverlayY: Int? = null
     private var lastOverlayX: Int? = null
+    private var overlayAttached = false
 
     private val handler = Handler(android.os.Looper.getMainLooper())
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -213,13 +214,21 @@ class CustomStatusBarService : Service() {
         handler.postDelayed(appearanceRunnable, 400L)
 
         if (SystemUIPlusController.isEnabled(this)) {
+            val view = rootView
+            if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                if (view != null) detachOverlay(view)
+            } else {
+                if (view != null) attachOverlay(view)
+            }
             SystemUIPlusController.reapplyAfterConfiguration(this)
         }
 
         handler.post {
             val view = rootView ?: return@post
-            view.requestApplyInsets()
-            requestPositionRefresh()
+            if (overlayAttached) {
+                view.requestApplyInsets()
+                requestPositionRefresh()
+            }
             requestStateRefresh()
         }
     }
@@ -233,14 +242,7 @@ class CustomStatusBarService : Service() {
         stateRefreshJob = null
 
         rootView?.let {
-            try {
-                windowManager?.removeViewImmediate(it)
-            } catch (_: Throwable) {
-                try {
-                    windowManager?.removeView(it)
-                } catch (_: Throwable) {
-                }
-            }
+            detachOverlay(it)
         }
         rootView = null
         windowManager = null
@@ -360,17 +362,10 @@ class CustomStatusBarService : Service() {
         )
 
         overlayParams = params
-        windowManager?.addView(customView, params)
         rootView = customView
 
-        // Android builds can dispatch insets before or after attachment. Run
-        // a second pass to make the initial position deterministic.
-        customView.post {
-            applyDynamicOverlayPosition(
-                customView,
-                overlaySizePx(),
-                customView.rootWindowInsets
-            )
+        if (!isLandscape()) {
+            attachOverlay(customView)
         }
 
         // Use the cached/lightweight foreground value for the first frame.
@@ -379,6 +374,59 @@ class CustomStatusBarService : Service() {
         registerStateListeners()
         requestStateRefresh()
         handler.postDelayed(appearanceRunnable, 500L)
+    }
+
+    private fun isLandscape(): Boolean =
+        resources.configuration.orientation ==
+            Configuration.ORIENTATION_LANDSCAPE
+
+    private fun attachOverlay(view: DuoIndicatorView) {
+        if (overlayAttached) return
+
+        val manager = windowManager ?: return
+        val params = overlayParams ?: return
+
+        try {
+            manager.addView(view, params)
+            overlayAttached = true
+        } catch (_: Throwable) {
+            overlayAttached = false
+            return
+        }
+
+        view.setOnApplyWindowInsetsListener { currentView, insets ->
+            applyDynamicOverlayPosition(
+                currentView,
+                overlaySizePx(),
+                insets
+            )
+            insets
+        }
+
+        view.post {
+            if (overlayAttached) {
+                applyDynamicOverlayPosition(
+                    view,
+                    overlaySizePx(),
+                    view.rootWindowInsets
+                )
+            }
+        }
+    }
+
+    private fun detachOverlay(view: DuoIndicatorView) {
+        if (!overlayAttached) return
+
+        try {
+            windowManager?.removeViewImmediate(view)
+        } catch (_: Throwable) {
+            try {
+                windowManager?.removeView(view)
+            } catch (_: Throwable) {
+            }
+        }
+
+        overlayAttached = false
     }
 
     private fun registerStateListeners() {
