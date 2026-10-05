@@ -371,7 +371,18 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun SystemUIScreen() {
         Scaffold(
-            topBar = { TopAppBar(title = { Text("SystemUI Plus") }) }
+            topBar = { TopAppBar(
+                title = {
+                    Column {
+                        Text("SystemUI Plus", style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            "Your Android status experience",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            ) }
         ) { padding ->
             Column(
                 Modifier
@@ -477,9 +488,35 @@ class MainActivity : ComponentActivity() {
                             saveClock("showDate", it)
                         }
 
-                        Text("Date format: " + clockSettings.dateFormat)
-                        Text("Date style: " + clockSettings.dateStyle)
-                        Text("AM/PM style: " + clockSettings.amPmStyle)
+                        ExpressiveDropdown(
+                            label = "Date format",
+                            selected = clockSettings.dateFormat,
+                            options = listOf(
+                                "dd/MM", "dd/MM/yy", "yyyy-MM-dd",
+                                "dd-MM-yyyy", "MMM dd", "EEE",
+                                "EEE dd", "EEE dd/MM", "EEE dd MMM",
+                                "EEE MMM dd", "EEEE dd/MM", "EEEE MM/dd"
+                            )
+                        ) { saveClock("dateFormat", it) }
+
+                        ExpressiveDropdown(
+                            label = "Date style",
+                            selected = when (clockSettings.dateStyle.coerceIn(0, 2)) {
+                                1 -> "lowercase"
+                                2 -> "UPPERCASE"
+                                else -> "Normal"
+                            },
+                            options = listOf("Normal", "lowercase", "UPPERCASE")
+                        ) { value ->
+                            saveClock(
+                                "dateStyle",
+                                when (value) {
+                                    "lowercase" -> 1
+                                    "UPPERCASE" -> 2
+                                    else -> 0
+                                }
+                            )
+                        }
 
                         Text("Size: " + clockSettings.sizeSp.toInt() + " sp")
                         Slider(
@@ -512,6 +549,27 @@ class MainActivity : ComponentActivity() {
                             valueRange = -20f..20f,
                             modifier = Modifier.fillMaxWidth()
                         )
+
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    saveClock("horizontalPositionDp", 0f)
+                                    saveClock("verticalPositionDp", 0f)
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Reset position")
+                            }
+                            OutlinedButton(
+                                onClick = { saveClock("sizeSp", 14f) },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Reset size")
+                            }
+                        }
                     }
                 }
 
@@ -548,6 +606,16 @@ class MainActivity : ComponentActivity() {
                             valueRange = 28f..60f,
                             modifier = Modifier.fillMaxWidth()
                         )
+
+                        OutlinedButton(
+                            onClick = {
+                                DuoPreferences.setIndicatorSizeDp(this@MainActivity, 36f)
+                                loadSettings()
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Reset indicator size")
+                        }
 
                         SettingSwitch("Automatic position", duoAutomatic) {
                             duoAutomatic = it
@@ -592,18 +660,19 @@ class MainActivity : ComponentActivity() {
                             Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            DuoVisualStyle.values().forEach { style ->
-                                OutlinedButton(
+                            listOf(
+                                DuoVisualStyle.DUO,
+                                DuoVisualStyle.COMPACT
+                            ).forEach { style ->
+                                Button(
                                     onClick = {
                                         duoStyle = style
                                         DuoPreferences.setVisualStyle(this@MainActivity, style)
                                     },
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
+                                    enabled = duoStyle != style
                                 ) {
-                                    Text(
-                                        style.name.lowercase()
-                                            .replaceFirstChar { it.uppercase() }
-                                    )
+                                    Text(if (style == DuoVisualStyle.DUO) "Duo" else "Compact")
                                 }
                             }
                         }
@@ -692,11 +761,57 @@ class MainActivity : ComponentActivity() {
             shape = RoundedCornerShape(28.dp),
             elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 2.dp),
             colors = androidx.compose.material3.CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
             ),
             content = content
         )
     }
+
+    @Composable
+    private fun ExpressiveDropdown(
+        label: String,
+        selected: String,
+        options: List<String>,
+        onSelected: (String) -> Unit
+    ) {
+        var expanded by androidx.compose.runtime.remember { mutableStateOf(false) }
+
+        Box(Modifier.fillMaxWidth()) {
+            OutlinedButton(
+                onClick = { expanded = true },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Column(
+                    Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.Start
+                ) {
+                    Text(
+                        label,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(selected)
+                }
+            }
+
+            androidx.compose.material3.DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                options.forEach { option ->
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { Text(option) },
+                        onClick = {
+                            expanded = false
+                            onSelected(option)
+                        }
+                    )
+                }
+            }
+        }
+    }
+
 
     @Composable
     private fun SettingSwitch(
