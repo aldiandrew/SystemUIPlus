@@ -18,6 +18,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BatteryFull
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.SignalCellular4Bar
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -35,6 +41,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import com.aldiandrew.clockos.ClockOverlayService
 import com.aldiandrew.systemuiplus.SystemUIPlusController
 import com.aldiandrew.clockos.ClockPrefs
@@ -371,12 +381,12 @@ class MainActivity : ComponentActivity() {
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Card(Modifier.fillMaxWidth()) {
+                ExpressiveCard(Modifier.fillMaxWidth()) {
                     Column(
                         Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("SystemUI control", style = MaterialTheme.typography.titleLarge)
+                        Text("SystemUI control", style = MaterialTheme.typography.headlineSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                         Text(if (shizukuReady) "Shizuku: READY" else "Shizuku: NOT READY")
                         if (!shizukuReady) {
                             Button(onClick = ::requestShizuku, Modifier.fillMaxWidth()) {
@@ -387,7 +397,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                Card(Modifier.fillMaxWidth()) {
+                ExpressiveCard(Modifier.fillMaxWidth()) {
                     Column(
                         Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -407,7 +417,7 @@ class MainActivity : ComponentActivity() {
                         )
                         Text(
                             if (systemUiHidden) {
-                                "Clock, notification icons, battery, Wi-Fi and cellular indicators are managed as one system."
+                                "Status bar and navigation SystemUI are hidden together; custom indicators are managed as one system."
                             } else {
                                 "One switch controls the complete custom status bar. There are no separate Clock/Duos lifecycle switches."
                             }
@@ -415,7 +425,25 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                Card(Modifier.fillMaxWidth()) {
+                ExpressiveCard(Modifier.fillMaxWidth()) {
+                    Column(
+                        Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            "Live preview",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        )
+                        Text(
+                            "Preview of the custom SystemUI that replaces the native bar.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        SystemUiPreview()
+                    }
+                }
+
+                ExpressiveCard(Modifier.fillMaxWidth()) {
                     Column(
                         Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -487,7 +515,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                Card(Modifier.fillMaxWidth()) {
+                ExpressiveCard(Modifier.fillMaxWidth()) {
                     Column(
                         Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -582,7 +610,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                Card(Modifier.fillMaxWidth()) {
+                ExpressiveCard(Modifier.fillMaxWidth()) {
                     Column(
                         Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -593,13 +621,13 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                Card(Modifier.fillMaxWidth()) {
+                ExpressiveCard(Modifier.fillMaxWidth()) {
                     Column(
                         Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text("Safety", style = MaterialTheme.typography.titleLarge)
-                        Text("If a custom service stops, its restoration path clears SystemUI disable flags so the native status bar returns.")
+                        Text("If SystemUI Plus is turned off or startup fails, the previously saved native SystemUI policy is restored.")
                         OutlinedButton(
                             enabled = !busy,
                             onClick = ::restoreNativeSystemUi,
@@ -611,6 +639,63 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    @Composable
+    private fun SystemUiPreview() {
+        Surface(
+            modifier = Modifier.fillMaxWidth().height(76.dp),
+            shape = RoundedCornerShape(26.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            tonalElevation = 3.dp
+        ) {
+            Box(
+                Modifier.fillMaxSize().padding(horizontal = 14.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(
+                        Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(1.dp)
+                    ) {
+                        Text(
+                            "14:32",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        )
+                        Text("5 Oct · Sunday", style = MaterialTheme.typography.labelSmall)
+                    }
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        androidx.compose.material3.Icon(Icons.Default.Notifications, null, Modifier.size(17.dp))
+                        androidx.compose.material3.Icon(Icons.Default.Wifi, null, Modifier.size(18.dp))
+                        androidx.compose.material3.Icon(Icons.Default.SignalCellular4Bar, null, Modifier.size(18.dp))
+                        androidx.compose.material3.Icon(Icons.Default.BatteryFull, null, Modifier.size(19.dp))
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun ExpressiveCard(
+        modifier: Modifier = Modifier,
+        content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit
+    ) {
+        Card(
+            modifier = modifier,
+            shape = RoundedCornerShape(28.dp),
+            elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 2.dp),
+            colors = androidx.compose.material3.CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
+            ),
+            content = content
+        )
     }
 
     @Composable
