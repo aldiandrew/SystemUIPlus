@@ -458,17 +458,6 @@ class CustomStatusBarService : Service() {
             dnd = dnd,
             vpnConnected = vpn,
             foregroundColor = foregroundColor,
-            batteryNormalColorOverride =
-                DuoPreferences.getBatteryNormalColorOverride(this),
-            batteryChargingColorOverride =
-                DuoPreferences.getBatteryChargingColorOverride(this),
-            batteryLowColorOverride =
-                DuoPreferences.getBatteryLowColorOverride(this),
-            batteryPowerSaverColorOverride =
-                DuoPreferences.getBatteryPowerSaverColorOverride(this),
-            wifiColorOverride = DuoPreferences.getWifiColorOverride(this),
-            signalColorOverride = DuoPreferences.getSignalColorOverride(this),
-            networkColorOverride = DuoPreferences.getNetworkColorOverride(this),
             visualStyle = DuoPreferences.getVisualStyle(this)
         )
     }
