@@ -42,7 +42,6 @@ import com.aldiandrew.clockos.ShizukuShell
 import com.aldiandrew.clockos.hasClockNotificationAccess
 import com.aldiandrew.duos.DuoPreferences
 import com.aldiandrew.duos.DuoVisualStyle
-import com.aldiandrew.duos.ShizukuManager
 import com.aldiandrew.duos.ShizukuOverlayController
 import rikka.shizuku.Shizuku
 
@@ -114,13 +113,13 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun refreshState() {
-        shizukuReady = ShizukuManager.isAvailable() && ShizukuManager.hasPermission()
+        shizukuReady = SystemUIPlusShizuku.isAvailable() && SystemUIPlusShizuku.hasPermission()
         notificationAccess = hasClockNotificationAccess(this)
         clockActive = getPreferences(0).getBoolean("clock_active", false)
         duosActive = ShizukuOverlayController.isBound()
 
-        if (ShizukuManager.isAvailable() && !ShizukuManager.hasPermission()) {
-            try { Shizuku.requestPermission(1001) } catch (_: Throwable) {}
+        if (SystemUIPlusShizuku.isAvailable() && !SystemUIPlusShizuku.hasPermission()) {
+            SystemUIPlusShizuku.requestPermission()
         }
     }
 
@@ -134,11 +133,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun requestShizuku() {
-        if (!ShizukuManager.isAvailable()) {
+        if (!SystemUIPlusShizuku.isAvailable()) {
             toast("Shizuku is not running")
             return
         }
-        try { Shizuku.requestPermission(1001) } catch (t: Throwable) {
+        try { SystemUIPlusShizuku.requestPermission() } catch (t: Throwable) {
             toast(t.message ?: "Shizuku permission failed")
         }
     }
