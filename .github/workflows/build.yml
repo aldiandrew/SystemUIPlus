@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: systemuiplus-main-build
+  group: systemuiplus-stable-build-v2
   cancel-in-progress: false
 
 jobs:
