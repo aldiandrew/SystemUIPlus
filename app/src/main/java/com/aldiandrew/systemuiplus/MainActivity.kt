@@ -153,77 +153,160 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun setClockEnabled(enable: Boolean) {
-        if (!shizukuReady || !systemUiHidden) {
-            toast("Enable the master SystemUI control first")
+    private fun startUnifiedSystemUi() {
+        if (!shizukuReady) {
+            toast("Shizuku permission is required")
             return
         }
 
-        if (enable && !notificationAccess) {
+        if (!notificationAccess) {
             openNotificationAccess()
+            toast("Grant notification access before enabling SystemUI Plus")
             return
         }
 
         busy = true
 
-        if (!enable) {
-            stopService(Intent(this, ClockOverlayService::class.java))
-            clockActive = false
-            getPreferences(0).edit().putBoolean("clock_active", false).apply()
-            busy = false
-            toast("Custom clock stopped")
-            return
-        }
-
-        clockShell.execute(
-            "appops set " + packageName +
-                " android:system_alert_window allow"
-        ) { appOp ->
-            if (!appOp.startsWith("exit=0")) {
-                runOnUiThread {
-                    busy = false
-                    toast(appOp.take(300))
-                }
-                return@execute
-            }
+        // Native SystemUI is hidden first. From this point there is exactly
+        // one owner of the status-bar lifecycle: SystemUI Plus.
+        Thread {
+            val hidden = SystemUIPlusController.hide(this)
 
             runOnUiThread {
-                try {
-                    startForegroundService(
-                        Intent(this, ClockOverlayService::class.java)
+                if (hidden.isFailure) {
+                    busy = false
+                    toast(
+                        hidden.exceptionOrNull()?.message
+                            ?: "Could not hide native SystemUI"
                     )
-                    clockActive = true
-                    getPreferences(0).edit().putBoolean("clock_active", true).apply()
-                    busy = false
-                } catch (t: Throwable) {
-                    busy = false
-                    toast(t.message ?: "Could not start custom clock")
+                    return@runOnUiThread
+                }
+
+                systemUiHidden = true
+
+                ShizukuOverlayController.start(this) { indicatorsStarted, indicatorMessage ->
+                    if (!indicatorsStarted) {
+                        Thread {
+                            SystemUIPlusController.restore(this)
+                            runOnUiThread {
+                                systemUiHidden = false
+                                busy = false
+                                toast(
+                                    indicatorMessage.ifBlank {
+                                        "Could not start custom system indicators"
+                                    }
+                                )
+                            }
+                        }.start()
+                        return@start
+                    }
+
+                    try {
+                        clockShell.execute(
+                            "appops set " + packageName +
+                                " android:system_alert_window allow"
+                        ) { appOp ->
+                            if (!appOp.startsWith("exit=0")) {
+                                ShizukuOverlayController.stop(this, restoreSystemBar = false) {
+                                    Thread {
+                                        SystemUIPlusController.restore(this)
+                                        runOnUiThread {
+                                            systemUiHidden = false
+                                            busy = false
+                                            toast(appOp.take(300))
+                                        }
+                                    }.start()
+                                }
+                                return@execute
+                            }
+
+                            runOnUiThread {
+                                try {
+                                    startForegroundService(
+                                        Intent(this, ClockOverlayService::class.java)
+                                    )
+                                    clockActive = true
+                                    getPreferences(0)
+                                        .edit()
+                                        .putBoolean("clock_active", true)
+                                        .apply()
+                                    duosActive = true
+                                    busy = false
+                                    toast("SystemUI Plus is active")
+                                } catch (t: Throwable) {
+                                    ShizukuOverlayController.stop(this, restoreSystemBar = false) {
+                                        Thread {
+                                            SystemUIPlusController.restore(this)
+                                            runOnUiThread {
+                                                systemUiHidden = false
+                                                busy = false
+                                                toast(
+                                                    t.message
+                                                        ?: "Could not start custom clock"
+                                                )
+                                            }
+                                        }.start()
+                                    }
+                                }
+                            }
+                        }
+                    } catch (t: Throwable) {
+                        ShizukuOverlayController.stop(this, restoreSystemBar = false) {
+                            Thread {
+                                SystemUIPlusController.restore(this)
+                                runOnUiThread {
+                                    systemUiHidden = false
+                                    busy = false
+                                    toast(
+                                        t.message
+                                            ?: "Could not start SystemUI Plus"
+                                    )
+                                }
+                            }.start()
+                        }
+                    }
                 }
             }
-        }
+        }.start()
     }
 
-    private fun setDuosEnabled(enable: Boolean) {
-        if (!shizukuReady || !systemUiHidden) {
-            toast("Enable the master SystemUI control first")
+    private fun stopUnifiedSystemUi() {
+        if (!shizukuReady) {
+            toast("Shizuku permission is required")
             return
         }
 
         busy = true
 
-        if (enable) {
-            ShizukuOverlayController.start(this) { success, message ->
-                duosActive = success
-                busy = false
-                if (!success) {
-                    toast(message.ifBlank { "Could not start custom indicators" })
+        stopService(Intent(this, ClockOverlayService::class.java))
+
+        ShizukuOverlayController.stop(
+            this,
+            restoreSystemBar = false
+        ) {
+            Thread {
+                val restored = SystemUIPlusController.restore(this)
+
+                runOnUiThread {
+                    if (restored.isSuccess) {
+                        systemUiHidden = false
+                        clockActive = false
+                        duosActive = false
+                        getPreferences(0)
+                            .edit()
+                            .putBoolean("clock_active", false)
+                            .apply()
+                        busy = false
+                        toast("Native SystemUI restored")
+                    } else {
+                        busy = false
+                        toast(
+                            restored.exceptionOrNull()?.message
+                                ?: "Could not restore native SystemUI"
+                        )
+                    }
                 }
-            }
-        } else {
-            ShizukuOverlayController.stop(this, restoreSystemBar = false) {
-                duosActive = false
-                busy = false
-            }
+            }.start()
         }
     }
 
@@ -247,78 +330,15 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun restoreNativeSystemUi() {
-        if (!shizukuReady) {
-            toast("Shizuku permission is required")
-            return
-        }
-
-        busy = true
-
-        Thread {
-            val restored = SystemUIPlusController.restore(this)
-            runOnUiThread {
-                if (restored.isSuccess) {
-                    systemUiHidden = false
-                    stopService(Intent(this, ClockOverlayService::class.java))
-                    ShizukuOverlayController.stop(this, restoreSystemBar = false) {
-                        clockActive = false
-                        getPreferences(0).edit().putBoolean("clock_active", false).apply()
-                        duosActive = false
-                        busy = false
-                        toast("Native SystemUI restored")
-                    }
-                } else {
-                    busy = false
-                    toast(
-                        restored.exceptionOrNull()?.message
-                            ?: "Could not restore native SystemUI"
-                    )
-                }
-            }
-        }.start()
+        stopUnifiedSystemUi()
     }
 
     private fun toggleMasterSystemUi() {
-        if (!shizukuReady) {
-            toast("Shizuku permission is required")
-            return
+        if (systemUiHidden) {
+            stopUnifiedSystemUi()
+        } else {
+            startUnifiedSystemUi()
         }
-
-        busy = true
-        val enable = !systemUiHidden
-
-        Thread {
-            val result = if (enable) {
-                SystemUIPlusController.hide(this)
-            } else {
-                SystemUIPlusController.restore(this)
-            }
-
-            runOnUiThread {
-                if (result.isSuccess) {
-                    systemUiHidden = enable
-                    if (!enable) {
-                        stopService(Intent(this, ClockOverlayService::class.java))
-                        ShizukuOverlayController.stop(this, restoreSystemBar = false) {
-                            clockActive = false
-                            getPreferences(0).edit().putBoolean("clock_active", false).apply()
-                            duosActive = false
-                            busy = false
-                            toast("Native SystemUI restored")
-                        }
-                    } else {
-                        busy = false
-                        toast("Native SystemUI hidden")
-                    }
-                } else {
-                    busy = false
-                    toast(
-                        result.exceptionOrNull()?.message
-                            ?: "SystemUI control failed"
-                    )
-                }
-            }
-        }.start()
     }
 
     private fun toast(message: String) {
@@ -360,12 +380,12 @@ class MainActivity : ComponentActivity() {
                         Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("Native SystemUI", style = MaterialTheme.typography.titleLarge)
+                        Text("SystemUI Plus", style = MaterialTheme.typography.titleLarge)
                         Text(
                             if (systemUiHidden) {
-                                "HIDDEN — SystemUI Plus owns the status-bar area."
+                                "ACTIVE — the entire native status bar is hidden and replaced by SystemUI Plus."
                             } else {
-                                "VISIBLE — native Android SystemUI is active."
+                                "OFF — native Android SystemUI is active."
                             }
                         )
                         Switch(
@@ -375,9 +395,9 @@ class MainActivity : ComponentActivity() {
                         )
                         Text(
                             if (systemUiHidden) {
-                                "Feature controls are available below."
+                                "Clock, notification icons, battery, Wi-Fi and cellular indicators are managed as one system."
                             } else {
-                                "Turn this on first. ClockOS and Duos stay disabled until native SystemUI is hidden."
+                                "One switch controls the complete custom status bar. There are no separate Clock/Duos lifecycle switches."
                             }
                         )
                     }
@@ -395,19 +415,20 @@ class MainActivity : ComponentActivity() {
                         if (!notificationAccess) {
                             OutlinedButton(
                                 onClick = ::openNotificationAccess,
+                                enabled = !systemUiHidden && !busy,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text("Grant notification access")
                             }
                         }
 
-                        Button(
-                            enabled = shizukuReady && systemUiHidden && notificationAccess && !busy,
-                            onClick = { setClockEnabled(!clockActive) },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(if (clockActive) "Disable Custom Clock" else "Enable Custom Clock")
-                        }
+                        Text(
+                            if (systemUiHidden && clockActive) {
+                                "ACTIVE — clock and notification icons are part of SystemUI Plus."
+                            } else {
+                                "Managed automatically by the master SystemUI Plus switch."
+                            }
+                        )
 
                         SettingSwitch("24-hour", clockSettings.format24) {
                             saveClock("format24", it)
@@ -469,13 +490,13 @@ class MainActivity : ComponentActivity() {
                             }
                         )
 
-                        Button(
-                            enabled = shizukuReady && systemUiHidden && !busy,
-                            onClick = { setDuosEnabled(!duosActive) },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(if (duosActive) "Disable Custom Indicators" else "Enable Custom Indicators")
-                        }
+                        Text(
+                            if (systemUiHidden && duosActive) {
+                                "ACTIVE — battery, Wi-Fi, cellular, network and notification indicators belong to the same custom status bar."
+                            } else {
+                                "Managed automatically by the master SystemUI Plus switch."
+                            }
+                        )
 
                         Text("Indicator size: " + duoSize.toInt() + " dp")
                         Slider(
