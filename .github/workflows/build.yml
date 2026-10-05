@@ -177,48 +177,27 @@ jobs:
               text
           )
 
-          # Keep the custom clock color on the same Material 3 dynamic theme
-          # used by the SystemUI Plus settings UI.
+          # Keep the custom clock color aligned with the Material 3 dynamic theme.
           text = text.replace(
               'import java.util.Locale',
               'import java.util.Locale\\nimport androidx.compose.material3.darkColorScheme\\nimport androidx.compose.material3.dynamicDarkColorScheme\\nimport androidx.compose.material3.dynamicLightColorScheme\\nimport androidx.compose.material3.lightColorScheme\\nimport androidx.compose.ui.graphics.toArgb'
           )
-          old_color = '''            val color =
-                when (appearance) {
-                    true -> Color.BLACK
-                    false -> Color.WHITE
-                    null -> nativeClockColor()
-                        ?: if (fallbackNight) {
-                            Color.WHITE
-                        } else {
-                            Color.BLACK
-                        }
-                }'''
-          new_color = '''            // Match the same Material 3 dynamic color source used by the
-            // SystemUI Plus settings UI.
-            val color = appThemeClockColor()'''
-          text = text.replace(old_color, new_color)
-
+          text = text.replace(
+              '            val color =',
+              '            val color = appThemeClockColor()\\n            //'
+          )
           marker = '    private fun nativeClockColor(): Int? {'
-          theme_fn = '''    private fun appThemeClockColor(): Int {
-        val dark =
-            (
-                resources.configuration.uiMode and
-                    android.content.res.Configuration.UI_MODE_NIGHT_MASK
-            ) == android.content.res.Configuration.UI_MODE_NIGHT_YES
-
-        val scheme =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                if (dark) dynamicDarkColorScheme(this)
-                else dynamicLightColorScheme(this)
-            } else {
-                if (dark) darkColorScheme() else lightColorScheme()
-            }
-
-        return scheme.onSurface.toArgb()
-    }
-
-'''
+          theme_fn = (
+              '    private fun appThemeClockColor(): Int {\\n'
+              '        val dark = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES\\n'
+              '        val scheme = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {\\n'
+              '            if (dark) dynamicDarkColorScheme(this) else dynamicLightColorScheme(this)\\n'
+              '        } else {\\n'
+              '            if (dark) darkColorScheme() else lightColorScheme()\\n'
+              '        }\\n'
+              '        return scheme.onSurface.toArgb()\\n'
+              '    }\\n\\n'
+          )
           text = text.replace(marker, theme_fn + marker)
           clock.write_text(text)
           PY
