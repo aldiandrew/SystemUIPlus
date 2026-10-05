@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BatteryFull
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SignalCellular4Bar
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.Button
@@ -42,6 +43,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Box
@@ -520,7 +522,23 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        Text("Size: " + clockSettings.sizeSp.toInt() + " sp")
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Clock size", style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    clockSettings.sizeSp.toInt().toString() + " sp",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            androidx.compose.material3.TextButton(onClick = { saveClock("sizeSp", 14f) }) {
+                                androidx.compose.material3.Icon(Icons.Default.Refresh, contentDescription = "Reset size")
+                                Text("Reset")
+                            }
+                        }
                         Slider(
                             value = clockSettings.sizeSp,
                             onValueChange = { saveClock("sizeSp", it) },
@@ -528,50 +546,43 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        Text(
-                            "Horizontal position: " +
-                                clockSettings.horizontalPositionDp.toInt() +
-                                " dp"
-                        )
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Clock position", style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    "Horizontal " + clockSettings.horizontalPositionDp.toInt() +
+                                        " dp · Vertical " + clockSettings.verticalPositionDp.toInt() + " dp",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            androidx.compose.material3.TextButton(
+                                onClick = {
+                                    saveClock("horizontalPositionDp", 0f)
+                                    saveClock("verticalPositionDp", 0f)
+                                }
+                            ) {
+                                androidx.compose.material3.Icon(Icons.Default.Refresh, contentDescription = "Reset position")
+                                Text("Reset")
+                            }
+                        }
+                        Text("Horizontal")
                         Slider(
                             value = clockSettings.horizontalPositionDp,
                             onValueChange = { saveClock("horizontalPositionDp", it) },
                             valueRange = -100f..100f,
                             modifier = Modifier.fillMaxWidth()
                         )
-
-                        Text(
-                            "Vertical position: " +
-                                clockSettings.verticalPositionDp.toInt() +
-                                " dp"
-                        )
+                        Text("Vertical")
                         Slider(
                             value = clockSettings.verticalPositionDp,
                             onValueChange = { saveClock("verticalPositionDp", it) },
                             valueRange = -20f..20f,
                             modifier = Modifier.fillMaxWidth()
                         )
-
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = {
-                                    saveClock("horizontalPositionDp", 0f)
-                                    saveClock("verticalPositionDp", 0f)
-                                },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("Reset position")
-                            }
-                            OutlinedButton(
-                                onClick = { saveClock("sizeSp", 14f) },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("Reset size")
-                            }
-                        }
                     }
                 }
 
@@ -598,7 +609,28 @@ class MainActivity : ComponentActivity() {
                             }
                         )
 
-                        Text("Indicator size: " + duoSize.toInt() + " dp")
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Indicator size", style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    duoSize.toInt().toString() + " dp",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            androidx.compose.material3.TextButton(
+                                onClick = {
+                                    DuoPreferences.setIndicatorSizeDp(this@MainActivity, 36f)
+                                    loadSettings()
+                                }
+                            ) {
+                                androidx.compose.material3.Icon(Icons.Default.Refresh, contentDescription = "Reset size")
+                                Text("Reset")
+                            }
+                        }
                         Slider(
                             value = duoSize,
                             onValueChange = {
@@ -609,22 +641,30 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        OutlinedButton(
-                            onClick = {
-                                DuoPreferences.setIndicatorSizeDp(this@MainActivity, 36f)
-                                loadSettings()
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Reset indicator size")
-                        }
-
                         SettingSwitch("Automatic position", duoAutomatic) {
                             duoAutomatic = it
                             DuoPreferences.setAutomaticPosition(this@MainActivity, it)
                         }
 
-                        Text("Horizontal: " + duoX.toInt() + " dp")
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Indicator position", style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    "Horizontal " + duoX.toInt() +
+                                        " dp · Vertical " + duoY.toInt() + " dp",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            androidx.compose.material3.TextButton(onClick = ::resetDuoPosition) {
+                                androidx.compose.material3.Icon(Icons.Default.Refresh, contentDescription = "Reset position")
+                                Text("Reset")
+                            }
+                        }
+                        Text("Horizontal")
                         Slider(
                             value = duoX,
                             onValueChange = {
@@ -636,8 +676,7 @@ class MainActivity : ComponentActivity() {
                             valueRange = -24f..24f,
                             modifier = Modifier.fillMaxWidth()
                         )
-
-                        Text("Vertical: " + duoY.toInt() + " dp")
+                        Text("Vertical")
                         Slider(
                             value = duoY,
                             onValueChange = {
@@ -649,13 +688,6 @@ class MainActivity : ComponentActivity() {
                             valueRange = -24f..24f,
                             modifier = Modifier.fillMaxWidth()
                         )
-
-                        OutlinedButton(
-                            onClick = ::resetDuoPosition,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Reset indicator position")
-                        }
 
                         Text("Style: " + duoStyle.name)
                         Row(
@@ -746,7 +778,7 @@ class MainActivity : ComponentActivity() {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .align(Alignment.CenterVertically)
+                    
                     .padding(horizontal = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
