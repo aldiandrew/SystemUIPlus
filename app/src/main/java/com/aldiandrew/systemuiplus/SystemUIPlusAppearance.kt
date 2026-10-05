@@ -23,8 +23,9 @@ object SystemUIPlusAppearance {
     @Volatile
     private var cachedAtMs: Long = 0L
 
-    private const val CACHE_MS = 5_000L
+    private const val CACHE_MS = 10_000L
 
+    @Synchronized
     fun snapshot(context: Context): Snapshot {
         val now = System.currentTimeMillis()
         val cached = cachedSnapshot
@@ -54,9 +55,6 @@ object SystemUIPlusAppearance {
 
     fun fallbackForegroundColor(context: Context): Int =
         if (isNightMode(context)) Color.WHITE else Color.BLACK
-
-    fun isLightStatusBar(context: Context): Boolean =
-        foregroundColor(context) == Color.BLACK
 
     private fun parseForegroundColor(
         context: Context,
