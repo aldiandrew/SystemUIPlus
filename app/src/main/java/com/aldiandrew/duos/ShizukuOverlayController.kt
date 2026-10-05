@@ -94,12 +94,12 @@ object ShizukuOverlayController {
                 return@launch
             }
 
-            repeat(20) {
+            for (attempt in 0 until 20) {
                 delay(100L)
 
                 if (CustomStatusBarService.isRunning) {
                     callbackOnMain(callback, true, "")
-                    return@repeat
+                    return@launch
                 }
 
                 val error = CustomStatusBarService.lastError
@@ -110,7 +110,7 @@ object ShizukuOverlayController {
                         false,
                         error
                     )
-                    return@repeat
+                    return@launch
                 }
             }
 
