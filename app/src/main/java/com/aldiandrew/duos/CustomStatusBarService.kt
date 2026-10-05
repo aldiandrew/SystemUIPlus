@@ -446,10 +446,8 @@ class CustomStatusBarService : Service() {
         return DuoStatusState(
             batteryLevel = battery.first,
             charging = battery.second,
-            powerSaver = isPowerSaveOn(),
             wifiLevel = wifi.first,
             wifiConnected = wifi.second,
-            wifiValidated = wifi.third,
             cellLevel = telephony.first,
             networkGeneration = telephony.second,
             airplane = airplane,
@@ -494,19 +492,19 @@ class CustomStatusBarService : Service() {
         }
     }
 
-    private fun wifiState(): Triple<Int, Boolean, Boolean> {
+    private fun wifiState(): Pair<Int, Boolean> {
         return try {
             val wifi =
                 getSystemService(Context.WIFI_SERVICE) as? WifiManager
-                    ?: return Triple(0, false, false)
+                    ?: return 0 to false
 
             val cm =
                 getSystemService(Context.CONNECTIVITY_SERVICE)
                     as? ConnectivityManager
-                    ?: return Triple(0, false, false)
+                    ?: return 0 to false
 
             if (!wifi.isWifiEnabled) {
-                return Triple(0, false, false)
+                return 0 to false
             }
 
             val network = cm.activeNetwork
@@ -539,17 +537,13 @@ class CustomStatusBarService : Service() {
 
             // Only a validated Wi-Fi network owns the middle slot; otherwise the mobile generation
             // remains visible, matching the active data path.
-            Triple(
-                DuoStatusMapper.wifiBars(stockBars),
-                validated,
-                validated
-            )
+            DuoStatusMapper.wifiBars(stockBars) to transportWifi
         } catch (t: Throwable) {
             Log.w(
                 TAG,
                 "wifi read failed: ${t.javaClass.simpleName}"
             )
-            Triple(0, false, false)
+            0 to false
         }
     }
 
@@ -606,16 +600,6 @@ class CustomStatusBarService : Service() {
                 Settings.Global.AIRPLANE_MODE_ON,
                 0
             ) == 1
-        } catch (_: Throwable) {
-            false
-        }
-
-    private fun isPowerSaveOn(): Boolean =
-        try {
-            val power =
-                getSystemService(Context.POWER_SERVICE)
-                    as? android.os.PowerManager
-            power?.isPowerSaveMode == true
         } catch (_: Throwable) {
             false
         }
