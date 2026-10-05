@@ -42,9 +42,17 @@ jobs:
           tar -xzf "$JAKARTA_TGZ" -C "$JAKARTA_DIR" --strip-components=1
           tar -xzf "$IOSEVKA_TGZ" -C "$IOSEVKA_DIR" --strip-components=1
 
-          for weight in 400 500 600 700; do
-            JAKARTA_FONT="$(find "$JAKARTA_DIR" -type f -name "*-latin-${weight}-normal.ttf" -print -quit)"
-            IOSEVKA_FONT="$(find "$IOSEVKA_DIR" -type f -name "*-latin-${weight}-normal.ttf" -print -quit)"
+          for spec in \
+            "400|Regular" \
+            "500|Medium" \
+            "600|SemiBold" \
+            "700|Bold"; do
+
+            weight="${spec%%|*}"
+            name="${spec#*|}"
+
+            JAKARTA_FONT="$(find "$JAKARTA_DIR" -type f -name "PlusJakartaSans-${name}.ttf" -print -quit)"
+            IOSEVKA_FONT="$(find "$IOSEVKA_DIR" -type f -name "Iosevka-${name}.ttf" -print -quit)"
 
             test -n "$JAKARTA_FONT"
             test -n "$IOSEVKA_FONT"
