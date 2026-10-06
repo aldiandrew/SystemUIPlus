@@ -24,10 +24,8 @@
     <string name="systemui_status_active">Aktif</string>
     <string name="systemui_status_active_summary">Status bar kustom sedang berjalan</string>
     <string name="systemui_status_ready">Siap diaktifkan</string>
-    <string name="systemui_status_setup">Perlu disiapkan</string>
     <string name="systemui_status_setup_summary">Buka Pengaturan untuk menyelesaikan izin yang diperlukan</string>
     <string name="reset_position">Reset posisi</string>
-    <string name="custom_clock">Jam Kustom</string>
     <string name="twenty_four_hour">24 jam</string>
     <string name="show_date">Tampilkan tanggal</string>
     <string name="date_format">Format tanggal</string>
@@ -38,7 +36,6 @@
     <string name="clock_size">Ukuran jam</string>
     <string name="clock_horizontal_position">Posisi horizontal jam</string>
     <string name="clock_vertical_position">Posisi vertikal jam</string>
-    <string name="custom_system_indicators">Indikator Sistem Kustom</string>
     <string name="indicator_size">Ukuran indikator</string>
     <string name="automatic_position">Posisi otomatis</string>
     <string name="indicator_horizontal_position">Posisi horizontal indikator</string>
@@ -46,11 +43,9 @@
     <string name="style">Gaya</string>
     <string name="duo">Duo</string>
     <string name="compact">Ringkas</string>
-    <string name="safety">Keamanan</string>
     <string name="restore_native_systemui">Pulihkan SystemUI bawaan</string>
     <string name="reset">Reset</string>
     <string name="ready">SIAP</string>
-    <string name="preview_updates">Pratinjau mengikuti ukuran, tanggal, posisi jam, serta ukuran dan gaya indikator.</string>
     <string name="sp_value">%d sp</string>
     <string name="dp_value">%d dp</string>
     <string name="toast_phone_state_granted">Izin status telepon diberikan</string>
