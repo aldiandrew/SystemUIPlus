@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 
 @Composable
@@ -119,7 +120,7 @@ fun OnboardingScreen(
                     TextButton(
                         onClick = onComplete
                     ) {
-                        Text(stringResourceSafe("onboarding_skip"))
+                        Text(stringResource(R.string.onboarding_skip))
                     }
                 }
             }
@@ -194,7 +195,7 @@ private fun WelcomePage(
         Spacer(Modifier.height(16.dp))
 
         Text(
-            text = stringResourceSafe("onboarding_welcome_title"),
+            text = stringResource(R.string.onboarding_welcome_title),
             style =
                 MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.SemiBold
@@ -204,7 +205,7 @@ private fun WelcomePage(
         Spacer(Modifier.height(8.dp))
 
         Text(
-            text = stringResourceSafe("onboarding_welcome_message"),
+            text = stringResource(R.string.onboarding_welcome_message),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -212,7 +213,7 @@ private fun WelcomePage(
         Spacer(Modifier.height(24.dp))
 
         Text(
-            text = stringResourceSafe("onboarding_language_label"),
+            text = stringResource(R.string.onboarding_language_label),
             style =
                 MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.SemiBold
@@ -223,7 +224,7 @@ private fun WelcomePage(
         Spacer(Modifier.height(8.dp))
 
         LanguageChoice(
-            label = stringResourceSafe("language_device"),
+            label = stringResource(R.string.language_device),
             selected = selectedLanguage == AppLanguageMode.DEVICE,
             onClick = {
                 onLanguageSelected(AppLanguageMode.DEVICE)
@@ -231,7 +232,7 @@ private fun WelcomePage(
         )
 
         LanguageChoice(
-            label = stringResourceSafe("language_english"),
+            label = stringResource(R.string.language_english),
             selected = selectedLanguage == AppLanguageMode.ENGLISH,
             onClick = {
                 onLanguageSelected(AppLanguageMode.ENGLISH)
@@ -249,7 +250,7 @@ private fun WelcomePage(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.extraLarge
         ) {
-            Text(stringResourceSafe("onboarding_continue"))
+            Text(stringResource(R.string.onboarding_continue))
         }
     }
 }
@@ -271,7 +272,7 @@ private fun ShizukuPage(
         Spacer(Modifier.height(16.dp))
 
         Text(
-            text = stringResourceSafe("onboarding_shizuku_title"),
+            text = stringResource(R.string.onboarding_shizuku_title),
             style =
                 MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.SemiBold
@@ -281,7 +282,7 @@ private fun ShizukuPage(
         Spacer(Modifier.height(8.dp))
 
         Text(
-            text = stringResourceSafe("onboarding_shizuku_message"),
+            text = stringResource(R.string.onboarding_shizuku_message),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -289,7 +290,7 @@ private fun ShizukuPage(
         Spacer(Modifier.height(20.dp))
 
         StatusRow(
-            title = stringResourceSafe("shizuku"),
+            title = stringResource(R.string.shizuku),
             ready = shizukuReady
         )
 
@@ -301,7 +302,7 @@ private fun ShizukuPage(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.extraLarge
             ) {
-                Text(stringResourceSafe("onboarding_setup_shizuku"))
+                Text(stringResource(R.string.onboarding_setup_shizuku))
             }
 
             Spacer(Modifier.height(10.dp))
@@ -312,7 +313,7 @@ private fun ShizukuPage(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.extraLarge
         ) {
-            Text(stringResourceSafe("onboarding_continue"))
+            Text(stringResource(R.string.onboarding_continue))
         }
     }
 }
@@ -340,7 +341,7 @@ private fun PermissionsPage(
         Spacer(Modifier.height(16.dp))
 
         Text(
-            text = stringResourceSafe("onboarding_permissions_title"),
+            text = stringResource(R.string.onboarding_permissions_title),
             style =
                 MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.SemiBold
@@ -350,7 +351,7 @@ private fun PermissionsPage(
         Spacer(Modifier.height(8.dp))
 
         Text(
-            text = stringResourceSafe("onboarding_permissions_message"),
+            text = stringResource(R.string.onboarding_permissions_message),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -358,7 +359,7 @@ private fun PermissionsPage(
         Spacer(Modifier.height(20.dp))
 
         PermissionActionRow(
-            title = stringResourceSafe("shizuku"),
+            title = stringResource(R.string.shizuku),
             ready = shizukuReady,
             action = onShizukuAction
         )
@@ -366,7 +367,7 @@ private fun PermissionsPage(
         HorizontalDivider()
 
         PermissionActionRow(
-            title = stringResourceSafe("notification_access"),
+            title = stringResource(R.string.notification_access),
             ready = notificationAccess,
             action = onNotificationAccess
         )
@@ -374,7 +375,7 @@ private fun PermissionsPage(
         HorizontalDivider()
 
         PermissionActionRow(
-            title = stringResourceSafe("display_over_other_apps"),
+            title = stringResource(R.string.display_over_other_apps),
             ready = overlayPermissionGranted,
             action = onOverlayPermission
         )
@@ -382,7 +383,7 @@ private fun PermissionsPage(
         HorizontalDivider()
 
         PermissionActionRow(
-            title = stringResourceSafe("phone_state"),
+            title = stringResource(R.string.phone_state),
             ready = phoneStateGranted,
             action = onPhonePermission
         )
@@ -394,7 +395,7 @@ private fun PermissionsPage(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.extraLarge
         ) {
-            Text(stringResourceSafe("onboarding_continue"))
+            Text(stringResource(R.string.onboarding_continue))
         }
     }
 }
@@ -414,7 +415,7 @@ private fun ReadyPage(
         Spacer(Modifier.height(16.dp))
 
         Text(
-            text = stringResourceSafe("onboarding_ready_title"),
+            text = stringResource(R.string.onboarding_ready_title),
             style =
                 MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.SemiBold
@@ -424,7 +425,7 @@ private fun ReadyPage(
         Spacer(Modifier.height(8.dp))
 
         Text(
-            text = stringResourceSafe("onboarding_ready_message"),
+            text = stringResource(R.string.onboarding_ready_message),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -433,17 +434,17 @@ private fun ReadyPage(
 
         FeatureRow(
             icon = Icons.Default.AccessTime,
-            title = stringResourceSafe("onboarding_feature_clock")
+            title = stringResource(R.string.onboarding_feature_clock)
         )
 
         FeatureRow(
             icon = Icons.Default.Tune,
-            title = stringResourceSafe("onboarding_feature_indicators")
+            title = stringResource(R.string.onboarding_feature_indicators)
         )
 
         FeatureRow(
             icon = Icons.Default.Notifications,
-            title = stringResourceSafe("onboarding_feature_notifications")
+            title = stringResource(R.string.onboarding_feature_notifications)
         )
 
         Spacer(Modifier.height(24.dp))
@@ -453,7 +454,7 @@ private fun ReadyPage(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.extraLarge
         ) {
-            Text(stringResourceSafe("onboarding_finish"))
+            Text(stringResource(R.string.onboarding_finish))
         }
     }
 }
@@ -590,11 +591,11 @@ private fun StatusRow(
                 enabled = false,
                 label = {
                     Text(
-                        stringResourceSafe(
+                        stringResource(
                             if (ready) {
-                                "onboarding_ready"
+                                R.string.onboarding_ready
                             } else {
-                                "onboarding_not_ready"
+                                R.string.onboarding_not_ready
                             }
                         )
                     )
@@ -646,11 +647,11 @@ private fun PermissionActionRow(
             enabled = !ready
         ) {
             Text(
-                stringResourceSafe(
+                stringResource(
                     if (ready) {
-                        "onboarding_ready"
+                        R.string.onboarding_ready
                     } else {
-                        "onboarding_setup"
+                        R.string.onboarding_setup
                     }
                 )
             )
@@ -736,7 +737,7 @@ private fun OnboardingPreview() {
             Spacer(Modifier.height(14.dp))
 
             Text(
-                text = stringResourceSafe("onboarding_preview_label"),
+                text = stringResource(R.string.onboarding_preview_label),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -782,21 +783,3 @@ private fun OnboardingProgress(
     }
 }
 
-@Composable
-private fun stringResourceSafe(
-    name: String
-): String {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val id =
-        context.resources.getIdentifier(
-            name,
-            "string",
-            context.packageName
-        )
-
-    return if (id != 0) {
-        context.getString(id)
-    } else {
-        name
-    }
-}
