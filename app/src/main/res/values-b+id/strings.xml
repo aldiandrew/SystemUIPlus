@@ -66,15 +66,8 @@
     <string name="battery_optimization_disabled_summary">Izinkan SystemUI Plus berjalan dengan pembatasan latar belakang yang lebih sedikit</string>
     <string name="enabled">Aktif</string>
     <string name="enable">Aktifkan</string>
-    <string name="service_notifications">Notifikasi layanan</string>
-    <string name="service_notifications_enabled_summary">Notifikasi layanan SystemUI Plus ditampilkan</string>
-    <string name="service_notifications_disabled_summary">Disembunyikan dari notification drawer saat layanan berjalan</string>
-    <string name="notifications_enabled">Notifikasi layanan diaktifkan.</string>
-    <string name="notifications_disabled">Notifikasi layanan dinonaktifkan.</string>
-    <string name="notifications_change_failed">Tidak dapat mengubah pengaturan notifikasi layanan.</string>
     <string name="battery_optimization_open_failed">Tidak dapat membuka pengaturan optimasi baterai.</string>
     <string name="content_description_battery_optimization">Optimasi baterai</string>
-    <string name="content_description_service_notifications">Notifikasi layanan</string>
     <string name="cancel">Batal</string>
     <string name="done">Selesai</string>
     <string name="backup_restore">Cadangkan &amp; Pulihkan</string>
@@ -114,4 +107,11 @@
     <string name="about_project_information">Source, Lisensi &amp; Privasi</string>
     <string name="about_project_information_summary">Source project, lisensi pihak ketiga, dan informasi privasi</string>
     <string name="content_description_project_information">Source, lisensi, dan privasi</string>
+
+    <string name="overlay_notification">Notifikasi overlay</string>
+    <string name="overlay_notification_summary">Kelola notifikasi sistem Android untuk fitur tampil di atas aplikasi lain.</string>
+    <string name="manage">Kelola</string>
+    <string name="content_description_overlay_notification">Notifikasi overlay</string>
+    <string name="toast_overlay_notification_settings_failed">Tidak dapat membuka pengaturan notifikasi overlay.</string>
+
 </resources>

@@ -66,15 +66,8 @@
     <string name="battery_optimization_disabled_summary">Allow SystemUI Plus to run with fewer background restrictions</string>
     <string name="enabled">Enabled</string>
     <string name="enable">Enable</string>
-    <string name="service_notifications">Service notifications</string>
-    <string name="service_notifications_enabled_summary">SystemUI Plus service notification is visible</string>
-    <string name="service_notifications_disabled_summary">Hidden from the notification drawer while services run</string>
-    <string name="notifications_enabled">Service notifications enabled.</string>
-    <string name="notifications_disabled">Service notifications disabled.</string>
-    <string name="notifications_change_failed">Could not change service notification setting.</string>
     <string name="battery_optimization_open_failed">Could not open battery optimization settings.</string>
     <string name="content_description_battery_optimization">Battery optimization</string>
-    <string name="content_description_service_notifications">Service notifications</string>
     <string name="cancel">Cancel</string>
     <string name="done">Done</string>
     <string name="backup_restore">Backup &amp; Restore</string>
@@ -114,4 +107,11 @@
     <string name="about_project_information">Source, Licenses &amp; Privacy</string>
     <string name="about_project_information_summary">Project source, third-party licenses and privacy information</string>
     <string name="content_description_project_information">Source, licenses and privacy</string>
+
+    <string name="overlay_notification">Overlay notification</string>
+    <string name="overlay_notification_summary">Manage the Android system notification for displaying over other apps.</string>
+    <string name="manage">Manage</string>
+    <string name="content_description_overlay_notification">Overlay notification</string>
+    <string name="toast_overlay_notification_settings_failed">Could not open overlay notification settings.</string>
+
 </resources>

@@ -84,7 +84,12 @@ import com.aldiandrew.duos.ShizukuOverlayController
 import rikka.shizuku.Shizuku
 
 class MainActivity : ComponentActivity() {
-    companion object { private const val PHONE_PERMISSION_REQUEST = 4107 }
+    companion object {
+        private const val PHONE_PERMISSION_REQUEST = 4107
+        private const val SYSTEM_PACKAGE_NAME = "android"
+        private const val OVERLAY_NOTIFICATION_CHANNEL_PREFIX =
+            "com.android.server.wm.AlertWindowNotification - "
+    }
     private lateinit var clockPrefs: ClockPrefs
     private var shizukuReady by mutableStateOf(false)
     private var systemUiHidden by mutableStateOf(false)
@@ -95,8 +100,6 @@ class MainActivity : ComponentActivity() {
     private var phoneStateGranted by mutableStateOf(true)
     private var overlayPermissionGranted by mutableStateOf(false)
     private var batteryOptimizationIgnored by mutableStateOf(false)
-    private var appNotificationsEnabled by mutableStateOf(true)
-    private var notificationSettingBusy by mutableStateOf(false)
 
     private var clockSettings by mutableStateOf(ClockSettings())
     private var duoSize by mutableStateOf(36f)
@@ -202,8 +205,6 @@ class MainActivity : ComponentActivity() {
         overlayPermissionGranted = Settings.canDrawOverlays(this)
         batteryOptimizationIgnored =
             SystemUIPlusDeviceSettings.isIgnoringBatteryOptimizations(this)
-        appNotificationsEnabled =
-            SystemUIPlusDeviceSettings.areAppNotificationsEnabled(this)
     }
 
     private fun requestBatteryOptimization() {
@@ -225,63 +226,6 @@ class MainActivity : ComponentActivity() {
                 )
             )
         }
-    }
-
-    private fun setServiceNotificationsEnabled(
-        enabled: Boolean
-    ) {
-        if (Build.VERSION.SDK_INT < 33) {
-            appNotificationsEnabled = true
-            return
-        }
-
-        if (!SystemUIPlusShizuku.hasPermission()) {
-            toast(
-                getString(
-                    R.string.toast_shizuku_required
-                )
-            )
-            return
-        }
-
-        notificationSettingBusy = true
-
-        Thread {
-            val result =
-                SystemUIPlusDeviceSettings
-                    .setAppNotificationsEnabled(
-                        this,
-                        enabled
-                    )
-
-            runOnUiThread {
-                notificationSettingBusy = false
-
-                if (result.isSuccess) {
-                    appNotificationsEnabled =
-                        SystemUIPlusDeviceSettings
-                            .areAppNotificationsEnabled(this)
-
-                    toast(
-                        getString(
-                            if (enabled) {
-                                R.string.notifications_enabled
-                            } else {
-                                R.string.notifications_disabled
-                            }
-                        )
-                    )
-                } else {
-                    refreshState()
-                    toast(
-                        result.exceptionOrNull()?.message
-                            ?: getString(
-                                R.string.notifications_change_failed
-                            )
-                    )
-                }
-            }
-        }.start()
     }
 
     override fun onConfigurationChanged(
@@ -345,6 +289,49 @@ class MainActivity : ComponentActivity() {
             )
         } catch (_: Throwable) {
             startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION))
+        }
+    }
+
+    private fun openOverlayNotificationSettings() {
+        val channelId =
+            OVERLAY_NOTIFICATION_CHANNEL_PREFIX + packageName
+
+        val intent =
+            Intent(
+                Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS
+            ).apply {
+                putExtra(
+                    Settings.EXTRA_APP_PACKAGE,
+                    SYSTEM_PACKAGE_NAME
+                )
+                putExtra(
+                    Settings.EXTRA_CHANNEL_ID,
+                    channelId
+                )
+            }
+
+        try {
+            startActivity(intent)
+        } catch (_: Throwable) {
+            try {
+                startActivity(
+                    Intent(
+                        Settings.ACTION_APP_NOTIFICATION_SETTINGS
+                    ).apply {
+                        putExtra(
+                            Settings.EXTRA_APP_PACKAGE,
+                            SYSTEM_PACKAGE_NAME
+                        )
+                    }
+                )
+            } catch (t: Throwable) {
+                toast(
+                    t.message
+                        ?: getString(
+                            R.string.toast_overlay_notification_settings_failed
+                        )
+                )
+            }
         }
     }
 
@@ -1224,39 +1211,36 @@ class MainActivity : ComponentActivity() {
                     )
 
                     ListItem(
+                        modifier = Modifier.clickable {
+                            openOverlayNotificationSettings()
+                        },
                         leadingContent = {
                             Icon(
                                 Icons.Default.NotificationsOff,
                                 contentDescription = stringResource(
-                                    R.string.content_description_service_notifications
+                                    R.string.content_description_overlay_notification
                                 )
                             )
                         },
                         headlineContent = {
                             Text(
                                 stringResource(
-                                    R.string.service_notifications
+                                    R.string.overlay_notification
                                 )
                             )
                         },
                         supportingContent = {
                             Text(
                                 stringResource(
-                                    if (appNotificationsEnabled) {
-                                        R.string.service_notifications_enabled_summary
-                                    } else {
-                                        R.string.service_notifications_disabled_summary
-                                    }
+                                    R.string.overlay_notification_summary
                                 )
                             )
                         },
                         trailingContent = {
-                            Switch(
-                                checked = appNotificationsEnabled,
-                                onCheckedChange =
-                                    ::setServiceNotificationsEnabled,
-                                enabled =
-                                    !notificationSettingBusy
+                            Text(
+                                stringResource(R.string.manage),
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.labelLarge
                             )
                         }
                     )
