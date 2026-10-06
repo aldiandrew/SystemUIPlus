@@ -69,7 +69,7 @@ class DuosTileService : TileService() {
         )
 
         tile.state = forcedState ?: when {
-            !ShizukuManager.hasPermission() ->
+            !SystemUIPlusShizuku.hasPermission() ->
                 Tile.STATE_UNAVAILABLE
             CustomStatusBarService.isRunning ->
                 Tile.STATE_ACTIVE
