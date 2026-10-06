@@ -203,76 +203,116 @@ class DuoIndicatorView(context: Context) : View(context) {
             drawBolt(
                 canvas,
                 current.batteryColor,
-                left + 17f * k,
-                cy - 1f * k,
-                24f * k
+                cx,
+                top + 1f * k,
+                20f * k
             )
         } else {
-            textPaint.color = current.foregroundColor
-            textPaint.textSize = PILL_TEXT_FONT * k
             val batteryText =
                 current.batteryLevel.coerceIn(0, 100).toString()
-            val batteryBaseline =
-                cy - (textPaint.ascent() + textPaint.descent()) / 2f
+
+            textPaint.color = current.foregroundColor
+            textPaint.textSize = PILL_TEXT_FONT * k
+            val baseline =
+                top + 1f * k -
+                    (textPaint.ascent() + textPaint.descent()) / 2f
+
+            val textWidth =
+                textPaint.measureText(batteryText)
+            val maskLeft =
+                cx -
+                    textWidth / 2f -
+                    4f * k
+            val maskRight =
+                cx +
+                    textWidth / 2f +
+                    4f * k
+            val maskTop =
+                baseline +
+                    textPaint.ascent() -
+                    2f * k
+            val maskBottom =
+                baseline +
+                    textPaint.descent() +
+                    2f * k
+
+            fillPaint.color =
+                withAlpha(
+                    current.foregroundColor,
+                    0.12f
+                )
+            canvas.drawRoundRect(
+                maskLeft,
+                maskTop,
+                maskRight,
+                maskBottom,
+                4f * k,
+                4f * k,
+                fillPaint
+            )
 
             canvas.drawText(
                 batteryText,
-                left + 22f * k,
-                batteryBaseline,
+                cx,
+                baseline,
                 textPaint
             )
         }
 
-        val rightCx = right - 39f * k
-        val statusCy = cy - 1f * k
+        val centerStatusX = cx
+        val centerStatusY = cy + 3f * k
 
         when {
             current.airplane -> {
                 drawAirplane(
                     canvas,
                     current.foregroundColor,
-                    k * 0.58f,
-                    rightCx,
-                    statusCy
+                    k * 0.46f,
+                    centerStatusX,
+                    centerStatusY
                 )
             }
+
             current.dnd -> {
                 drawMoon(
                     canvas,
                     current.foregroundColor,
-                    k * 0.42f,
-                    rightCx,
-                    statusCy
+                    k * 0.34f,
+                    centerStatusX,
+                    centerStatusY
                 )
             }
+
             current.vpnConnected -> {
                 drawNetwork(
                     canvas,
                     current.foregroundColor,
                     "VPN",
-                    k * 0.48f,
-                    rightCx,
-                    statusCy
+                    k * 0.40f,
+                    centerStatusX,
+                    centerStatusY
                 )
             }
+
             current.wifiConnected -> {
                 drawWifi(
                     canvas,
                     current.foregroundColor,
                     current.wifiLevel,
-                    k * 0.46f,
-                    rightCx,
-                    statusCy
+                    k * 0.34f,
+                    centerStatusX,
+                    centerStatusY
                 )
             }
+
             current.networkGeneration.isNotEmpty() -> {
                 drawNetwork(
                     canvas,
                     current.foregroundColor,
                     current.networkGeneration,
-                    k * 0.50f,
-                    rightCx,
-                    statusCy
+                    k * 0.40f,
+                    centerStatusX,
+                    centerStatusY
                 )
             }
         }
@@ -281,8 +321,10 @@ class DuoIndicatorView(context: Context) : View(context) {
             DuoStatusMapper.cellOpacities(
                 if (current.airplane) 0 else current.cellLevel
             )
-        val dotsStartX = right - 21f * k
-        val dotsY = cy + 11f * k
+        val dotsY = cy + 18f * k
+        val totalDotsWidth = 18f * k
+        val dotsStartX =
+            cx - totalDotsWidth / 2f
 
         for (i in 0 until 4) {
             fillPaint.color =

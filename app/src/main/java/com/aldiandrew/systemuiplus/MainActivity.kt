@@ -88,6 +88,8 @@ import com.aldiandrew.clockos.ClockOverlayService
 import com.aldiandrew.systemuiplus.SystemUIPlusController
 import com.aldiandrew.clockos.ClockPrefs
 import com.aldiandrew.clockos.ClockSettings
+import com.aldiandrew.clockos.StatusBarLogoStyle
+import com.aldiandrew.clockos.StatusBarLogoView
 import com.aldiandrew.clockos.hasClockNotificationAccess
 import com.aldiandrew.duos.DuoPreferences
 import com.aldiandrew.duos.DuoVisualStyle
@@ -570,6 +572,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun resetClockPosition() {
+        clockPrefs.set(
+            "automaticPosition",
+            true
+        )
         clockPrefs.set(
             "horizontalPositionDp",
             0f
@@ -1070,6 +1076,13 @@ class MainActivity : ComponentActivity() {
                     verticalArrangement =
                         Arrangement.spacedBy(12.dp)
                 ) {
+                    SettingSwitch(
+                        stringResource(R.string.automatic_position),
+                        clockSettings.automaticPosition
+                    ) {
+                        saveClock("automaticPosition", it)
+                    }
+
                     SliderValueSetting(
                         title = stringResource(
                             R.string.clock_horizontal_position
@@ -1084,7 +1097,14 @@ class MainActivity : ComponentActivity() {
                             clockSettings
                                 .horizontalPositionDp,
                         range = -100f..100f,
+                        canInteract = !clockSettings.automaticPosition,
                         onValueChange = {
+                            if (clockSettings.automaticPosition) {
+                                clockPrefs.set(
+                                    "automaticPosition",
+                                    false
+                                )
+                            }
                             saveClock(
                                 "horizontalPositionDp",
                                 it
@@ -1106,7 +1126,14 @@ class MainActivity : ComponentActivity() {
                             clockSettings
                                 .verticalPositionDp,
                         range = -20f..20f,
+                        canInteract = !clockSettings.automaticPosition,
                         onValueChange = {
+                            if (clockSettings.automaticPosition) {
+                                clockPrefs.set(
+                                    "automaticPosition",
+                                    false
+                                )
+                            }
                             saveClock(
                                 "verticalPositionDp",
                                 it
@@ -1117,6 +1144,114 @@ class MainActivity : ComponentActivity() {
                     PositionResetPill(
                         onClick = ::resetClockPosition
                     )
+                }
+            }
+
+            SectionLabel(
+                stringResource(R.string.logo)
+            )
+
+            ExpressiveCard(
+                Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    Modifier.padding(
+                        horizontal = 12.dp,
+                        vertical = 10.dp
+                    ),
+                    verticalArrangement =
+                        Arrangement.spacedBy(8.dp)
+                ) {
+                    SettingSwitch(
+                        stringResource(R.string.logo),
+                        clockSettings.logoEnabled
+                    ) {
+                        saveClock("logoEnabled", it)
+                    }
+
+                    val logoPositionOptions =
+                        listOf(
+                            stringResource(R.string.logo_position_left),
+                            stringResource(R.string.logo_position_right)
+                        )
+
+                    ExpressiveDropdown(
+                        label = stringResource(R.string.logo_position),
+                        selected = logoPositionOptions[
+                            clockSettings.logoPosition.coerceIn(
+                                0,
+                                1
+                            )
+                        ],
+                        options = logoPositionOptions,
+                        canInteract = clockSettings.logoEnabled
+                    ) { value ->
+                        saveClock(
+                            "logoPosition",
+                            if (
+                                value ==
+                                    logoPositionOptions[1]
+                            ) {
+                                1
+                            } else {
+                                0
+                            }
+                        )
+                    }
+
+                    val logoStyleOptions =
+                        listOf(
+                            StatusBarLogoStyle.SAKURA to
+                                stringResource(R.string.logo_style_sakura),
+                            StatusBarLogoStyle.ANDROID to
+                                stringResource(R.string.logo_style_android),
+                            StatusBarLogoStyle.ADIDAS to
+                                stringResource(R.string.logo_style_adidas),
+                            StatusBarLogoStyle.APPLE to
+                                stringResource(R.string.logo_style_apple),
+                            StatusBarLogoStyle.BATMAN to
+                                stringResource(R.string.logo_style_batman),
+                            StatusBarLogoStyle.BEATS to
+                                stringResource(R.string.logo_style_beats),
+                            StatusBarLogoStyle.BIOHAZARD to
+                                stringResource(R.string.logo_style_biohazard),
+                            StatusBarLogoStyle.HEART to
+                                stringResource(R.string.logo_style_heart),
+                            StatusBarLogoStyle.NIKE to
+                                stringResource(R.string.logo_style_nike),
+                            StatusBarLogoStyle.ROG to
+                                stringResource(R.string.logo_style_rog),
+                            StatusBarLogoStyle.SUPERMAN to
+                                stringResource(R.string.logo_style_superman),
+                            StatusBarLogoStyle.WINDOWS to
+                                stringResource(R.string.logo_style_windows)
+                        )
+
+                    val selectedLogoStyle =
+                        logoStyleOptions
+                            .firstOrNull {
+                                it.first == clockSettings.logoStyle
+                            }
+                            ?.second
+                            ?: logoStyleOptions.first().second
+
+                    ExpressiveDropdown(
+                        label = stringResource(R.string.logo_style),
+                        selected = selectedLogoStyle,
+                        options = logoStyleOptions.map { it.second },
+                        canInteract = clockSettings.logoEnabled
+                    ) { value ->
+                        saveClock(
+                            "logoStyle",
+                            logoStyleOptions
+                                .firstOrNull {
+                                    it.second == value
+                                }
+                                ?.first
+                                ?.index
+                                ?: StatusBarLogoStyle.SAKURA.index
+                        )
+                    }
                 }
             }
         }
@@ -2559,21 +2694,50 @@ class MainActivity : ComponentActivity() {
                         contentAlignment =
                             Alignment.Center
                     ) {
-                        Column(
-                            modifier =
-                                Modifier.offset(
-                                    x =
-                                        clockSettings
-                                            .horizontalPositionDp
-                                            .dp,
-                                    y =
-                                        clockSettings
-                                            .verticalPositionDp
-                                            .dp
-                                ),
-                            horizontalAlignment =
-                                Alignment.CenterHorizontally
+                        Row(
+                            verticalAlignment =
+                                Alignment.CenterVertically
                         ) {
+                            if (
+                                clockSettings.logoEnabled &&
+                                clockSettings.logoPosition == 0
+                            ) {
+                                AndroidView(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .padding(end = 6.dp),
+                                    factory = { context ->
+                                        StatusBarLogoView(context)
+                                    },
+                                    update = { view ->
+                                        view.setLogoStyle(
+                                            clockSettings.logoStyle
+                                        )
+                                        view.setLogoColor(
+                                            MaterialTheme
+                                                .colorScheme
+                                                .onSurface
+                                                .toArgb()
+                                        )
+                                    }
+                                )
+                            }
+
+                            Column(
+                                modifier =
+                                    Modifier.offset(
+                                        x =
+                                            clockSettings
+                                                .horizontalPositionDp
+                                                .dp,
+                                        y =
+                                            clockSettings
+                                                .verticalPositionDp
+                                                .dp
+                                    ),
+                                horizontalAlignment =
+                                    Alignment.CenterHorizontally
+                            ) {
                             Text(
                                 timeText,
                                 style =
@@ -2603,6 +2767,31 @@ class MainActivity : ComponentActivity() {
                                         MaterialTheme
                                             .colorScheme
                                             .onSurfaceVariant
+                                )
+                            }
+
+                            if (
+                                clockSettings.logoEnabled &&
+                                clockSettings.logoPosition == 1
+                            ) {
+                                AndroidView(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .padding(start = 6.dp),
+                                    factory = { context ->
+                                        StatusBarLogoView(context)
+                                    },
+                                    update = { view ->
+                                        view.setLogoStyle(
+                                            clockSettings.logoStyle
+                                        )
+                                        view.setLogoColor(
+                                            MaterialTheme
+                                                .colorScheme
+                                                .onSurface
+                                                .toArgb()
+                                        )
+                                    }
                                 )
                             }
                         }
@@ -2870,9 +3059,10 @@ class MainActivity : ComponentActivity() {
         valueText: String,
         value: Float,
         range: ClosedFloatingPointRange<Float>,
+        canInteract: Boolean = true,
         onValueChange: (Float) -> Unit
     ) {
-        val enabled = systemUiHidden && !busy
+        val enabled = systemUiHidden && !busy && canInteract
 
         Column(
             verticalArrangement =

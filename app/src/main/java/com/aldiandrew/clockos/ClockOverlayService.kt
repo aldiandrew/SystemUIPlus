@@ -27,6 +27,7 @@ import android.view.WindowManager
 import android.widget.TextView
 import com.aldiandrew.systemuiplus.SystemUIPlusAppearance
 import com.aldiandrew.systemuiplus.SystemUIPlusController
+import com.aldiandrew.duos.DuoPreferences
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -51,6 +52,7 @@ class ClockOverlayService : Service() {
     private lateinit var statusBarContentView: StatusBarClusterView
     private lateinit var clockView: TextView
     private lateinit var notificationIconView: SakuraNotificationIconContainer
+    private lateinit var logoView: StatusBarLogoView
     private lateinit var params: WindowManager.LayoutParams
     private lateinit var systemUiContext: Context
 
@@ -87,6 +89,9 @@ class ClockOverlayService : Service() {
                 if (lastColor != color) {
                     lastColor = color
                     clockView.setTextColor(color)
+                    if (::logoView.isInitialized) {
+                        logoView.setLogoColor(color)
+                    }
                     renderNotificationIcons()
                 }
             }
@@ -184,10 +189,14 @@ class ClockOverlayService : Service() {
                     desiredIconHeightPx = systemUiNotificationIconDesiredHeightPx()
                 )
 
+            logoView =
+                StatusBarLogoView(systemUiContext)
+
             statusBarContentView =
                 StatusBarClusterView(systemUiContext).apply {
                     addView(clockView)
                     addView(notificationIconView)
+                    addView(logoView)
                 }
 
             params = WindowManager.LayoutParams(
@@ -427,6 +436,36 @@ class ClockOverlayService : Service() {
             View.IMPORTANT_FOR_ACCESSIBILITY_NO
 
         return view
+    }
+
+    private fun applyLogoSettings(
+        settings: ClockSettings
+    ) {
+        if (!::logoView.isInitialized) return
+
+        logoView.visibility =
+            if (settings.logoEnabled) {
+                View.VISIBLE
+            } else {
+                View.GONE
+            }
+
+        logoView.setLogoStyle(
+            settings.logoStyle
+        )
+        logoView.setLogoColor(
+            if (lastColor != Int.MIN_VALUE) {
+                lastColor
+            } else {
+                SystemUIPlusAppearance.fallbackForegroundColor(
+                    this
+                )
+            }
+        )
+
+        statusBarContentView.setLogoOnLeft(
+            settings.logoPosition == 0
+        )
     }
 
     private fun updateClock() {
@@ -816,10 +855,21 @@ class ClockOverlayService : Service() {
         val notificationWidth =
             notificationIconView.desiredWidthPx()
 
+        val logoWidth =
+            if (
+                ::logoView.isInitialized &&
+                logoView.visibility == View.VISIBLE
+            ) {
+                dp(30f)
+            } else {
+                0
+            }
+
         return maxOf(
             nativeClockSlotWidthPx(),
             clockWidth +
-                notificationWidth
+                notificationWidth +
+                logoWidth
         ).coerceAtMost(
             available
         )
@@ -828,8 +878,20 @@ class ClockOverlayService : Service() {
     private fun statusBarContentRightBoundaryPx(
         insets: WindowInsets?
     ): Int {
-        val width =
+        var width =
             resources.displayMetrics.widthPixels
+
+        if (
+            ::logoView.isInitialized &&
+            logoView.visibility == View.VISIBLE &&
+            ClockPrefs(this).load().logoPosition == 1
+        ) {
+            width -=
+                dp(
+                    DuoPreferences.getIndicatorSizeDp(this) +
+                        8f
+                )
+        }
 
         if (
             insets == null ||
@@ -1179,6 +1241,15 @@ private class StatusBarClusterView(
     context: Context
 ) : ViewGroup(context) {
 
+    private var logoOnLeft = true
+
+    fun setLogoOnLeft(onLeft: Boolean) {
+        if (logoOnLeft != onLeft) {
+            logoOnLeft = onLeft
+            requestLayout()
+        }
+    }
+
     override fun onMeasure(
         widthMeasureSpec: Int,
         heightMeasureSpec: Int
@@ -1216,24 +1287,46 @@ private class StatusBarClusterView(
         val clock = getChildAt(0)
         val notificationIcons =
             if (childCount > 1) getChildAt(1) else null
+        val logo =
+            if (childCount > 2) getChildAt(2) else null
 
-        // The notification area receives only the width left after
-        // the clock. This mirrors SystemUI: notification icons cannot
-        // consume the clock's reserved space.
-        val clockWidthSpec =
-            MeasureSpec.makeMeasureSpec(
-                availableWidth,
-                MeasureSpec.AT_MOST
+        if (logo != null && logo.visibility != GONE) {
+            logo.measure(
+                MeasureSpec.makeMeasureSpec(
+                    (
+                        30f *
+                            resources.displayMetrics.density
+                    ).toInt(),
+                    MeasureSpec.EXACTLY
+                ),
+                heightSpec
             )
+        }
+
+        val reservedLogoWidth =
+            if (logo != null && logo.visibility != GONE) {
+                logo.measuredWidth
+            } else {
+                0
+            }
+
+        val contentWidth =
+            (
+                availableWidth -
+                    reservedLogoWidth
+            ).coerceAtLeast(0)
 
         clock.measure(
-            clockWidthSpec,
+            MeasureSpec.makeMeasureSpec(
+                contentWidth,
+                MeasureSpec.AT_MOST
+            ),
             heightSpec
         )
 
         val remainingWidth =
             (
-                availableWidth -
+                contentWidth -
                     clock.measuredWidth
             ).coerceAtLeast(0)
 
@@ -1247,7 +1340,8 @@ private class StatusBarClusterView(
 
         val totalWidth =
             clock.measuredWidth +
-                (notificationIcons?.measuredWidth ?: 0)
+                (notificationIcons?.measuredWidth ?: 0) +
+                reservedLogoWidth
 
         setMeasuredDimension(
             resolveSize(totalWidth, widthMeasureSpec),
@@ -1263,9 +1357,15 @@ private class StatusBarClusterView(
         bottom: Int
     ) {
         var x = 0
+        val clock = getChildAt(0)
+        val notificationIcons =
+            if (childCount > 1) getChildAt(1) else null
+        val logo =
+            if (childCount > 2) getChildAt(2) else null
 
-        for (index in 0 until childCount) {
-            val child = getChildAt(index)
+        fun layoutChild(child: View) {
+            if (child.visibility == GONE) return
+
             val childWidth = child.measuredWidth
             val childHeight = child.measuredHeight
             val y =
@@ -1280,6 +1380,17 @@ private class StatusBarClusterView(
             )
 
             x += childWidth
+        }
+
+        if (logo != null && logoOnLeft) {
+            layoutChild(logo)
+        }
+
+        layoutChild(clock)
+        notificationIcons?.let(::layoutChild)
+
+        if (logo != null && !logoOnLeft) {
+            layoutChild(logo)
         }
     }
 

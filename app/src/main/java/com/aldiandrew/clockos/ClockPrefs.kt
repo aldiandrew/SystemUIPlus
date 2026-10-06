@@ -11,7 +11,11 @@ data class ClockSettings(
     val amPmStyle: Int = 2,
     val sizeSp: Float = 14f,
     val horizontalPositionDp: Float = 0f,
-    val verticalPositionDp: Float = 0f
+    val verticalPositionDp: Float = 0f,
+    val automaticPosition: Boolean = true,
+    val logoEnabled: Boolean = false,
+    val logoPosition: Int = 0,
+    val logoStyle: StatusBarLogoStyle = StatusBarLogoStyle.SAKURA
 )
 
 class ClockPrefs(context: Context) {
@@ -95,7 +99,25 @@ class ClockPrefs(context: Context) {
             verticalPositionDp = prefs.getFloat(
                 "verticalPositionDp",
                 0f
-            ).coerceIn(-20f, 20f)
+            ).coerceIn(-20f, 20f),
+            automaticPosition = prefs.getBoolean(
+                "automaticPosition",
+                true
+            ),
+            logoEnabled = prefs.getBoolean(
+                "logoEnabled",
+                false
+            ),
+            logoPosition = prefs.getInt(
+                "logoPosition",
+                0
+            ).coerceIn(0, 1),
+            logoStyle = StatusBarLogoStyle.fromIndex(
+                prefs.getInt(
+                    "logoStyle",
+                    StatusBarLogoStyle.SAKURA.index
+                )
+            )
         )
     }
 

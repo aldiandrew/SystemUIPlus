@@ -78,6 +78,34 @@ object SystemUIPlusBackupManager {
                         0f
                     )
                 )
+                put(
+                    "automaticPosition",
+                    clockPrefs.getBoolean(
+                        "automaticPosition",
+                        true
+                    )
+                )
+                put(
+                    "logoEnabled",
+                    clockPrefs.getBoolean(
+                        "logoEnabled",
+                        false
+                    )
+                )
+                put(
+                    "logoPosition",
+                    clockPrefs.getInt(
+                        "logoPosition",
+                        0
+                    )
+                )
+                put(
+                    "logoStyle",
+                    clockPrefs.getInt(
+                        "logoStyle",
+                        0
+                    )
+                )
             }
 
             val indicators = JSONObject().apply {
@@ -270,6 +298,30 @@ object SystemUIPlusBackupManager {
             editor.putFloat(
                 "verticalPositionDp",
                 data.optDouble("verticalPositionDp", 0.0).toFloat()
+            )
+        }
+        if (data.has("automaticPosition")) {
+            editor.putBoolean(
+                "automaticPosition",
+                data.optBoolean("automaticPosition", true)
+            )
+        }
+        if (data.has("logoEnabled")) {
+            editor.putBoolean(
+                "logoEnabled",
+                data.optBoolean("logoEnabled", false)
+            )
+        }
+        if (data.has("logoPosition")) {
+            editor.putInt(
+                "logoPosition",
+                data.optInt("logoPosition", 0).coerceIn(0, 1)
+            )
+        }
+        if (data.has("logoStyle")) {
+            editor.putInt(
+                "logoStyle",
+                data.optInt("logoStyle", 0).coerceIn(0, 11)
             )
         }
 
