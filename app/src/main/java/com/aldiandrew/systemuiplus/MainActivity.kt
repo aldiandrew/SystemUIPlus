@@ -2798,6 +2798,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+                }
 
                 PreviewMode.INDICATORS -> {
                     Box(
