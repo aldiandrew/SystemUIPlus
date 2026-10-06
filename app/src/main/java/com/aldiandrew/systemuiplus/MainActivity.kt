@@ -33,8 +33,6 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -94,6 +92,9 @@ class MainActivity : ComponentActivity() {
     private var busy by mutableStateOf(false)
     private var phoneStateGranted by mutableStateOf(true)
     private var overlayPermissionGranted by mutableStateOf(false)
+    private var batteryOptimizationIgnored by mutableStateOf(false)
+    private var appNotificationsEnabled by mutableStateOf(true)
+    private var notificationSettingBusy by mutableStateOf(false)
 
     private var clockSettings by mutableStateOf(ClockSettings())
     private var duoSize by mutableStateOf(36f)
@@ -197,6 +198,88 @@ class MainActivity : ComponentActivity() {
                 checkSelfPermission(android.Manifest.permission.READ_PHONE_STATE) ==
                     PackageManager.PERMISSION_GRANTED
         overlayPermissionGranted = Settings.canDrawOverlays(this)
+        batteryOptimizationIgnored =
+            SystemUIPlusDeviceSettings.isIgnoringBatteryOptimizations(this)
+        appNotificationsEnabled =
+            SystemUIPlusDeviceSettings.areAppNotificationsEnabled(this)
+    }
+
+    private fun requestBatteryOptimization() {
+        if (
+            SystemUIPlusDeviceSettings
+                .isIgnoringBatteryOptimizations(this)
+        ) {
+            batteryOptimizationIgnored = true
+            return
+        }
+
+        if (
+            !SystemUIPlusDeviceSettings
+                .requestBatteryOptimizationExemption(this)
+        ) {
+            toast(
+                getString(
+                    R.string.battery_optimization_open_failed
+                )
+            )
+        }
+    }
+
+    private fun setServiceNotificationsEnabled(
+        enabled: Boolean
+    ) {
+        if (Build.VERSION.SDK_INT < 33) {
+            appNotificationsEnabled = true
+            return
+        }
+
+        if (!SystemUIPlusShizuku.hasPermission()) {
+            toast(
+                getString(
+                    R.string.toast_shizuku_required
+                )
+            )
+            return
+        }
+
+        notificationSettingBusy = true
+
+        Thread {
+            val result =
+                SystemUIPlusDeviceSettings
+                    .setAppNotificationsEnabled(
+                        this,
+                        enabled
+                    )
+
+            runOnUiThread {
+                notificationSettingBusy = false
+
+                if (result.isSuccess) {
+                    appNotificationsEnabled =
+                        SystemUIPlusDeviceSettings
+                            .areAppNotificationsEnabled(this)
+
+                    toast(
+                        getString(
+                            if (enabled) {
+                                R.string.notifications_enabled
+                            } else {
+                                R.string.notifications_disabled
+                            }
+                        )
+                    )
+                } else {
+                    refreshState()
+                    toast(
+                        result.exceptionOrNull()?.message
+                            ?: getString(
+                                R.string.notifications_change_failed
+                            )
+                    )
+                }
+            }
+        }.start()
     }
 
     override fun onConfigurationChanged(
@@ -1089,6 +1172,97 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
+            ExpressiveCard(Modifier.fillMaxWidth()) {
+                Column {
+                    ListItem(
+                        modifier = Modifier.clickable {
+                            requestBatteryOptimization()
+                        },
+                        leadingContent = {
+                            Icon(
+                                Icons.Default.BatteryChargingFull,
+                                contentDescription = stringResource(
+                                    R.string.content_description_battery_optimization
+                                )
+                            )
+                        },
+                        headlineContent = {
+                            Text(
+                                stringResource(
+                                    R.string.battery_optimization
+                                )
+                            )
+                        },
+                        supportingContent = {
+                            Text(
+                                stringResource(
+                                    if (batteryOptimizationIgnored) {
+                                        R.string.battery_optimization_enabled_summary
+                                    } else {
+                                        R.string.battery_optimization_disabled_summary
+                                    }
+                                )
+                            )
+                        },
+                        trailingContent = {
+                            Text(
+                                stringResource(
+                                    if (batteryOptimizationIgnored) {
+                                        R.string.enabled
+                                    } else {
+                                        R.string.enable
+                                    }
+                                ),
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+
+                    ListItem(
+                        leadingContent = {
+                            Icon(
+                                Icons.Default.NotificationsOff,
+                                contentDescription = stringResource(
+                                    R.string.content_description_service_notifications
+                                )
+                            )
+                        },
+                        headlineContent = {
+                            Text(
+                                stringResource(
+                                    R.string.service_notifications
+                                )
+                            )
+                        },
+                        supportingContent = {
+                            Text(
+                                stringResource(
+                                    if (appNotificationsEnabled) {
+                                        R.string.service_notifications_enabled_summary
+                                    } else {
+                                        R.string.service_notifications_disabled_summary
+                                    }
+                                )
+                            )
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = appNotificationsEnabled,
+                                onCheckedChange =
+                                    ::setServiceNotificationsEnabled,
+                                enabled =
+                                    !notificationSettingBusy
+                            )
+                        }
+                    )
+                }
+            }
+
             Text(
                 stringResource(R.string.settings_data),
                 style = MaterialTheme.typography.labelLarge,
@@ -1592,62 +1766,24 @@ class MainActivity : ComponentActivity() {
             }
 
             ExpressiveCard(Modifier.fillMaxWidth()) {
-                Column {
-                    AboutLinkRow(
-                        icon = Icons.Default.Code,
-                        title = stringResource(R.string.source_code),
-                        summary = stringResource(
-                            R.string.source_code_summary
-                        ),
-                        contentDescription = stringResource(
-                            R.string.content_description_source
-                        ),
-                        onClick = {
-                            openWebLink(
-                                "https://github.com/aldiandrew/SystemUIPlus"
-                            )
-                        }
-                    )
-
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-
-                    AboutLinkRow(
-                        icon = Icons.Default.Description,
-                        title = stringResource(R.string.licenses),
-                        summary = stringResource(
-                            R.string.licenses_summary
-                        ),
-                        contentDescription = stringResource(
-                            R.string.content_description_licenses
-                        ),
-                        onClick = {
-                            openWebLink(
-                                "https://github.com/aldiandrew/SystemUIPlus#licenses"
-                            )
-                        }
-                    )
-
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-
-                    AboutLinkRow(
-                        icon = Icons.Default.PrivacyTip,
-                        title = stringResource(R.string.privacy_policy),
-                        summary = stringResource(
-                            R.string.privacy_policy_summary
-                        ),
-                        contentDescription = stringResource(
-                            R.string.content_description_privacy
-                        ),
-                        onClick = {
-                            openWebLink(
-                                "https://github.com/aldiandrew/SystemUIPlus#privacy-policy"
-                            )
-                        }
-                    )
+                AboutLinkRow(
+                    icon = Icons.Default.Code,
+                    title = stringResource(
+                        R.string.about_project_information
+                    ),
+                    summary = stringResource(
+                        R.string.about_project_information_summary
+                    ),
+                    contentDescription = stringResource(
+                        R.string.content_description_project_information
+                    ),
+                    onClick = {
+                        openWebLink(
+                            "https://github.com/aldiandrew/SystemUIPlus"
+                        )
+                    }
+                )
+            }
                 }
             }
         }
