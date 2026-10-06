@@ -24,8 +24,6 @@
     <string name="onboarding_preferences_message">Pick a theme now. You can change it any time from Settings.</string>
     <string name="onboarding_welcome_message">A simple way to customize your status bar clock, indicators and notification icons.</string>
     <string name="onboarding_language_label">Language</string>
-    <string name="onboarding_shizuku_title">Connect Shizuku</string>
-    <string name="onboarding_shizuku_message">SystemUI Plus uses Shizuku for the system-level status bar operations. No root, Xposed or Accessibility service is required.</string>
     <string name="onboarding_setup_shizuku">Set up Shizuku</string>
     <string name="onboarding_permissions_title">Allow required access</string>
     <string name="onboarding_permissions_message">These permissions let SystemUI Plus draw the custom status bar and read notification information locally.</string>
