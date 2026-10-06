@@ -1418,6 +1418,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    }
+
     private fun navigateBackFromSettings() {
         if (!settingsScreen) return
 
