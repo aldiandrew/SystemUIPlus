@@ -207,28 +207,6 @@ class DuoIndicatorView(context: Context) : View(context) {
             (innerRight - innerLeft) *
                 (current.batteryLevel.coerceIn(0, 100) / 100f)
 
-        fillPaint.color =
-            withAlpha(
-                current.batteryColor,
-                if (current.charging) {
-                    chargingPulse()
-                } else {
-                    0.86f
-                }
-            )
-
-        if (progressWidth > 0f) {
-            canvas.drawRoundRect(
-                innerLeft,
-                progressTop,
-                innerLeft + progressWidth,
-                progressBottom,
-                2f * k,
-                2f * k,
-                fillPaint
-            )
-        }
-
         if (current.charging) {
             drawBolt(
                 canvas,
@@ -247,14 +225,14 @@ class DuoIndicatorView(context: Context) : View(context) {
 
             canvas.drawText(
                 batteryText,
-                left + 26f * k,
+                left + 22f * k,
                 batteryBaseline,
                 textPaint
             )
         }
 
-        val rightCx = right - 24f * k
-        val statusCy = cy - 5f * k
+        val rightCx = right - 39f * k
+        val statusCy = cy - 1f * k
 
         when {
             current.airplane -> {
@@ -311,8 +289,8 @@ class DuoIndicatorView(context: Context) : View(context) {
             DuoStatusMapper.cellOpacities(
                 if (current.airplane) 0 else current.cellLevel
             )
-        val dotsStartX = right - 42f * k
-        val dotsY = cy + 12f * k
+        val dotsStartX = right - 21f * k
+        val dotsY = cy + 11f * k
 
         for (i in 0 until 4) {
             fillPaint.color =
