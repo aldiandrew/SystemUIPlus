@@ -32,6 +32,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+private const val LOGO_SLOT_WIDTH_DP = 20f
+private const val LOGO_CLOCK_OVERLAP_DP = 2f
+
 class ClockOverlayService : Service() {
 
     companion object {
@@ -46,8 +49,6 @@ class ClockOverlayService : Service() {
         private const val CLOCK_EDGE_MARGIN_DP = 4f
         private const val CLOCK_VERTICAL_OFFSET_DP = -2f
         private const val MAX_DATE_EXTRA_WIDTH_DP = 72f
-        private const val LOGO_SLOT_WIDTH_DP = 20f
-        private const val LOGO_CLOCK_OVERLAP_DP = 2f
     }
 
     private lateinit var windowManager: WindowManager
