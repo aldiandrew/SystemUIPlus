@@ -762,11 +762,18 @@ class ClockOverlayService : Service() {
                 cutoutLeft
             ) + systemUiPaddingStartPx()
 
+        val clockSettings =
+            ClockPrefs(this).load()
+
         val positionOffsetPx =
-            (
-                ClockPrefs(this).load().horizontalPositionDp *
-                    resources.displayMetrics.density
-            ).toInt()
+            if (clockSettings.automaticPosition) {
+                0
+            } else {
+                (
+                    clockSettings.horizontalPositionDp *
+                        resources.displayMetrics.density
+                ).toInt()
+            }
 
         return baseX + positionOffsetPx
     }
@@ -798,11 +805,18 @@ class ClockOverlayService : Service() {
                     resources.displayMetrics.density
             ).toInt()
 
+        val clockSettings =
+            ClockPrefs(this).load()
+
         val customVerticalOffsetPx =
-            (
-                ClockPrefs(this).load().verticalPositionDp *
-                    resources.displayMetrics.density
-            ).toInt()
+            if (clockSettings.automaticPosition) {
+                0
+            } else {
+                (
+                    clockSettings.verticalPositionDp *
+                        resources.displayMetrics.density
+                ).toInt()
+            }
 
         return (
             base +
