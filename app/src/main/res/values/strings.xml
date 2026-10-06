@@ -119,4 +119,8 @@
     <string name="content_description_source">Source Code</string>
     <string name="content_description_licenses">Licenses</string>
     <string name="content_description_privacy">Privacy Policy</string>
+
+    <string name="about_project_information">Source, Licenses &amp; Privacy</string>
+    <string name="about_project_information_summary">Project source, third-party licenses and privacy information</string>
+    <string name="content_description_project_information">Source, licenses and privacy</string>
 </resources>
