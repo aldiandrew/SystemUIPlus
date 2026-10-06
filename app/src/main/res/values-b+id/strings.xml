@@ -46,16 +46,12 @@
     <string name="logo_position_right">Kanan</string>
     <string name="logo_style">Gaya logo</string>
     <string name="logo_style_sakura">Sakura</string>
-    <string name="logo_style_android">Android</string>
-    <string name="logo_style_adidas">Adidas</string>
+    <string name="logo_style_slash">Slash</string>
     <string name="logo_style_apple">Apple</string>
-    <string name="logo_style_batman">Batman</string>
     <string name="logo_style_beats">Beats</string>
     <string name="logo_style_biohazard">Biohazard</string>
     <string name="logo_style_heart">Hati</string>
-    <string name="logo_style_nike">Nike</string>
     <string name="logo_style_rog">ROG</string>
-    <string name="logo_style_superman">Superman</string>
     <string name="logo_style_windows">Windows</string>
 <string name="indicator_vertical_position">Posisi vertikal indikator</string>
     <string name="style">Gaya</string>
