@@ -33,7 +33,7 @@ import java.util.Date
 import java.util.Locale
 
 private const val LOGO_SLOT_WIDTH_DP = 24f
-private const val LOGO_CLOCK_OVERLAP_DP = 8f
+private const val LOGO_CLOCK_OVERLAP_DP = 5f
 
 class ClockOverlayService : Service() {
 
