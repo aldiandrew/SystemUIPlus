@@ -2770,30 +2770,31 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
-                            if (
-                                clockSettings.logoEnabled &&
-                                clockSettings.logoPosition == 1
-                            ) {
-                                AndroidView(
-                                    modifier = Modifier
-                                        .size(28.dp)
-                                        .padding(start = 6.dp),
-                                    factory = { context ->
-                                        StatusBarLogoView(context)
-                                    },
-                                    update = { view ->
-                                        view.setLogoStyle(
-                                            clockSettings.logoStyle
-                                        )
-                                        view.setLogoColor(
-                                            MaterialTheme
-                                                .colorScheme
-                                                .onSurface
-                                                .toArgb()
-                                        )
-                                    }
-                                )
-                            }
+                        }
+
+                        if (
+                            clockSettings.logoEnabled &&
+                            clockSettings.logoPosition == 1
+                        ) {
+                            AndroidView(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .padding(start = 6.dp),
+                                factory = { context ->
+                                    StatusBarLogoView(context)
+                                },
+                                update = { view ->
+                                    view.setLogoStyle(
+                                        clockSettings.logoStyle
+                                    )
+                                    view.setLogoColor(
+                                        MaterialTheme
+                                            .colorScheme
+                                            .onSurface
+                                            .toArgb()
+                                    )
+                                }
+                            )
                         }
                     }
                 }
