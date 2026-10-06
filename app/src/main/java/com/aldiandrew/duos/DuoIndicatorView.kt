@@ -184,7 +184,7 @@ class DuoIndicatorView(context: Context) : View(context) {
                 bounds.width()
             )
 
-            postInvalidateDelayed(66L)
+            postInvalidateDelayed(100L)
             return
         }
 
@@ -254,8 +254,8 @@ class DuoIndicatorView(context: Context) : View(context) {
                 pulse
             )
 
-            // Keep the charging animation running only while charging at about 30 fps.
-            postInvalidateDelayed(66L)
+            // Keep the charging animation running only while charging at about 10 fps.
+            postInvalidateDelayed(100L)
             return
         }
 
