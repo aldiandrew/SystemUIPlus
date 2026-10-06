@@ -1,6 +1,7 @@
 package com.aldiandrew.systemuiplus
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Language
@@ -102,12 +104,9 @@ fun OnboardingScreen(
                             page = (page - 1).coerceAtLeast(0)
                         }
                     ) {
-                        Text(
-                            "‹",
-                            style =
-                                MaterialTheme.typography.headlineMedium,
-                            color =
-                                MaterialTheme.colorScheme.onSurface
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = null
                         )
                     }
                 } else {
@@ -505,11 +504,11 @@ private fun LanguageChoice(
     onClick: () -> Unit
 ) {
     Card(
-        onClick = onClick,
         modifier =
             Modifier
                 .fillMaxWidth()
-                .padding(vertical = 4.dp),
+                .padding(vertical = 4.dp)
+                .clickable(onClick = onClick),
         shape = MaterialTheme.shapes.medium,
         colors =
             CardDefaults.cardColors(
