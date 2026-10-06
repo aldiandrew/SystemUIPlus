@@ -119,7 +119,7 @@ fun OnboardingScreen(
                     TextButton(
                         onClick = onComplete
                     ) {
-                        Text(stringResourceSafe("skip"))
+                        Text(stringResourceSafe("onboarding_skip"))
                     }
                 }
             }
