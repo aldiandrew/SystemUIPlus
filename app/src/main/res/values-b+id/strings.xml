@@ -114,4 +114,13 @@
     <string name="content_description_overlay_notification">Notifikasi overlay</string>
     <string name="toast_overlay_notification_settings_failed">Tidak dapat membuka pengaturan notifikasi overlay.</string>
 
+
+    <string name="systemui_plus_subtitle">Kustomisasi status bar Anda</string>
+    <string name="active">Aktif</string>
+    <string name="inactive">Tidak aktif</string>
+    <string name="customize">KUSTOMISASI</string>
+    <string name="custom_clock_summary">Waktu, tanggal, dan posisi</string>
+    <string name="custom_system_indicators_summary">Ukuran, gaya, dan posisi</string>
+    <string name="time_and_date">WAKTU &amp; TANGGAL</string>
+    <string name="indicators_layout">TATA LETAK INDIKATOR</string>
 </resources>

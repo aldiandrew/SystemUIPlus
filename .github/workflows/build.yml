@@ -21,48 +21,6 @@ jobs:
       - name: Checkout SystemUI Plus
         uses: actions/checkout@v5
 
-      - name: Prepare bundled fonts
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          mkdir -p app/src/main/res/font app/src/main/assets/fonts
-
-          curl --fail --location --silent --show-error --retry 3 \
-            "https://cdn.jsdelivr.net/fontsource/fonts/plus-jakarta-sans@5.3.0/latin-400-normal.ttf" \
-            --output app/src/main/res/font/plus_jakarta_sans_400.ttf
-
-          curl --fail --location --silent --show-error --retry 3 \
-            "https://cdn.jsdelivr.net/fontsource/fonts/plus-jakarta-sans@5.3.0/latin-500-normal.ttf" \
-            --output app/src/main/res/font/plus_jakarta_sans_500.ttf
-
-          curl --fail --location --silent --show-error --retry 3 \
-            "https://cdn.jsdelivr.net/fontsource/fonts/plus-jakarta-sans@5.3.0/latin-600-normal.ttf" \
-            --output app/src/main/res/font/plus_jakarta_sans_600.ttf
-
-          curl --fail --location --silent --show-error --retry 3 \
-            "https://cdn.jsdelivr.net/fontsource/fonts/plus-jakarta-sans@5.3.0/latin-700-normal.ttf" \
-            --output app/src/main/res/font/plus_jakarta_sans_700.ttf
-
-          curl --fail --location --silent --show-error --retry 3 \
-            "https://raw.githubusercontent.com/tokotype/PlusJakartaSans/master/OFL.txt" \
-            --output app/src/main/assets/fonts/PLUS_JAKARTA_SANS_OFL.txt
-
-          test -s app/src/main/res/font/plus_jakarta_sans_400.ttf
-          test -s app/src/main/res/font/plus_jakarta_sans_500.ttf
-          test -s app/src/main/res/font/plus_jakarta_sans_600.ttf
-          test -s app/src/main/res/font/plus_jakarta_sans_700.ttf
-          test -s app/src/main/assets/fonts/PLUS_JAKARTA_SANS_OFL.txt
-
-          cat > app/src/main/assets/fonts/THIRD_PARTY_NOTICES.txt <<'EOF'
-          SystemUI Plus bundled fonts
-
-          Plus Jakarta Sans
-          Source: https://github.com/tokotype/PlusJakartaSans
-          License: SIL Open Font License 1.1
-          License text: PLUS_JAKARTA_SANS_OFL.txt
-          EOF
-
       - name: Configure Java
         uses: actions/setup-java@v5
         with:

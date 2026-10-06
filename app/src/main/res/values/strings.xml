@@ -114,4 +114,13 @@
     <string name="content_description_overlay_notification">Overlay notification</string>
     <string name="toast_overlay_notification_settings_failed">Could not open overlay notification settings.</string>
 
+
+    <string name="systemui_plus_subtitle">Customize your system status bar</string>
+    <string name="active">Active</string>
+    <string name="inactive">Inactive</string>
+    <string name="customize">CUSTOMIZE</string>
+    <string name="custom_clock_summary">Time, date and position</string>
+    <string name="custom_system_indicators_summary">Size, style and position</string>
+    <string name="time_and_date">TIME &amp; DATE</string>
+    <string name="indicators_layout">INDICATORS LAYOUT</string>
 </resources>

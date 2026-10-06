@@ -62,8 +62,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -82,6 +80,12 @@ import com.aldiandrew.duos.DuoStatusState
 import com.aldiandrew.duos.DuoIndicatorView
 import com.aldiandrew.duos.ShizukuOverlayController
 import rikka.shizuku.Shizuku
+
+private enum class MainScreen {
+    HOME,
+    CLOCK,
+    INDICATORS
+}
 
 class MainActivity : ComponentActivity() {
     companion object {
@@ -109,6 +113,7 @@ class MainActivity : ComponentActivity() {
     private var duoStyle by mutableStateOf(DuoVisualStyle.DUO)
     private var settingsScreen by mutableStateOf(false)
     private var settingsPage by mutableStateOf(AppSettingsPage.ROOT)
+    private var mainScreen by mutableStateOf(MainScreen.HOME)
     private var appLanguageMode by mutableStateOf(AppLanguageMode.DEVICE)
 
     private val permissionListener =
@@ -563,19 +568,32 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     private fun SystemUIScreen() {
-        BackHandler(enabled = settingsScreen) {
-            navigateBackFromSettings()
+        BackHandler(
+            enabled = settingsScreen || mainScreen != MainScreen.HOME
+        ) {
+            if (settingsScreen) {
+                navigateBackFromSettings()
+            } else {
+                mainScreen = MainScreen.HOME
+            }
         }
 
         val topBarTitle =
             when {
-                !settingsScreen -> stringResource(R.string.systemui_plus)
-                settingsPage == AppSettingsPage.ROOT ->
+                settingsScreen &&
+                    settingsPage == AppSettingsPage.ROOT ->
                     stringResource(R.string.settings)
-                settingsPage == AppSettingsPage.BACKUP_RESTORE ->
+                settingsScreen &&
+                    settingsPage == AppSettingsPage.BACKUP_RESTORE ->
                     stringResource(R.string.backup_restore_title)
-                else ->
+                settingsScreen ->
                     stringResource(R.string.about_title)
+                mainScreen == MainScreen.CLOCK ->
+                    stringResource(R.string.custom_clock)
+                mainScreen == MainScreen.INDICATORS ->
+                    stringResource(R.string.custom_system_indicators)
+                else ->
+                    stringResource(R.string.systemui_plus)
             }
 
         Scaffold(
@@ -584,26 +602,50 @@ class MainActivity : ComponentActivity() {
                     title = {
                         Text(
                             topBarTitle,
-                            style = MaterialTheme.typography.titleLarge
+                            style =
+                                if (
+                                    !settingsScreen &&
+                                    mainScreen == MainScreen.HOME
+                                ) {
+                                    MaterialTheme.typography.titleLarge.copy(
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                } else {
+                                    MaterialTheme.typography.titleLarge
+                                }
                         )
                     },
-                    navigationIcon = if (settingsScreen) {
+                    navigationIcon = if (
+                        settingsScreen ||
+                        mainScreen != MainScreen.HOME
+                    ) {
                         {
                             IconButton(
-                                onClick = ::navigateBackFromSettings
+                                onClick = {
+                                    if (settingsScreen) {
+                                        navigateBackFromSettings()
+                                    } else {
+                                        mainScreen = MainScreen.HOME
+                                    }
+                                }
                             ) {
                                 Icon(
                                     Icons.Default.ArrowBack,
-                                    contentDescription = stringResource(
-                                        R.string.content_description_back
-                                    )
+                                    contentDescription =
+                                        stringResource(
+                                            R.string.content_description_back
+                                        )
                                 )
                             }
                         }
                     } else {
                         {}
                     },
-                    actions = if (!settingsScreen) {
+                    actions = if (
+                        !settingsScreen &&
+                        mainScreen == MainScreen.HOME
+                    ) {
                         {
                             IconButton(
                                 onClick = {
@@ -613,9 +655,10 @@ class MainActivity : ComponentActivity() {
                             ) {
                                 Icon(
                                     Icons.Default.Settings,
-                                    contentDescription = stringResource(
-                                        R.string.content_description_settings
-                                    )
+                                    contentDescription =
+                                        stringResource(
+                                            R.string.content_description_settings
+                                        )
                                 )
                             }
                         }
@@ -647,424 +690,642 @@ class MainActivity : ComponentActivity() {
                         )
                 }
             } else {
-                val customizationEnabled =
-                    systemUiHidden && !busy
+                when (mainScreen) {
+                    MainScreen.HOME ->
+                        HomeScreen(
+                            Modifier
+                                .fillMaxSize()
+                                .padding(padding)
+                        )
+                    MainScreen.CLOCK ->
+                        ClockCustomizationScreen(
+                            Modifier
+                                .fillMaxSize()
+                                .padding(padding)
+                        )
+                    MainScreen.INDICATORS ->
+                        IndicatorsCustomizationScreen(
+                            Modifier
+                                .fillMaxSize()
+                                .padding(padding)
+                        )
+                }
+            }
+        }
+    }
 
-                Column(
-                    Modifier
-                        .fillMaxSize()
-                        .padding(padding)
-                        .padding(horizontal = 18.dp)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    ExpressiveCard(Modifier.fillMaxWidth()) {
-                        Column {
+    @Composable
+    private fun HomeScreen(
+        modifier: Modifier = Modifier
+    ) {
+        val customizationEnabled =
+            systemUiHidden && !busy
+
+        Column(
+            modifier
+                .padding(horizontal = 18.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(
+                    start = 4.dp,
+                    top = 4.dp,
+                    end = 4.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    stringResource(R.string.systemui_plus),
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                )
+                Text(
+                    stringResource(
+                        R.string.systemui_plus_subtitle
+                    ),
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = 15.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            SectionLabel(stringResource(R.string.live_preview))
+
+            ExpressiveCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(32.dp)
+            ) {
+                SystemUiPreview(
+                    showClock = true,
+                    showIndicators = true,
+                    hero = true
+                )
+            }
+
+            ExpressiveCard(Modifier.fillMaxWidth()) {
+                Column {
+                    Text(
+                        stringResource(R.string.systemui_control),
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        modifier = Modifier.padding(
+                            start = 20.dp,
+                            top = 18.dp,
+                            end = 20.dp,
+                            bottom = 6.dp
+                        )
+                    )
+
+                    PermissionRow(
+                        title = stringResource(R.string.shizuku),
+                        ready = shizukuReady,
+                        actionLabel = stringResource(R.string.connect),
+                        onAction = ::requestShizuku
+                    )
+                    PermissionRow(
+                        title = stringResource(R.string.notification_access),
+                        ready = notificationAccess,
+                        actionLabel = stringResource(R.string.grant),
+                        onAction = ::openNotificationAccess
+                    )
+                    PermissionRow(
+                        title = stringResource(R.string.phone_state),
+                        ready = phoneStateGranted,
+                        actionLabel = stringResource(R.string.allow),
+                        onAction = ::requestPhonePermission
+                    )
+                    PermissionRow(
+                        title = stringResource(
+                            R.string.display_over_other_apps
+                        ),
+                        ready = overlayPermissionGranted,
+                        actionLabel = stringResource(R.string.allow),
+                        onAction = ::openOverlayPermission
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+
+                    ListItem(
+                        headlineContent = {
                             Text(
-                                stringResource(R.string.systemui_control),
-                                style = MaterialTheme.typography.titleLarge,
-                                modifier = Modifier.padding(
-                                    start = 16.dp,
-                                    top = 16.dp,
-                                    end = 16.dp,
-                                    bottom = 6.dp
-                                )
-                            )
-
-                            PermissionRow(
-                                title = stringResource(R.string.shizuku),
-                                ready = shizukuReady,
-                                actionLabel = stringResource(R.string.connect),
-                                onAction = ::requestShizuku
-                            )
-                            PermissionRow(
-                                title = stringResource(R.string.notification_access),
-                                ready = notificationAccess,
-                                actionLabel = stringResource(R.string.grant),
-                                onAction = ::openNotificationAccess
-                            )
-                            PermissionRow(
-                                title = stringResource(R.string.phone_state),
-                                ready = phoneStateGranted,
-                                actionLabel = stringResource(R.string.allow),
-                                onAction = ::requestPhonePermission
-                            )
-                            PermissionRow(
-                                title = stringResource(R.string.display_over_other_apps),
-                                ready = overlayPermissionGranted,
-                                actionLabel = stringResource(R.string.allow),
-                                onAction = ::openOverlayPermission
-                            )
-
-                            HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 16.dp)
-                            )
-
-                            ListItem(
-                                headlineContent = {
-                                    Text(stringResource(R.string.systemui_plus))
-                                },
-                                trailingContent = {
-                                    Switch(
-                                        checked = systemUiHidden,
-                                        onCheckedChange = {
-                                            toggleMasterSystemUi()
-                                        },
-                                        enabled = shizukuReady &&
-                                            notificationAccess &&
-                                            phoneStateGranted &&
-                                            overlayPermissionGranted &&
-                                            !busy
-                                    )
-                                }
-                            )
-                        }
-                    }
-
-                    ExpressiveCard(Modifier.fillMaxWidth()) {
-                        Column(
-                            Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                stringResource(R.string.live_preview),
-                                style = MaterialTheme.typography.titleLarge
-                            )
-                            SystemUiPreview()
-                        }
-                    }
-
-                    ExpressiveCard(
-                        Modifier
-                            .fillMaxWidth()
-                            .alpha(if (customizationEnabled) 1f else 0.45f)
-                    ) {
-                        Column(
-                            Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Text(
-                                stringResource(R.string.custom_clock),
-                                style = MaterialTheme.typography.titleLarge
-                            )
-
-                            SettingSwitch(
-                                stringResource(R.string.twenty_four_hour),
-                                clockSettings.format24
-                            ) {
-                                saveClock("format24", it)
-                            }
-                            SettingSwitch(
-                                stringResource(R.string.show_date),
-                                clockSettings.showDate
-                            ) {
-                                saveClock("showDate", it)
-                            }
-
-                            ExpressiveDropdown(
-                                label = stringResource(R.string.date_format),
-                                selected = clockSettings.dateFormat,
-                                options = listOf(
-                                    "dd/MM",
-                                    "dd/MM/yy",
-                                    "yyyy-MM-dd",
-                                    "dd-MM-yyyy",
-                                    "MMM dd",
-                                    "EEE",
-                                    "EEE dd",
-                                    "EEE dd/MM",
-                                    "EEE dd MMM",
-                                    "EEE MMM dd",
-                                    "EEEE dd/MM",
-                                    "EEEE MM/dd"
-                                )
-                            ) {
-                                saveClock("dateFormat", it)
-                            }
-
-                            val normalLabel =
-                                stringResource(R.string.date_style_normal)
-                            val lowercaseLabel =
-                                stringResource(R.string.date_style_lowercase)
-                            val uppercaseLabel =
-                                stringResource(R.string.date_style_uppercase)
-
-                            ExpressiveDropdown(
-                                label = stringResource(R.string.date_style),
-                                selected = when (
-                                    clockSettings.dateStyle.coerceIn(0, 2)
-                                ) {
-                                    1 -> lowercaseLabel
-                                    2 -> uppercaseLabel
-                                    else -> normalLabel
-                                },
-                                options = listOf(
-                                    normalLabel,
-                                    lowercaseLabel,
-                                    uppercaseLabel
-                                )
-                            ) { value ->
-                                saveClock(
-                                    "dateStyle",
-                                    when (value) {
-                                        lowercaseLabel -> 1
-                                        uppercaseLabel -> 2
-                                        else -> 0
-                                    }
-                                )
-                            }
-
-                            SliderSetting(
-                                title = stringResource(R.string.clock_size),
-                                valueText = stringResource(
-                                    R.string.sp_value,
-                                    clockSettings.sizeSp.toInt()
-                                ),
-                                value = clockSettings.sizeSp,
-                                range = 10f..22f,
-                                onValueChange = {
-                                    saveClock("sizeSp", it)
-                                },
-                                onReset = {
-                                    saveClock(
-                                        "sizeSp",
-                                        clockPrefs.nativeDefaultClockSizeSp()
-                                    )
-                                }
-                            )
-
-                            SliderSetting(
-                                title = stringResource(
-                                    R.string.clock_horizontal_position
-                                ),
-                                valueText = stringResource(
-                                    R.string.dp_value,
-                                    clockSettings.horizontalPositionDp.toInt()
-                                ),
-                                value = clockSettings.horizontalPositionDp,
-                                range = -100f..100f,
-                                onValueChange = {
-                                    saveClock(
-                                        "horizontalPositionDp",
-                                        it
-                                    )
-                                },
-                                onReset = {
-                                    saveClock(
-                                        "horizontalPositionDp",
-                                        0f
-                                    )
-                                }
-                            )
-
-                            SliderSetting(
-                                title = stringResource(
-                                    R.string.clock_vertical_position
-                                ),
-                                valueText = stringResource(
-                                    R.string.dp_value,
-                                    clockSettings.verticalPositionDp.toInt()
-                                ),
-                                value = clockSettings.verticalPositionDp,
-                                range = -20f..20f,
-                                onValueChange = {
-                                    saveClock(
-                                        "verticalPositionDp",
-                                        it
-                                    )
-                                },
-                                onReset = {
-                                    saveClock(
-                                        "verticalPositionDp",
-                                        0f
-                                    )
-                                }
-                            )
-                        }
-                    }
-
-                    ExpressiveCard(
-                        Modifier
-                            .fillMaxWidth()
-                            .alpha(if (customizationEnabled) 1f else 0.45f)
-                    ) {
-                        Column(
-                            Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Text(
-                                stringResource(R.string.custom_system_indicators),
-                                style = MaterialTheme.typography.titleLarge
-                            )
-
-                            SliderSetting(
-                                title = stringResource(R.string.indicator_size),
-                                valueText = stringResource(
-                                    R.string.dp_value,
-                                    duoSize.toInt()
-                                ),
-                                value = duoSize,
-                                range = 28f..60f,
-                                onValueChange = {
-                                    duoSize = it
-                                    DuoPreferences.setIndicatorSizeDp(
-                                        this@MainActivity,
-                                        it
-                                    )
-                                },
-                                onReset = {
-                                    DuoPreferences.setIndicatorSizeDp(
-                                        this@MainActivity,
-                                        36f
-                                    )
-                                    loadSettings()
-                                }
-                            )
-
-                            SettingSwitch(
-                                stringResource(R.string.automatic_position),
-                                duoAutomatic
-                            ) {
-                                duoAutomatic = it
-                                DuoPreferences.setAutomaticPosition(
-                                    this@MainActivity,
-                                    it
-                                )
-                            }
-
-                            SliderSetting(
-                                title = stringResource(
-                                    R.string.indicator_horizontal_position
-                                ),
-                                valueText = stringResource(
-                                    R.string.dp_value,
-                                    duoX.toInt()
-                                ),
-                                value = duoX,
-                                range = -24f..24f,
-                                onValueChange = {
-                                    duoX = it
-                                    duoAutomatic = false
-                                    DuoPreferences.setHorizontalOffsetDp(
-                                        this@MainActivity,
-                                        it
-                                    )
-                                    DuoPreferences.setAutomaticPosition(
-                                        this@MainActivity,
-                                        false
-                                    )
-                                },
-                                onReset = ::resetDuoPosition
-                            )
-
-                            SliderSetting(
-                                title = stringResource(
-                                    R.string.indicator_vertical_position
-                                ),
-                                valueText = stringResource(
-                                    R.string.dp_value,
-                                    duoY.toInt()
-                                ),
-                                value = duoY,
-                                range = -24f..24f,
-                                onValueChange = {
-                                    duoY = it
-                                    duoAutomatic = false
-                                    DuoPreferences.setVerticalOffsetDp(
-                                        this@MainActivity,
-                                        it
-                                    )
-                                    DuoPreferences.setAutomaticPosition(
-                                        this@MainActivity,
-                                        false
-                                    )
-                                },
-                                onReset = ::resetDuoPosition
-                            )
-
-                            Text(
-                                stringResource(R.string.style),
+                                stringResource(R.string.systemui_plus),
                                 style = MaterialTheme.typography.titleMedium
                             )
-                            Row(
-                                Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                listOf(
-                                    DuoVisualStyle.DUO,
-                                    DuoVisualStyle.COMPACT
-                                ).forEach { style ->
-                                    val selected = duoStyle == style
-                                    if (selected) {
-                                        Button(
-                                            onClick = {},
-                                            enabled = customizationEnabled,
-                                            modifier = Modifier.weight(1f)
-                                        ) {
-                                            Text(
-                                                if (
-                                                    style ==
-                                                        DuoVisualStyle.DUO
-                                                ) {
-                                                    stringResource(R.string.duo)
-                                                } else {
-                                                    stringResource(R.string.compact)
-                                                }
-                                            )
-                                        }
+                        },
+                        supportingContent = {
+                            Text(
+                                if (systemUiHidden) {
+                                    stringResource(R.string.active)
+                                } else {
+                                    stringResource(R.string.inactive)
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color =
+                                    if (systemUiHidden) {
+                                        MaterialTheme.colorScheme.primary
                                     } else {
-                                        OutlinedButton(
-                                            onClick = {
-                                                duoStyle = style
-                                                DuoPreferences.setVisualStyle(
-                                                    this@MainActivity,
-                                                    style
-                                                )
-                                            },
-                                            enabled = customizationEnabled,
-                                            modifier = Modifier.weight(1f)
-                                        ) {
-                                            Text(
-                                                if (
-                                                    style ==
-                                                        DuoVisualStyle.DUO
-                                                ) {
-                                                    stringResource(R.string.duo)
-                                                } else {
-                                                    stringResource(R.string.compact)
-                                                }
-                                            )
-                                        }
+                                        MaterialTheme.colorScheme.onSurfaceVariant
                                     }
-                                }
-                            }
+                            )
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = systemUiHidden,
+                                onCheckedChange = {
+                                    toggleMasterSystemUi()
+                                },
+                                enabled = shizukuReady &&
+                                    notificationAccess &&
+                                    phoneStateGranted &&
+                                    overlayPermissionGranted &&
+                                    !busy
+                            )
                         }
+                    )
+                }
+            }
+
+            SectionLabel(stringResource(R.string.customize))
+
+            ExpressiveCard(Modifier.fillMaxWidth()) {
+                Column {
+                    CustomizationRow(
+                        title = stringResource(R.string.custom_clock),
+                        summary = stringResource(R.string.custom_clock_summary),
+                        onClick = {
+                            mainScreen = MainScreen.CLOCK
+                        }
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                    CustomizationRow(
+                        title = stringResource(
+                            R.string.custom_system_indicators
+                        ),
+                        summary = stringResource(
+                            R.string.custom_system_indicators_summary
+                        ),
+                        onClick = {
+                            mainScreen = MainScreen.INDICATORS
+                        }
+                    )
+                }
+            }
+
+            ExpressiveCard(Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(
+                        horizontal = 16.dp,
+                        vertical = 14.dp
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.safety),
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    )
+                    androidx.compose.material3.OutlinedButton(
+                        enabled = !busy,
+                        onClick = ::restoreNativeSystemUi,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp)
+                    ) {
+                        Text(
+                            stringResource(
+                                R.string.restore_native_systemui
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun ClockCustomizationScreen(
+        modifier: Modifier = Modifier
+    ) {
+        val customizationEnabled =
+            systemUiHidden && !busy
+
+        Column(
+            modifier
+                .padding(horizontal = 18.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            SectionLabel(stringResource(R.string.live_preview))
+
+            ExpressiveCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(32.dp)
+            ) {
+                SystemUiPreview(
+                    showClock = true,
+                    showIndicators = false,
+                    hero = true
+                )
+            }
+
+            ExpressiveCard(
+                Modifier
+                    .fillMaxWidth()
+                    .alpha(if (customizationEnabled) 1f else 0.45f)
+            ) {
+                Column(
+                    Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    SectionLabel(stringResource(R.string.time_and_date))
+
+                    SettingSwitch(
+                        stringResource(R.string.twenty_four_hour),
+                        clockSettings.format24
+                    ) {
+                        saveClock("format24", it)
+                    }
+                    SettingSwitch(
+                        stringResource(R.string.show_date),
+                        clockSettings.showDate
+                    ) {
+                        saveClock("showDate", it)
                     }
 
-                    ExpressiveCard(Modifier.fillMaxWidth()) {
-                        Column(
-                            Modifier.padding(16.dp)
+                    ExpressiveDropdown(
+                        label = stringResource(R.string.date_format),
+                        selected = clockSettings.dateFormat,
+                        options = listOf(
+                            "dd/MM",
+                            "dd/MM/yy",
+                            "yyyy-MM-dd",
+                            "dd-MM-yyyy",
+                            "MMM dd",
+                            "EEE",
+                            "EEE dd",
+                            "EEE dd/MM",
+                            "EEE dd MMM",
+                            "EEE MMM dd",
+                            "EEEE dd/MM",
+                            "EEEE MM/dd"
+                        )
+                    ) {
+                        saveClock("dateFormat", it)
+                    }
+
+                    val normalLabel =
+                        stringResource(R.string.date_style_normal)
+                    val lowercaseLabel =
+                        stringResource(R.string.date_style_lowercase)
+                    val uppercaseLabel =
+                        stringResource(R.string.date_style_uppercase)
+
+                    ExpressiveDropdown(
+                        label = stringResource(R.string.date_style),
+                        selected = when (
+                            clockSettings.dateStyle.coerceIn(0, 2)
                         ) {
-                            Text(
-                                stringResource(R.string.safety),
-                                style = MaterialTheme.typography.titleLarge
+                            1 -> lowercaseLabel
+                            2 -> uppercaseLabel
+                            else -> normalLabel
+                        },
+                        options = listOf(
+                            normalLabel,
+                            lowercaseLabel,
+                            uppercaseLabel
+                        )
+                    ) { value ->
+                        saveClock(
+                            "dateStyle",
+                            when (value) {
+                                lowercaseLabel -> 1
+                                uppercaseLabel -> 2
+                                else -> 0
+                            }
+                        )
+                    }
+
+                    SliderSetting(
+                        title = stringResource(R.string.clock_size),
+                        valueText = stringResource(
+                            R.string.sp_value,
+                            clockSettings.sizeSp.toInt()
+                        ),
+                        value = clockSettings.sizeSp,
+                        range = 10f..22f,
+                        onValueChange = {
+                            saveClock("sizeSp", it)
+                        },
+                        onReset = {
+                            saveClock(
+                                "sizeSp",
+                                clockPrefs.nativeDefaultClockSizeSp()
                             )
-                            TextButton(
-                                enabled = !busy,
-                                onClick = ::restoreNativeSystemUi,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    stringResource(
-                                        R.string.restore_native_systemui
+                        }
+                    )
+
+                    SliderSetting(
+                        title = stringResource(
+                            R.string.clock_horizontal_position
+                        ),
+                        valueText = stringResource(
+                            R.string.dp_value,
+                            clockSettings.horizontalPositionDp.toInt()
+                        ),
+                        value = clockSettings.horizontalPositionDp,
+                        range = -100f..100f,
+                        onValueChange = {
+                            saveClock(
+                                "horizontalPositionDp",
+                                it
+                            )
+                        },
+                        onReset = {
+                            saveClock(
+                                "horizontalPositionDp",
+                                0f
+                            )
+                        }
+                    )
+
+                    SliderSetting(
+                        title = stringResource(
+                            R.string.clock_vertical_position
+                        ),
+                        valueText = stringResource(
+                            R.string.dp_value,
+                            clockSettings.verticalPositionDp.toInt()
+                        ),
+                        value = clockSettings.verticalPositionDp,
+                        range = -20f..20f,
+                        onValueChange = {
+                            saveClock(
+                                "verticalPositionDp",
+                                it
+                            )
+                        },
+                        onReset = {
+                            saveClock(
+                                "verticalPositionDp",
+                                0f
+                            )
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun IndicatorsCustomizationScreen(
+        modifier: Modifier = Modifier
+    ) {
+        val customizationEnabled =
+            systemUiHidden && !busy
+
+        Column(
+            modifier
+                .padding(horizontal = 18.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            SectionLabel(stringResource(R.string.live_preview))
+
+            ExpressiveCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(32.dp)
+            ) {
+                SystemUiPreview(
+                    showClock = false,
+                    showIndicators = true,
+                    hero = true
+                )
+            }
+
+            ExpressiveCard(
+                Modifier
+                    .fillMaxWidth()
+                    .alpha(if (customizationEnabled) 1f else 0.45f)
+            ) {
+                Column(
+                    Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    SectionLabel(
+                        stringResource(
+                            R.string.indicators_layout
+                        )
+                    )
+
+                    SliderSetting(
+                        title = stringResource(R.string.indicator_size),
+                        valueText = stringResource(
+                            R.string.dp_value,
+                            duoSize.toInt()
+                        ),
+                        value = duoSize,
+                        range = 28f..60f,
+                        onValueChange = {
+                            duoSize = it
+                            DuoPreferences.setIndicatorSizeDp(
+                                this@MainActivity,
+                                it
+                            )
+                        },
+                        onReset = {
+                            DuoPreferences.setIndicatorSizeDp(
+                                this@MainActivity,
+                                36f
+                            )
+                            loadSettings()
+                        }
+                    )
+
+                    SettingSwitch(
+                        stringResource(R.string.automatic_position),
+                        duoAutomatic
+                    ) {
+                        duoAutomatic = it
+                        DuoPreferences.setAutomaticPosition(
+                            this@MainActivity,
+                            it
+                        )
+                    }
+
+                    SliderSetting(
+                        title = stringResource(
+                            R.string.indicator_horizontal_position
+                        ),
+                        valueText = stringResource(
+                            R.string.dp_value,
+                            duoX.toInt()
+                        ),
+                        value = duoX,
+                        range = -24f..24f,
+                        onValueChange = {
+                            duoX = it
+                            duoAutomatic = false
+                            DuoPreferences.setHorizontalOffsetDp(
+                                this@MainActivity,
+                                it
+                            )
+                            DuoPreferences.setAutomaticPosition(
+                                this@MainActivity,
+                                false
+                            )
+                        },
+                        onReset = ::resetDuoPosition
+                    )
+
+                    SliderSetting(
+                        title = stringResource(
+                            R.string.indicator_vertical_position
+                        ),
+                        valueText = stringResource(
+                            R.string.dp_value,
+                            duoY.toInt()
+                        ),
+                        value = duoY,
+                        range = -24f..24f,
+                        onValueChange = {
+                            duoY = it
+                            duoAutomatic = false
+                            DuoPreferences.setVerticalOffsetDp(
+                                this@MainActivity,
+                                it
+                            )
+                            DuoPreferences.setAutomaticPosition(
+                                this@MainActivity,
+                                false
+                            )
+                        },
+                        onReset = ::resetDuoPosition
+                    )
+
+                    Text(
+                        stringResource(R.string.style),
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    )
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(
+                            DuoVisualStyle.DUO,
+                            DuoVisualStyle.COMPACT
+                        ).forEach { style ->
+                            val selected = duoStyle == style
+                            if (selected) {
+                                Button(
+                                    onClick = {},
+                                    enabled = customizationEnabled,
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(20.dp)
+                                ) {
+                                    Text(
+                                        if (
+                                            style ==
+                                                DuoVisualStyle.DUO
+                                        ) {
+                                            stringResource(R.string.duo)
+                                        } else {
+                                            stringResource(R.string.compact)
+                                        }
                                     )
-                                )
+                                }
+                            } else {
+                                OutlinedButton(
+                                    onClick = {
+                                        duoStyle = style
+                                        DuoPreferences.setVisualStyle(
+                                            this@MainActivity,
+                                            style
+                                        )
+                                    },
+                                    enabled = customizationEnabled,
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(20.dp)
+                                ) {
+                                    Text(
+                                        if (
+                                            style ==
+                                                DuoVisualStyle.DUO
+                                        ) {
+                                            stringResource(R.string.duo)
+                                        } else {
+                                            stringResource(R.string.compact)
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
         }
+    }
+
+    @Composable
+    private fun SectionLabel(
+        text: String
+    ) {
+        Text(
+            text,
+            style = MaterialTheme.typography.labelMedium.copy(
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 0.8.sp
+            ),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(
+                start = 4.dp,
+                top = 2.dp
+            )
+        )
+    }
+
+    @Composable
+    private fun CustomizationRow(
+        title: String,
+        summary: String,
+        onClick: () -> Unit
+    ) {
+        ListItem(
+            modifier = Modifier.clickable(onClick = onClick),
+            headlineContent = {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Medium
+                    )
+                )
+            },
+            supportingContent = {
+                Text(
+                    summary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingContent = {
+                Text(
+                    "›",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        )
     }
 
     private fun navigateBackFromSettings() {
@@ -1797,9 +2058,14 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun SystemUiPreview() {
+    private fun SystemUiPreview(
+        showClock: Boolean,
+        showIndicators: Boolean,
+        hero: Boolean = false
+    ) {
         val now = java.time.LocalDateTime.now()
-        val timePattern = if (clockSettings.format24) "HH:mm" else "hh:mm a"
+        val timePattern =
+            if (clockSettings.format24) "HH:mm" else "hh:mm a"
         val timeText = runCatching {
             java.time.format.DateTimeFormatter.ofPattern(
                 timePattern,
@@ -1812,103 +2078,339 @@ class MainActivity : ComponentActivity() {
                 java.util.Locale.getDefault()
             ).format(now)
         }.getOrDefault(clockSettings.dateFormat)
-        val dateText = when (clockSettings.dateStyle.coerceIn(0, 2)) {
-            1 -> dateTextRaw.lowercase(java.util.Locale.getDefault())
-            2 -> dateTextRaw.uppercase(java.util.Locale.getDefault())
-            else -> dateTextRaw
-        }
-        val indicatorScale =
-            (duoSize / 36f).coerceIn(0.78f, 1.45f) *
-                if (duoStyle == DuoVisualStyle.COMPACT) 0.88f else 1f
+        val dateText =
+            when (clockSettings.dateStyle.coerceIn(0, 2)) {
+                1 -> dateTextRaw.lowercase(
+                    java.util.Locale.getDefault()
+                )
+                2 -> dateTextRaw.uppercase(
+                    java.util.Locale.getDefault()
+                )
+                else -> dateTextRaw
+            }
+
         val previewDarkTheme = true
 
         Surface(
-            modifier = Modifier.fillMaxWidth().height(92.dp),
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-            tonalElevation = 2.dp
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(if (hero) 180.dp else 92.dp),
+            shape = RoundedCornerShape(if (hero) 32.dp else 24.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            tonalElevation = if (hero) 0.dp else 2.dp
         ) {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    
-                    .padding(horizontal = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(
-                    Modifier
-                        .weight(1f)
-                        .offset(
-                            x = clockSettings.horizontalPositionDp.dp,
-                            y = clockSettings.verticalPositionDp.dp
-                        )
+            if (hero) {
+                Box(
+                    Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        timeText,
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontSize = clockSettings.sizeSp.sp
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                    )
-                    if (clockSettings.showDate) {
-                        Text(
-                            dateText,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement =
+                            Arrangement.spacedBy(10.dp)
+                    ) {
+                        if (showClock) {
+                            Column(
+                                horizontalAlignment =
+                                    Alignment.CenterHorizontally,
+                                modifier = Modifier.offset(
+                                    x =
+                                        clockSettings
+                                            .horizontalPositionDp
+                                            .dp,
+                                    y =
+                                        clockSettings
+                                            .verticalPositionDp
+                                            .dp
+                                )
+                            ) {
+                                Text(
+                                    timeText,
+                                    style =
+                                        MaterialTheme.typography
+                                            .displaySmall
+                                            .copy(
+                                                fontSize = maxOf(
+                                                    28f,
+                                                    clockSettings
+                                                        .sizeSp * 1.4f
+                                                ).sp,
+                                                fontWeight =
+                                                    FontWeight.Medium
+                                            ),
+                                    color =
+                                        MaterialTheme.colorScheme
+                                            .onSurface
+                                )
+                                if (clockSettings.showDate) {
+                                    Text(
+                                        dateText,
+                                        style =
+                                            MaterialTheme.typography
+                                                .labelMedium,
+                                        color =
+                                            MaterialTheme.colorScheme
+                                                .onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+
+                        if (showIndicators) {
+                            AndroidView(
+                                modifier = Modifier.size(
+                                    if (showClock) {
+                                        (duoSize * 0.92f)
+                                            .dp.coerceIn(
+                                                28.dp,
+                                                60.dp
+                                            )
+                                    } else {
+                                        duoSize.dp.coerceIn(
+                                            28.dp,
+                                            60.dp
+                                        )
+                                    }
+                                ),
+                                factory = { context ->
+                                    DuoIndicatorView(context)
+                                },
+                                update = { view ->
+                                    val battery = runCatching {
+                                        (
+                                            getSystemService(
+                                                android.content.Context
+                                                    .BATTERY_SERVICE
+                                            ) as BatteryManager
+                                        ).getIntProperty(
+                                            BatteryManager
+                                                .BATTERY_PROPERTY_CAPACITY
+                                        ).coerceIn(0, 100)
+                                    }.getOrDefault(100)
+
+                                    val wifi = runCatching {
+                                        val cm =
+                                            getSystemService(
+                                                android.content.Context
+                                                    .CONNECTIVITY_SERVICE
+                                            ) as android.net.ConnectivityManager
+                                        val network = cm.activeNetwork
+                                        val caps = network?.let {
+                                            cm.getNetworkCapabilities(it)
+                                        }
+                                        val connected =
+                                            caps?.hasTransport(
+                                                android.net.NetworkCapabilities
+                                                    .TRANSPORT_WIFI
+                                            ) == true
+                                        val info =
+                                            (
+                                                getSystemService(
+                                                    android.content.Context
+                                                        .WIFI_SERVICE
+                                                ) as android.net.wifi.WifiManager
+                                            ).connectionInfo
+                                        val bars =
+                                            if (info.rssi == -127) {
+                                                1
+                                            } else {
+                                                (
+                                                    android.net.wifi
+                                                        .WifiManager
+                                                        .calculateSignalLevel(
+                                                            info.rssi,
+                                                            5
+                                                        ) + 1
+                                                ).coerceIn(0, 4)
+                                            }
+                                        Triple(
+                                            com.aldiandrew.duos.DuoStatusMapper
+                                                .wifiBars(bars),
+                                            connected,
+                                            caps?.hasCapability(
+                                                android.net.NetworkCapabilities
+                                                    .NET_CAPABILITY_VALIDATED
+                                            ) == true
+                                        )
+                                    }.getOrDefault(
+                                        Triple(0, false, false)
+                                    )
+
+                                    val light = !previewDarkTheme
+
+                                    view.update(
+                                        DuoStatusState(
+                                            batteryLevel = battery,
+                                            wifiLevel = wifi.first,
+                                            wifiConnected = wifi.second,
+                                            foregroundColor =
+                                                if (light) {
+                                                    android.graphics.Color.BLACK
+                                                } else {
+                                                    android.graphics.Color.WHITE
+                                                },
+                                            visualStyle = duoStyle
+                                        )
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
+            } else {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (showClock) {
+                        Column(
+                            Modifier
+                                .weight(1f)
+                                .offset(
+                                    x =
+                                        clockSettings
+                                            .horizontalPositionDp
+                                            .dp,
+                                    y =
+                                        clockSettings
+                                            .verticalPositionDp
+                                            .dp
+                                )
+                        ) {
+                            Text(
+                                timeText,
+                                style =
+                                    MaterialTheme.typography.titleLarge.copy(
+                                        fontSize =
+                                            clockSettings.sizeSp.sp
+                                    ),
+                                color =
+                                    MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.Medium
+                            )
+                            if (clockSettings.showDate) {
+                                Text(
+                                    dateText,
+                                    style =
+                                        MaterialTheme.typography.labelSmall,
+                                    color =
+                                        MaterialTheme.colorScheme
+                                            .onSurfaceVariant
+                                )
+                            }
+                        }
+                    } else {
+                        Spacer(
+                            Modifier.weight(1f)
+                        )
+                    }
+
+                    if (showIndicators) {
+                        AndroidView(
+                            modifier = Modifier.size(
+                                duoSize.dp.coerceIn(
+                                    28.dp,
+                                    60.dp
+                                )
+                            ),
+                            factory = { context ->
+                                DuoIndicatorView(context)
+                            },
+                            update = { view ->
+                                val battery = runCatching {
+                                    (
+                                        getSystemService(
+                                            android.content.Context
+                                                .BATTERY_SERVICE
+                                        ) as BatteryManager
+                                    ).getIntProperty(
+                                        BatteryManager
+                                            .BATTERY_PROPERTY_CAPACITY
+                                    ).coerceIn(0, 100)
+                                }.getOrDefault(100)
+
+                                val wifi = runCatching {
+                                    val cm =
+                                        getSystemService(
+                                            android.content.Context
+                                                .CONNECTIVITY_SERVICE
+                                        ) as android.net.ConnectivityManager
+                                    val network = cm.activeNetwork
+                                    val caps = network?.let {
+                                        cm.getNetworkCapabilities(it)
+                                    }
+                                    val connected =
+                                        caps?.hasTransport(
+                                            android.net.NetworkCapabilities
+                                                .TRANSPORT_WIFI
+                                        ) == true
+                                    val info =
+                                        (
+                                            getSystemService(
+                                                android.content.Context
+                                                    .WIFI_SERVICE
+                                            ) as android.net.wifi.WifiManager
+                                        ).connectionInfo
+                                    val bars =
+                                        if (info.rssi == -127) {
+                                            1
+                                        } else {
+                                            (
+                                                android.net.wifi.WifiManager
+                                                    .calculateSignalLevel(
+                                                        info.rssi,
+                                                        5
+                                                    ) + 1
+                                            ).coerceIn(0, 4)
+                                        }
+                                    Triple(
+                                        com.aldiandrew.duos.DuoStatusMapper
+                                            .wifiBars(bars),
+                                        connected,
+                                        caps?.hasCapability(
+                                            android.net.NetworkCapabilities
+                                                .NET_CAPABILITY_VALIDATED
+                                        ) == true
+                                    )
+                                }.getOrDefault(
+                                    Triple(0, false, false)
+                                )
+
+                                val light = !previewDarkTheme
+
+                                view.update(
+                                    DuoStatusState(
+                                        batteryLevel = battery,
+                                        wifiLevel = wifi.first,
+                                        wifiConnected = wifi.second,
+                                        foregroundColor =
+                                            if (light) {
+                                                android.graphics.Color.BLACK
+                                            } else {
+                                                android.graphics.Color.WHITE
+                                            },
+                                        visualStyle = duoStyle
+                                    )
+                                )
+                            }
                         )
                     }
                 }
-
-                AndroidView(
-                    modifier = Modifier
-                        .size((duoSize * if (duoStyle == DuoVisualStyle.COMPACT) 0.88f else 1f).dp.coerceIn(28.dp, 60.dp)),
-                    factory = { context -> DuoIndicatorView(context) },
-                    update = { view ->
-                        val battery = runCatching {
-                            (getSystemService(android.content.Context.BATTERY_SERVICE) as BatteryManager)
-                                .getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
-                                .coerceIn(0, 100)
-                        }.getOrDefault(100)
-                        val wifi = runCatching {
-                            val cm = getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
-                            val network = cm.activeNetwork
-                            val caps = network?.let { cm.getNetworkCapabilities(it) }
-                            val connected = caps?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) == true
-                            val info = (getSystemService(android.content.Context.WIFI_SERVICE) as android.net.wifi.WifiManager).connectionInfo
-                            val bars = if (info.rssi == -127) 1 else
-                                (android.net.wifi.WifiManager.calculateSignalLevel(info.rssi, 5) + 1).coerceIn(0, 4)
-                            Triple(com.aldiandrew.duos.DuoStatusMapper.wifiBars(bars), connected, caps?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true)
-                        }.getOrDefault(Triple(0, false, false))
-                        val light = !previewDarkTheme
-                        view.update(
-                            DuoStatusState(
-                                batteryLevel = battery,
-                                wifiLevel = wifi.first,
-                                wifiConnected = wifi.second,
-                                foregroundColor = if (light) android.graphics.Color.BLACK else android.graphics.Color.WHITE,
-                                visualStyle = duoStyle
-                            )
-                        )
-                    }
-                )
             }
         }
-        Text(
-            stringResource(R.string.preview_updates),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 
     @Composable
     private fun ExpressiveCard(
         modifier: Modifier = Modifier,
+        shape: RoundedCornerShape = RoundedCornerShape(24.dp),
         content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit
     ) {
         Card(
             modifier = modifier,
-            shape = RoundedCornerShape(28.dp),
+            shape = shape,
             elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 2.dp),
             colors = androidx.compose.material3.CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow
@@ -2072,74 +2574,8 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private val SystemUIPlusJakartaSans =
-    FontFamily(
-        Font(
-            R.font.plus_jakarta_sans_400,
-            FontWeight.Normal
-        ),
-        Font(
-            R.font.plus_jakarta_sans_500,
-            FontWeight.Medium
-        ),
-        Font(
-            R.font.plus_jakarta_sans_600,
-            FontWeight.SemiBold
-        ),
-        Font(
-            R.font.plus_jakarta_sans_700,
-            FontWeight.Bold
-        )
-    )
-
 private val SystemUIPlusTypography =
-    androidx.compose.material3.Typography().copy(
-        displayLarge = androidx.compose.material3.Typography().displayLarge.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        displayMedium = androidx.compose.material3.Typography().displayMedium.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        displaySmall = androidx.compose.material3.Typography().displaySmall.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        headlineLarge = androidx.compose.material3.Typography().headlineLarge.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        headlineMedium = androidx.compose.material3.Typography().headlineMedium.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        headlineSmall = androidx.compose.material3.Typography().headlineSmall.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        titleLarge = androidx.compose.material3.Typography().titleLarge.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        titleMedium = androidx.compose.material3.Typography().titleMedium.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        titleSmall = androidx.compose.material3.Typography().titleSmall.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        bodyLarge = androidx.compose.material3.Typography().bodyLarge.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        bodyMedium = androidx.compose.material3.Typography().bodyMedium.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        bodySmall = androidx.compose.material3.Typography().bodySmall.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        labelLarge = androidx.compose.material3.Typography().labelLarge.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        labelMedium = androidx.compose.material3.Typography().labelMedium.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        labelSmall = androidx.compose.material3.Typography().labelSmall.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        )
-    )
+    androidx.compose.material3.Typography()
 
 @Composable
 private fun SystemUIPlusTheme(content: @Composable () -> Unit) {
