@@ -39,7 +39,7 @@ class ClockOverlayService : Service() {
             "com.aldiandrew.clockos.ACTION_SETTINGS_CHANGED"
 
         private const val CHANNEL_ID = "clockos"
-        private const val CHANNEL_NAME = "ClockOS"
+        private const val CHANNEL_NAME = "SystemUI Plus"
         private const val SYSTEM_UI_PACKAGE = "com.android.systemui"
 
         private const val EXTRA_RELATIVE_SIZE = 0.70f
@@ -163,8 +163,8 @@ class ClockOverlayService : Service() {
                     .setSmallIcon(
                         android.R.drawable.ic_menu_recent_history
                     )
-                    .setContentTitle("ClockOS")
-                    .setContentText("Custom clock is active")
+                    .setContentTitle("SystemUI Plus")
+                    .setContentText("Custom status bar is running")
                     .setOngoing(true)
                     .setCategory(Notification.CATEGORY_SERVICE)
                     .build()
