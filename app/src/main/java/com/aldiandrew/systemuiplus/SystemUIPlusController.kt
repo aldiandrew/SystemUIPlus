@@ -198,9 +198,6 @@ object SystemUIPlusController {
                 SystemUIPlusShizuku.execute(
                     "settings delete global policy_control"
                 ).getOrThrow()
-                SystemUIPlusShizuku.execute(
-                    "settings put global policy_control null"
-                ).getOrThrow()
             } else {
                 val escaped = previous.replace("'", "'\\\\''")
                 SystemUIPlusShizuku.execute(
