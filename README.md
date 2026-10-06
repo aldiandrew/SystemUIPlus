@@ -18,15 +18,6 @@ It is designed to work without root, Xposed, or Accessibility permission. Shizuk
 - Battery optimization exemption option
 - Optional permanent disabling of the app's service notifications
 
-## Source Code
-
-The complete source code is maintained in this repository:
-
-https://github.com/aldiandrew/SystemUIPlus
-
-The Android application source is under:
-`app/src/main/java/`
-
 ## Privacy, Licenses & Source
 
 The complete source code, third-party license information, and privacy information are maintained in this repository.
