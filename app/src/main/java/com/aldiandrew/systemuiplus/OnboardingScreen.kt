@@ -17,12 +17,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AssistChip
@@ -47,11 +53,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.sp
 
 @Composable
 fun OnboardingScreen(
@@ -66,6 +70,10 @@ fun OnboardingScreen(
     onNotificationAccess: () -> Unit,
     onPhonePermission: () -> Unit,
     onOverlayPermission: () -> Unit,
+    themeMode: AppThemeMode,
+    usePureBlackTheme: Boolean,
+    onThemeSelected: (AppThemeMode) -> Unit,
+    onPureBlackChanged: (Boolean) -> Unit,
     onComplete: () -> Unit
 ) {
     var page by remember {
@@ -133,40 +141,66 @@ fun OnboardingScreen(
                         .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                when (page) {
-                    0 -> WelcomePage(
-                        selectedLanguage = appLanguageMode,
-                        onLanguageSelected = onLanguageSelected,
-                        onContinue = {
-                            page = 1
-                        }
-                    )
+                AnimatedContent(
+                    targetState = page,
+                    transitionSpec = {
+                        (
+                            slideInHorizontally(
+                                initialOffsetX = { fullWidth -> fullWidth / 4 }
+                            ) + fadeIn()
+                        ) togetherWith (
+                            slideOutHorizontally(
+                                targetOffsetX = { fullWidth -> -fullWidth / 4 }
+                            ) + fadeOut()
+                        )
+                    },
+                    label = "onboarding_page"
+                ) { targetPage ->
+                    when (targetPage) {
+                        0 -> WelcomePage(
+                            selectedLanguage = appLanguageMode,
+                            onLanguageSelected = onLanguageSelected,
+                            onContinue = {
+                                page = 1
+                            }
+                        )
 
-                    1 -> ShizukuPage(
-                        shizukuReady = shizukuReady,
-                        onAction = onShizukuAction,
-                        onContinue = {
-                            page = 2
-                        }
-                    )
+                        1 -> AcknowledgementPage(
+                            shizukuReady = shizukuReady,
+                            onShizukuAction = onShizukuAction,
+                            onContinue = {
+                                page = 2
+                            }
+                        )
 
-                    2 -> PermissionsPage(
-                        shizukuReady = shizukuReady,
-                        notificationAccess = notificationAccess,
-                        phoneStateGranted = phoneStateGranted,
-                        overlayPermissionGranted = overlayPermissionGranted,
-                        onShizukuAction = onShizukuAction,
-                        onNotificationAccess = onNotificationAccess,
-                        onPhonePermission = onPhonePermission,
-                        onOverlayPermission = onOverlayPermission,
-                        onContinue = {
-                            page = 3
-                        }
-                    )
+                        2 -> PreferencesPage(
+                            themeMode = themeMode,
+                            usePureBlackTheme = usePureBlackTheme,
+                            onThemeSelected = onThemeSelected,
+                            onPureBlackChanged = onPureBlackChanged,
+                            onContinue = {
+                                page = 3
+                            }
+                        )
 
-                    else -> ReadyPage(
-                        onFinish = onComplete
-                    )
+                        3 -> PermissionsPage(
+                            shizukuReady = shizukuReady,
+                            notificationAccess = notificationAccess,
+                            phoneStateGranted = phoneStateGranted,
+                            overlayPermissionGranted = overlayPermissionGranted,
+                            onShizukuAction = onShizukuAction,
+                            onNotificationAccess = onNotificationAccess,
+                            onPhonePermission = onPhonePermission,
+                            onOverlayPermission = onOverlayPermission,
+                            onContinue = {
+                                page = 4
+                            }
+                        )
+
+                        else -> ReadyPage(
+                            onFinish = onComplete
+                        )
+                    }
                 }
             }
 
@@ -255,9 +289,9 @@ private fun WelcomePage(
 }
 
 @Composable
-private fun ShizukuPage(
+private fun AcknowledgementPage(
     shizukuReady: Boolean,
-    onAction: () -> Unit,
+    onShizukuAction: () -> Unit,
     onContinue: () -> Unit
 ) {
     OnboardingCard {
@@ -271,7 +305,7 @@ private fun ShizukuPage(
         Spacer(Modifier.height(16.dp))
 
         Text(
-            text = stringResource(R.string.onboarding_shizuku_title),
+            text = stringResource(R.string.onboarding_acknowledgement_title),
             style =
                 MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.SemiBold
@@ -281,31 +315,38 @@ private fun ShizukuPage(
         Spacer(Modifier.height(8.dp))
 
         Text(
-            text = stringResource(R.string.onboarding_shizuku_message),
+            text = stringResource(R.string.onboarding_acknowledgement_message),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(18.dp))
+
+        NoticeRow(stringResource(R.string.onboarding_no_root))
+        NoticeRow(stringResource(R.string.onboarding_no_xposed))
+        NoticeRow(stringResource(R.string.onboarding_no_accessibility))
+        NoticeRow(stringResource(R.string.onboarding_shizuku_notice))
+
+        Spacer(Modifier.height(18.dp))
 
         StatusRow(
             title = stringResource(R.string.shizuku),
             ready = shizukuReady
         )
 
-        Spacer(Modifier.height(16.dp))
-
         if (!shizukuReady) {
+            Spacer(Modifier.height(10.dp))
+
             OutlinedButton(
-                onClick = onAction,
+                onClick = onShizukuAction,
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.extraLarge
             ) {
                 Text(stringResource(R.string.onboarding_setup_shizuku))
             }
-
-            Spacer(Modifier.height(10.dp))
         }
+
+        Spacer(Modifier.height(18.dp))
 
         Button(
             onClick = onContinue,
@@ -314,6 +355,186 @@ private fun ShizukuPage(
         ) {
             Text(stringResource(R.string.onboarding_continue))
         }
+    }
+}
+
+@Composable
+private fun PreferencesPage(
+    themeMode: AppThemeMode,
+    usePureBlackTheme: Boolean,
+    onThemeSelected: (AppThemeMode) -> Unit,
+    onPureBlackChanged: (Boolean) -> Unit,
+    onContinue: () -> Unit
+) {
+    OnboardingCard {
+        Icon(
+            imageVector = Icons.Default.Palette,
+            contentDescription = null,
+            modifier = Modifier.size(56.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        Text(
+            text = stringResource(R.string.onboarding_preferences_title),
+            style =
+                MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.SemiBold
+                )
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        Text(
+            text = stringResource(R.string.onboarding_preferences_message),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(Modifier.height(18.dp))
+
+        PreferenceChoice(
+            label = stringResource(R.string.theme_follow_system),
+            selected = themeMode == AppThemeMode.FOLLOW_SYSTEM
+        ) {
+            onThemeSelected(AppThemeMode.FOLLOW_SYSTEM)
+        }
+
+        PreferenceChoice(
+            label = stringResource(R.string.theme_always_dark),
+            selected = themeMode == AppThemeMode.ALWAYS_DARK
+        ) {
+            onThemeSelected(AppThemeMode.ALWAYS_DARK)
+        }
+
+        PreferenceChoice(
+            label = stringResource(R.string.theme_always_light),
+            selected = themeMode == AppThemeMode.ALWAYS_LIGHT
+        ) {
+            onThemeSelected(AppThemeMode.ALWAYS_LIGHT)
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        SettingToggleRow(
+            title = stringResource(R.string.theme_pure_black),
+            checked = usePureBlackTheme,
+            enabled = themeMode != AppThemeMode.ALWAYS_LIGHT,
+            onCheckedChange = onPureBlackChanged
+        )
+
+        Spacer(Modifier.height(20.dp))
+
+        Button(
+            onClick = onContinue,
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.extraLarge
+        ) {
+            Text(stringResource(R.string.onboarding_continue))
+        }
+    }
+}
+
+@Composable
+private fun NoticeRow(
+    text: String
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 5.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Icon(
+            imageVector = Icons.Default.Check,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(20.dp)
+        )
+
+        Spacer(Modifier.width(10.dp))
+
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun PreferenceChoice(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+                .clickable(onClick = onClick),
+        shape = MaterialTheme.shapes.medium,
+        colors =
+            CardDefaults.cardColors(
+                containerColor =
+                    if (selected) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerLow
+                    }
+            )
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal = 8.dp,
+                        vertical = 4.dp
+                    ),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            RadioButton(
+                selected = selected,
+                onClick = null
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingToggleRow(
+    title: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 7.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            title,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyLarge
+        )
+
+        androidx.compose.material3.Switch(
+            checked = checked,
+            enabled = enabled,
+            onCheckedChange = onCheckedChange
+        )
     }
 }
 
@@ -759,7 +980,7 @@ private fun OnboardingProgress(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        repeat(4) { index ->
+        repeat(5) { index ->
             val selected = index == page
             Box(
                 modifier =
