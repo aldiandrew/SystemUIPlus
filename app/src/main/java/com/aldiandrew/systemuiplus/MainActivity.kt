@@ -1156,26 +1156,18 @@ class MainActivity : ComponentActivity() {
                         listOf(
                             StatusBarLogoStyle.SAKURA to
                                 stringResource(R.string.logo_style_sakura),
-                            StatusBarLogoStyle.ANDROID to
-                                stringResource(R.string.logo_style_android),
-                            StatusBarLogoStyle.ADIDAS to
-                                stringResource(R.string.logo_style_adidas),
+                            StatusBarLogoStyle.SLASH to
+                                stringResource(R.string.logo_style_slash),
                             StatusBarLogoStyle.APPLE to
                                 stringResource(R.string.logo_style_apple),
-                            StatusBarLogoStyle.BATMAN to
-                                stringResource(R.string.logo_style_batman),
                             StatusBarLogoStyle.BEATS to
                                 stringResource(R.string.logo_style_beats),
                             StatusBarLogoStyle.BIOHAZARD to
                                 stringResource(R.string.logo_style_biohazard),
                             StatusBarLogoStyle.HEART to
                                 stringResource(R.string.logo_style_heart),
-                            StatusBarLogoStyle.NIKE to
-                                stringResource(R.string.logo_style_nike),
                             StatusBarLogoStyle.ROG to
                                 stringResource(R.string.logo_style_rog),
-                            StatusBarLogoStyle.SUPERMAN to
-                                stringResource(R.string.logo_style_superman),
                             StatusBarLogoStyle.WINDOWS to
                                 stringResource(R.string.logo_style_windows)
                         )
