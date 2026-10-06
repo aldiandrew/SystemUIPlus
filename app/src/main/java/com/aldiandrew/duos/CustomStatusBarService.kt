@@ -272,7 +272,7 @@ class CustomStatusBarService : Service() {
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                "Custom status bar",
+                "SystemUI Plus",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = "Keeps the Duos custom status bar service running."
@@ -290,7 +290,7 @@ class CustomStatusBarService : Service() {
 
         val notification = builder
             .setSmallIcon(android.R.drawable.ic_menu_info_details)
-            .setContentTitle("Duos")
+            .setContentTitle("SystemUI Plus")
             .setContentText("Custom status bar is running")
             .setOngoing(true)
             .build()
