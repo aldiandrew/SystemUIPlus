@@ -32,6 +32,8 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.BatteryChargingFull
+import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
