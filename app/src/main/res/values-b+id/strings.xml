@@ -104,21 +104,12 @@
     <string name="version">Versi %1$s</string>
     <string name="developer">Pengembang</string>
     <string name="developer_name">Insomdroid</string>
-    <string name="source_code">Source Code</string>
-    <string name="source_code_summary">Lihat source project di GitHub</string>
-    <string name="licenses">Lisensi</string>
-    <string name="licenses_summary">Lisensi open-source yang digunakan SystemUI Plus</string>
-    <string name="privacy_policy">Kebijakan Privasi</string>
-    <string name="privacy_policy_summary">Cara SystemUI Plus menangani izin dan data</string>
     <string name="open_link_failed">Tidak dapat membuka tautan yang dipilih.</string>
     <string name="content_description_settings">Pengaturan</string>
     <string name="content_description_back">Kembali</string>
     <string name="content_description_language">Bahasa</string>
     <string name="content_description_backup_restore">Cadangkan dan Pulihkan</string>
     <string name="content_description_about">Tentang</string>
-    <string name="content_description_source">Source Code</string>
-    <string name="content_description_licenses">Lisensi</string>
-    <string name="content_description_privacy">Kebijakan Privasi</string>
 
     <string name="about_project_information">Source, Lisensi &amp; Privasi</string>
     <string name="about_project_information_summary">Source project, lisensi pihak ketiga, dan informasi privasi</string>
