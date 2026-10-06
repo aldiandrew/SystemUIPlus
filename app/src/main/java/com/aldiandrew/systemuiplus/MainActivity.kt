@@ -1340,7 +1340,7 @@ class MainActivity : ComponentActivity() {
                 Modifier.fillMaxWidth()
             ) {
                 Row(
-                    Modifier
+                    modifier = Modifier
                         .fillMaxWidth()
                         .padding(
                             horizontal = 12.dp,
@@ -1349,71 +1349,83 @@ class MainActivity : ComponentActivity() {
                     horizontalArrangement =
                         Arrangement.spacedBy(10.dp)
                 ) {
-                    listOf(
-                        DuoVisualStyle.DUO,
-                        DuoVisualStyle.COMPACT
-                    ).forEach { style ->
-                        val selected =
-                            duoStyle == style
-
-                        if (selected) {
-                            Button(
-                                onClick = {},
-                                enabled = customizationEnabled,
-                                modifier = Modifier.weight(1f),
-                                shape =
-                                    RoundedCornerShape(18.dp)
-                            ) {
-                                Text(
-                                    if (
-                                        style ==
-                                            DuoVisualStyle.DUO
-                                    ) {
-                                        stringResource(
-                                            R.string.duo
-                                        )
-                                    } else {
-                                        stringResource(
-                                            R.string.compact
-                                        )
-                                    }
+                    if (duoStyle == DuoVisualStyle.DUO) {
+                        Button(
+                            onClick = {},
+                            enabled = customizationEnabled,
+                            modifier = Modifier.weight(1f),
+                            shape =
+                                RoundedCornerShape(18.dp)
+                        ) {
+                            Text(
+                                stringResource(
+                                    R.string.duo
                                 )
-                            }
-                        } else {
-                            OutlinedButton(
-                                onClick = {
-                                    duoStyle = style
-                                    DuoPreferences
-                                        .setVisualStyle(
-                                            this@MainActivity,
-                                            style
-                                        )
-                                },
-                                enabled =
-                                    customizationEnabled,
-                                modifier =
-                                    Modifier.weight(1f),
-                                shape =
-                                    RoundedCornerShape(18.dp)
-                            ) {
-                                Text(
-                                    if (
-                                        style ==
-                                            DuoVisualStyle.DUO
-                                    ) {
-                                        stringResource(
-                                            R.string.duo
-                                        )
-                                    } else {
-                                        stringResource(
-                                            R.string.compact
-                                        )
-                                    }
+                            )
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = {
+                                duoStyle =
+                                    DuoVisualStyle.DUO
+                                DuoPreferences.setVisualStyle(
+                                    this@MainActivity,
+                                    DuoVisualStyle.DUO
                                 )
-                            }
+                            },
+                            enabled = customizationEnabled,
+                            modifier = Modifier.weight(1f),
+                            shape =
+                                RoundedCornerShape(18.dp)
+                        ) {
+                            Text(
+                                stringResource(
+                                    R.string.duo
+                                )
+                            )
                         }
                     }
-                )
+
+                    if (
+                        duoStyle ==
+                            DuoVisualStyle.COMPACT
+                    ) {
+                        Button(
+                            onClick = {},
+                            enabled = customizationEnabled,
+                            modifier = Modifier.weight(1f),
+                            shape =
+                                RoundedCornerShape(18.dp)
+                        ) {
+                            Text(
+                                stringResource(
+                                    R.string.compact
+                                )
+                            )
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = {
+                                duoStyle =
+                                    DuoVisualStyle.COMPACT
+                                DuoPreferences.setVisualStyle(
+                                    this@MainActivity,
+                                    DuoVisualStyle.COMPACT
+                                )
+                            },
+                            enabled = customizationEnabled,
+                            modifier = Modifier.weight(1f),
+                            shape =
+                                RoundedCornerShape(18.dp)
+                        ) {
+                            Text(
+                                stringResource(
+                                    R.string.compact
+                                )
+                            )
+                        }
+                    }
+                }
             }
         }
     }
