@@ -24,10 +24,8 @@
     <string name="systemui_status_active">Active</string>
     <string name="systemui_status_active_summary">Custom status bar is running</string>
     <string name="systemui_status_ready">Ready to enable</string>
-    <string name="systemui_status_setup">Setup required</string>
     <string name="systemui_status_setup_summary">Open Settings to finish the required permissions</string>
     <string name="reset_position">Reset position</string>
-    <string name="custom_clock">Custom Clock</string>
     <string name="twenty_four_hour">24-hour</string>
     <string name="show_date">Show date</string>
     <string name="date_format">Date format</string>
@@ -38,7 +36,6 @@
     <string name="clock_size">Clock size</string>
     <string name="clock_horizontal_position">Clock horizontal position</string>
     <string name="clock_vertical_position">Clock vertical position</string>
-    <string name="custom_system_indicators">Custom System Indicators</string>
     <string name="indicator_size">Indicator size</string>
     <string name="automatic_position">Automatic position</string>
     <string name="indicator_horizontal_position">Indicator horizontal position</string>
@@ -46,11 +43,9 @@
     <string name="style">Style</string>
     <string name="duo">Duo</string>
     <string name="compact">Compact</string>
-    <string name="safety">Safety</string>
     <string name="restore_native_systemui">Restore native SystemUI</string>
     <string name="reset">Reset</string>
     <string name="ready">READY</string>
-    <string name="preview_updates">Preview updates with clock size/date/position and indicator size/style.</string>
     <string name="sp_value">%d sp</string>
     <string name="dp_value">%d dp</string>
     <string name="toast_phone_state_granted">Phone state permission granted</string>
