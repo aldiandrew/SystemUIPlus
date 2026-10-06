@@ -477,8 +477,7 @@ class MainActivity : ComponentActivity() {
                         toast(getString(R.string.toast_active))
                     } catch (t: Throwable) {
                         ShizukuOverlayController.stop(
-                            this,
-                            restoreSystemBar = false
+                            this
                         ) {
                             Thread {
                                 SystemUIPlusController.restore(this)
@@ -511,8 +510,7 @@ class MainActivity : ComponentActivity() {
         stopService(Intent(this, ClockOverlayService::class.java))
 
         ShizukuOverlayController.stop(
-            this,
-            restoreSystemBar = false
+            this
         ) {
             Thread {
                 val restored = SystemUIPlusController.restore(this)
