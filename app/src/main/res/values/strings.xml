@@ -44,6 +44,7 @@
     <string name="style">Style</string>
     <string name="duo">Duo</string>
     <string name="compact">Compact</string>
+    <string name="pill">Pill</string>
     <string name="restore_native_systemui">Restore native SystemUI</string>
     <string name="reset">Reset</string>
     <string name="ready">READY</string>

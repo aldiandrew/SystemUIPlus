@@ -39,11 +39,19 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.RadioButton
@@ -57,6 +65,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
@@ -643,23 +652,59 @@ class MainActivity : ComponentActivity() {
                     stringResource(R.string.systemui_plus)
             }
 
+        val isHome =
+            !settingsScreen &&
+                customizationPage == CustomizationPage.NONE
+
         Scaffold(
             topBar = {
-                TopAppBar(
-                    title = {
-                        Text(
-                            topBarTitle,
-                            style =
-                                MaterialTheme.typography.titleLarge.copy(
-                                    fontWeight = FontWeight.Medium
+                if (isHome) {
+                    androidx.compose.material3.LargeTopAppBar(
+                        title = {
+                            Text(
+                                topBarTitle,
+                                style =
+                                    MaterialTheme.typography.headlineMedium.copy(
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                            )
+                        },
+                        actions = {
+                            FilledTonalIconButton(
+                                onClick = {
+                                    settingsPage = AppSettingsPage.ROOT
+                                    settingsScreen = true
+                                }
+                            ) {
+                                Icon(
+                                    Icons.Default.Settings,
+                                    contentDescription =
+                                        stringResource(
+                                            R.string.content_description_settings
+                                        )
                                 )
-                        )
-                    },
-                    navigationIcon = if (
-                        settingsScreen ||
-                            customizationPage != CustomizationPage.NONE
-                    ) {
-                        {
+                            }
+                        },
+                        colors =
+                            TopAppBarDefaults.topAppBarColors(
+                                containerColor =
+                                    androidx.compose.ui.graphics.Color.Transparent,
+                                scrolledContainerColor =
+                                    MaterialTheme.colorScheme.surface
+                            )
+                    )
+                } else {
+                    TopAppBar(
+                        title = {
+                            Text(
+                                topBarTitle,
+                                style =
+                                    MaterialTheme.typography.titleLarge.copy(
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                            )
+                        },
+                        navigationIcon = {
                             IconButton(
                                 onClick = {
                                     when {
@@ -679,37 +724,16 @@ class MainActivity : ComponentActivity() {
                                         )
                                 )
                             }
-                        }
-                    } else {
-                        {}
-                    },
-                    actions = if (
-                        !settingsScreen &&
-                            customizationPage == CustomizationPage.NONE
-                    ) {
-                        {
-                            IconButton(
-                                onClick = {
-                                    customizationPage =
-                                        CustomizationPage.NONE
-                                    settingsPage =
-                                        AppSettingsPage.ROOT
-                                    settingsScreen = true
-                                }
-                            ) {
-                                Icon(
-                                    Icons.Default.Settings,
-                                    contentDescription =
-                                        stringResource(
-                                            R.string.content_description_settings
-                                        )
-                                )
-                            }
-                        }
-                    } else {
-                        {}
-                    }
-                )
+                        },
+                        colors =
+                            TopAppBarDefaults.topAppBarColors(
+                                containerColor =
+                                    androidx.compose.ui.graphics.Color.Transparent,
+                                scrolledContainerColor =
+                                    MaterialTheme.colorScheme.surface
+                            )
+                    )
+                }
             }
         ) { padding ->
             when {
@@ -735,21 +759,18 @@ class MainActivity : ComponentActivity() {
                             )
                     }
                 }
-
                 customizationPage == CustomizationPage.CLOCK ->
                     ClockCustomizationScreen(
                         Modifier
                             .fillMaxSize()
                             .padding(padding)
                     )
-
                 customizationPage == CustomizationPage.INDICATORS ->
                     IndicatorsCustomizationScreen(
                         Modifier
                             .fillMaxSize()
                             .padding(padding)
                     )
-
                 else ->
                     HomeScreen(
                         Modifier
@@ -773,176 +794,127 @@ class MainActivity : ComponentActivity() {
         val statusSummary =
             when {
                 systemUiHidden ->
-                    stringResource(
-                        R.string.systemui_status_active_summary
-                    )
+                    stringResource(R.string.systemui_status_active_summary)
                 allRequiredAccess ->
-                    stringResource(
-                        R.string.systemui_status_ready
-                    )
+                    stringResource(R.string.systemui_status_ready)
                 else ->
-                    stringResource(
-                        R.string.systemui_status_setup_summary
-                    )
+                    stringResource(R.string.systemui_status_setup_summary)
             }
 
         Column(
             modifier
                 .padding(horizontal = 20.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             Text(
                 stringResource(R.string.home_subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-                color =
-                    MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(
-                    start = 2.dp,
-                    top = 2.dp,
-                    end = 2.dp
-                )
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 2.dp)
             )
 
-            SectionLabel(
-                stringResource(R.string.live_preview)
+            AssistChip(
+                onClick = {},
+                enabled = false,
+                label = {
+                    Text(
+                        if (systemUiHidden) {
+                            stringResource(R.string.systemui_status_active)
+                        } else {
+                            statusSummary
+                        }
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        if (systemUiHidden) {
+                            Icons.Default.Check
+                        } else {
+                            Icons.Default.Tune
+                        },
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             )
+
+            SectionLabel(stringResource(R.string.live_preview))
 
             StatusBarPreview(
                 mode = PreviewMode.FULL,
                 hero = true
             )
 
-            ExpressiveCard(
-                Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            horizontal = 18.dp,
-                            vertical = 16.dp
-                        ),
-                    verticalAlignment =
-                        Alignment.CenterVertically
-                ) {
-                    Column(
-                        Modifier.weight(1f),
-                        verticalArrangement =
-                            Arrangement.spacedBy(3.dp)
-                    ) {
+            ExpressiveCard(Modifier.fillMaxWidth()) {
+                ListItem(
+                    headlineContent = {
                         Text(
-                            stringResource(
-                                R.string.systemui_plus
-                            ),
+                            stringResource(R.string.systemui_plus),
                             style =
                                 MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.SemiBold
                                 )
                         )
+                    },
+                    supportingContent = {
                         Text(
-                            if (systemUiHidden) {
-                                stringResource(
-                                    R.string.systemui_status_active
-                                )
-                            } else {
-                                statusSummary
-                            },
-                            style =
-                                MaterialTheme.typography.bodyMedium,
-                            color =
-                                if (systemUiHidden) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme
-                                        .colorScheme
-                                        .onSurfaceVariant
-                                }
+                            statusSummary,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = systemUiHidden,
+                            onCheckedChange = { toggleMasterSystemUi() },
+                            enabled = allRequiredAccess && !busy
                         )
                     }
-
-                    Switch(
-                        checked = systemUiHidden,
-                        onCheckedChange = {
-                            toggleMasterSystemUi()
-                        },
-                        enabled =
-                            allRequiredAccess &&
-                                !busy
-                    )
-                }
+                )
             }
 
-            SectionLabel(
-                stringResource(R.string.customize)
-            )
+            SectionLabel(stringResource(R.string.customize))
 
-            ExpressiveCard(
-                Modifier.fillMaxWidth()
-            ) {
-                Column {
-                    NavigationRow(
-                        icon = Icons.Default.AccessTime,
-                        title = stringResource(
-                            R.string.clock
-                        ),
-                        summary = stringResource(
-                            R.string.clock_summary
-                        ),
-                        onClick = {
-                            customizationPage =
-                                CustomizationPage.CLOCK
-                        }
-                    )
+            ExpressiveCard(Modifier.fillMaxWidth()) {
+                NavigationRow(
+                    icon = Icons.Default.AccessTime,
+                    title = stringResource(R.string.clock),
+                    summary = stringResource(R.string.clock_summary),
+                    onClick = {
+                        customizationPage = CustomizationPage.CLOCK
+                    }
+                )
 
-                    HorizontalDivider(
-                        modifier = Modifier.padding(
-                            horizontal = 16.dp
-                        )
-                    )
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
 
-                    NavigationRow(
-                        icon = Icons.Default.Tune,
-                        title = stringResource(
-                            R.string.indicators
-                        ),
-                        summary = stringResource(
-                            R.string.indicators_summary
-                        ),
-                        onClick = {
-                            customizationPage =
-                                CustomizationPage.INDICATORS
-                        }
-                    )
-                }
+                NavigationRow(
+                    icon = Icons.Default.Tune,
+                    title = stringResource(R.string.indicators),
+                    summary = stringResource(R.string.indicators_summary),
+                    onClick = {
+                        customizationPage = CustomizationPage.INDICATORS
+                    }
+                )
             }
 
             if (systemUiHidden) {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement =
-                        Arrangement.Center
+                FilledTonalButton(
+                    enabled = !busy,
+                    onClick = ::restoreNativeSystemUi,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.extraLarge
                 ) {
-                    OutlinedButton(
-                        enabled = !busy,
-                        onClick = ::restoreNativeSystemUi,
-                        shape = RoundedCornerShape(50)
-                    ) {
-                        Text(
-                            stringResource(
-                                R.string.restore_native_systemui
-                            )
-                        )
-                    }
+                    Text(stringResource(R.string.restore_native_systemui))
                 }
             }
 
             if (!allRequiredAccess && !systemUiHidden) {
                 Text(
-                    statusSummary,
+                    stringResource(R.string.systemui_status_setup_summary),
                     style = MaterialTheme.typography.bodySmall,
-                    color =
-                        MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(
                         start = 4.dp,
                         end = 4.dp,
@@ -954,6 +926,7 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
+    private fun ClockCustomizationScreen(    @Composable
     private fun ClockCustomizationScreen(
         modifier: Modifier = Modifier
     ) {
@@ -1203,8 +1176,7 @@ class MainActivity : ComponentActivity() {
     private fun IndicatorsCustomizationScreen(
         modifier: Modifier = Modifier
     ) {
-        val customizationEnabled =
-            systemUiHidden && !busy
+        val customizationEnabled = systemUiHidden && !busy
 
         Column(
             modifier
@@ -1221,6 +1193,59 @@ class MainActivity : ComponentActivity() {
             )
 
             SectionLabel(
+                stringResource(R.string.style)
+            )
+
+            ExpressiveCard(
+                Modifier.fillMaxWidth()
+            ) {
+                SingleChoiceSegmentedButtonRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            horizontal = 12.dp,
+                            vertical = 12.dp
+                        )
+                ) {
+                    val styleOptions =
+                        listOf(
+                            DuoVisualStyle.DUO to stringResource(R.string.duo),
+                            DuoVisualStyle.COMPACT to stringResource(R.string.compact),
+                            DuoVisualStyle.PILL to stringResource(R.string.pill)
+                        )
+
+                    styleOptions.forEachIndexed { index, option ->
+                        val (style, label) = option
+                        SegmentedButton(
+                            selected = duoStyle == style,
+                            onClick = {
+                                duoStyle = style
+                                DuoPreferences.setVisualStyle(
+                                    this@MainActivity,
+                                    style
+                                )
+                            },
+                            enabled = customizationEnabled,
+                            shape =
+                                SegmentedButtonDefaults.itemShape(
+                                    index = index,
+                                    count = styleOptions.size
+                                ),
+                            icon = {
+                                SegmentedButtonDefaults.Icon(
+                                    active = duoStyle == style
+                                )
+                            },
+                            label = {
+                                Text(label)
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+
+            SectionLabel(
                 stringResource(R.string.size)
             )
 
@@ -1234,9 +1259,7 @@ class MainActivity : ComponentActivity() {
                     )
                 ) {
                     SliderSetting(
-                        title = stringResource(
-                            R.string.indicator_size
-                        ),
+                        title = stringResource(R.string.indicator_size),
                         valueText = stringResource(
                             R.string.dp_value,
                             duoSize.toInt()
@@ -1273,21 +1296,17 @@ class MainActivity : ComponentActivity() {
                         horizontal = 16.dp,
                         vertical = 12.dp
                     ),
-                    verticalArrangement =
-                        Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     SettingSwitch(
-                        stringResource(
-                            R.string.automatic_position
-                        ),
+                        stringResource(R.string.automatic_position),
                         duoAutomatic
                     ) {
                         duoAutomatic = it
-                        DuoPreferences
-                            .setAutomaticPosition(
-                                this@MainActivity,
-                                it
-                            )
+                        DuoPreferences.setAutomaticPosition(
+                            this@MainActivity,
+                            it
+                        )
                     }
 
                     SliderValueSetting(
@@ -1303,16 +1322,14 @@ class MainActivity : ComponentActivity() {
                         onValueChange = {
                             duoX = it
                             duoAutomatic = false
-                            DuoPreferences
-                                .setHorizontalOffsetDp(
-                                    this@MainActivity,
-                                    it
-                                )
-                            DuoPreferences
-                                .setAutomaticPosition(
-                                    this@MainActivity,
-                                    false
-                                )
+                            DuoPreferences.setHorizontalOffsetDp(
+                                this@MainActivity,
+                                it
+                            )
+                            DuoPreferences.setAutomaticPosition(
+                                this@MainActivity,
+                                false
+                            )
                         }
                     )
 
@@ -1329,16 +1346,14 @@ class MainActivity : ComponentActivity() {
                         onValueChange = {
                             duoY = it
                             duoAutomatic = false
-                            DuoPreferences
-                                .setVerticalOffsetDp(
-                                    this@MainActivity,
-                                    it
-                                )
-                            DuoPreferences
-                                .setAutomaticPosition(
-                                    this@MainActivity,
-                                    false
-                                )
+                            DuoPreferences.setVerticalOffsetDp(
+                                this@MainActivity,
+                                it
+                            )
+                            DuoPreferences.setAutomaticPosition(
+                                this@MainActivity,
+                                false
+                            )
                         }
                     )
 
@@ -1347,106 +1362,10 @@ class MainActivity : ComponentActivity() {
                     )
                 }
             }
-
-            SectionLabel(
-                stringResource(R.string.style)
-            )
-
-            ExpressiveCard(
-                Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            horizontal = 12.dp,
-                            vertical = 12.dp
-                        ),
-                    horizontalArrangement =
-                        Arrangement.spacedBy(10.dp)
-                ) {
-                    if (duoStyle == DuoVisualStyle.DUO) {
-                        Button(
-                            onClick = {},
-                            enabled = customizationEnabled,
-                            modifier = Modifier.weight(1f),
-                            shape =
-                                RoundedCornerShape(18.dp)
-                        ) {
-                            Text(
-                                stringResource(
-                                    R.string.duo
-                                )
-                            )
-                        }
-                    } else {
-                        OutlinedButton(
-                            onClick = {
-                                duoStyle =
-                                    DuoVisualStyle.DUO
-                                DuoPreferences.setVisualStyle(
-                                    this@MainActivity,
-                                    DuoVisualStyle.DUO
-                                )
-                            },
-                            enabled = customizationEnabled,
-                            modifier = Modifier.weight(1f),
-                            shape =
-                                RoundedCornerShape(18.dp)
-                        ) {
-                            Text(
-                                stringResource(
-                                    R.string.duo
-                                )
-                            )
-                        }
-                    }
-
-                    if (
-                        duoStyle ==
-                            DuoVisualStyle.COMPACT
-                    ) {
-                        Button(
-                            onClick = {},
-                            enabled = customizationEnabled,
-                            modifier = Modifier.weight(1f),
-                            shape =
-                                RoundedCornerShape(18.dp)
-                        ) {
-                            Text(
-                                stringResource(
-                                    R.string.compact
-                                )
-                            )
-                        }
-                    } else {
-                        OutlinedButton(
-                            onClick = {
-                                duoStyle =
-                                    DuoVisualStyle.COMPACT
-                                DuoPreferences.setVisualStyle(
-                                    this@MainActivity,
-                                    DuoVisualStyle.COMPACT
-                                )
-                            },
-                            enabled = customizationEnabled,
-                            modifier = Modifier.weight(1f),
-                            shape =
-                                RoundedCornerShape(18.dp)
-                        ) {
-                            Text(
-                                stringResource(
-                                    R.string.compact
-                                )
-                            )
-                        }
-                    }
-                }
-            }
         }
     }
 
-    private fun navigateBackFromSettings() {
+    private fun navigateBackFromSettings(    private fun navigateBackFromSettings() {
         if (!settingsScreen) return
 
         if (settingsPage != AppSettingsPage.ROOT) {
@@ -2036,25 +1955,32 @@ class MainActivity : ComponentActivity() {
         selected: Boolean,
         onSelected: () -> Unit
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onSelected)
-                .padding(vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            RadioButton(
-                selected = selected,
-                onClick = onSelected
-            )
-            Text(
-                label,
-                modifier = Modifier.padding(start = 8.dp)
-            )
-        }
+        ListItem(
+            selected = selected,
+            onClick = onSelected,
+            headlineContent = { Text(label) },
+            leadingContent = {
+                RadioButton(
+                    selected = selected,
+                    onClick = null
+                )
+            },
+            trailingContent =
+                if (selected) {
+                    {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                } else null
+        )
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    private fun ThemeDialog(    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     private fun ThemeDialog(
         onDismiss: () -> Unit
@@ -2129,25 +2055,31 @@ class MainActivity : ComponentActivity() {
         selected: Boolean,
         onSelected: () -> Unit
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onSelected)
-                .padding(vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            RadioButton(
-                selected = selected,
-                onClick = onSelected
-            )
-            Text(
-                label,
-                modifier = Modifier.padding(start = 8.dp)
-            )
-        }
+        ListItem(
+            selected = selected,
+            onClick = onSelected,
+            headlineContent = { Text(label) },
+            leadingContent = {
+                RadioButton(
+                    selected = selected,
+                    onClick = null
+                )
+            },
+            trailingContent =
+                if (selected) {
+                    {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                } else null
+        )
     }
 
     @Composable
+    private fun BackupRestoreScreen(    @Composable
     private fun BackupRestoreScreen(
         modifier: Modifier = Modifier
     ) {
@@ -2233,7 +2165,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                     )
-                    Button(
+                    FilledTonalButton(
                         onClick = {
                             createBackupLauncher.launch(
                                 getString(R.string.backup_file_name)
@@ -2275,7 +2207,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                     )
-                    Button(
+                    FilledTonalButton(
                         onClick = {
                             restoreLauncher.launch(
                                 arrayOf(
@@ -2896,17 +2828,16 @@ class MainActivity : ComponentActivity() {
     ) {
         Card(
             modifier = modifier,
-            shape = RoundedCornerShape(28.dp),
+            shape = MaterialTheme.shapes.large,
             elevation =
-                androidx.compose.material3.CardDefaults
-                    .cardElevation(
-                        defaultElevation = 0.dp
-                    ),
+                CardDefaults.elevatedCardElevation(
+                    defaultElevation = 1.dp,
+                    pressedElevation = 3.dp
+                ),
             colors =
-                androidx.compose.material3.CardDefaults.cardColors(
+                CardDefaults.cardColors(
                     containerColor =
-                        MaterialTheme.colorScheme
-                            .surfaceContainerLow
+                        MaterialTheme.colorScheme.surfaceContainerLow
                 ),
             content = content
         )
@@ -2919,12 +2850,11 @@ class MainActivity : ComponentActivity() {
         Text(
             text = text.uppercase(),
             style =
-                MaterialTheme.typography.labelMedium.copy(
-                    fontWeight = FontWeight.Medium,
-                    letterSpacing = 0.6.sp
+                MaterialTheme.typography.labelLarge.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.7.sp
                 ),
-            color =
-                MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(
                 start = 4.dp,
                 top = 2.dp
@@ -2933,65 +2863,52 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
+    private fun NavigationRow(    @Composable
     private fun NavigationRow(
         icon: androidx.compose.ui.graphics.vector.ImageVector,
         title: String,
         summary: String,
         onClick: () -> Unit
     ) {
-        Row(
+        ListItem(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(
-                    horizontal = 16.dp,
-                    vertical = 15.dp
-                ),
-            verticalAlignment =
-                Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint =
-                    MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp)
-            )
-
-            Column(
-                Modifier
-                    .weight(1f)
-                    .padding(horizontal = 16.dp),
-                verticalArrangement =
-                    Arrangement.spacedBy(2.dp)
-            ) {
+                .clickable(onClick = onClick),
+            leadingContent = {
+                FilledTonalIconButton(
+                    onClick = onClick,
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null
+                    )
+                }
+            },
+            headlineContent = {
                 Text(
                     title,
                     style =
                         MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.SemiBold
                         )
                 )
-
+            },
+            supportingContent = {
                 Text(
                     summary,
-                    style =
-                        MaterialTheme.typography.bodySmall,
-                    color =
-                        MaterialTheme.colorScheme
-                            .onSurfaceVariant
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingContent = {
+                Icon(
+                    Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-
-            Text(
-                "›",
-                style =
-                    MaterialTheme.typography.headlineSmall,
-                color =
-                    MaterialTheme.colorScheme
-                        .onSurfaceVariant
-            )
-        }
+        )
     }
 
     @Composable
@@ -3000,31 +2917,27 @@ class MainActivity : ComponentActivity() {
     ) {
         Row(
             Modifier.fillMaxWidth(),
-            horizontalArrangement =
-                Arrangement.Center
+            horizontalArrangement = Arrangement.Center
         ) {
-            OutlinedButton(
+            FilledTonalButton(
                 enabled = systemUiHidden && !busy,
                 onClick = onClick,
-                shape = RoundedCornerShape(50)
+                shape = MaterialTheme.shapes.extraLarge
             ) {
                 Icon(
                     Icons.Default.Refresh,
                     contentDescription = null
                 )
                 Text(
-                    stringResource(
-                        R.string.reset_position
-                    ),
-                    modifier = Modifier.padding(
-                        start = 6.dp
-                    )
+                    stringResource(R.string.reset_position),
+                    modifier = Modifier.padding(start = 6.dp)
                 )
             }
         }
     }
 
     @Composable
+    private fun SliderValueSetting(    @Composable
     private fun SliderValueSetting(
         title: String,
         valueText: String,
@@ -3126,33 +3039,83 @@ class MainActivity : ComponentActivity() {
         onAction: () -> Unit
     ) {
         ListItem(
-            headlineContent = {
-                Text(title)
-            },
-            supportingContent = if (ready) {
-                {
-                    Text(
-                        stringResource(R.string.ready),
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
-            } else {
-                null
-            },
-            trailingContent = if (ready) {
-                null
-            } else {
-                {
-                    TextButton(onClick = onAction) {
-                        Text(actionLabel)
+            modifier = Modifier.fillMaxWidth(),
+            leadingContent = {
+                androidx.compose.material3.Surface(
+                    modifier = Modifier.size(40.dp),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    color =
+                        if (ready) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainerHighest
+                        }
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector =
+                                if (ready) {
+                                    Icons.Default.Check
+                                } else {
+                                    Icons.Default.Tune
+                                },
+                            contentDescription = null,
+                            tint =
+                                if (ready) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
-            }
+            },
+            headlineContent = {
+                Text(
+                    title,
+                    style =
+                        MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Medium
+                        )
+                )
+            },
+            supportingContent =
+                if (ready) {
+                    {
+                        Text(
+                            stringResource(R.string.ready),
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                } else null,
+            trailingContent =
+                if (ready) {
+                    {
+                        AssistChip(
+                            onClick = {},
+                            enabled = false,
+                            label = {
+                                Text(stringResource(R.string.ready))
+                            }
+                        )
+                    }
+                } else {
+                    {
+                        TextButton(onClick = onAction) {
+                            Text(actionLabel)
+                        }
+                    }
+                }
         )
     }
 
     @Composable
+    private fun SliderSetting(    @Composable
     private fun SliderSetting(
         title: String,
         valueText: String,
@@ -3315,6 +3278,15 @@ private val SystemUIPlusTypography =
         )
     )
 
+private val SystemUIPlusShapes =
+    androidx.compose.material3.Shapes(
+        extraSmall = RoundedCornerShape(8.dp),
+        small = RoundedCornerShape(12.dp),
+        medium = RoundedCornerShape(20.dp),
+        large = RoundedCornerShape(28.dp),
+        extraLarge = RoundedCornerShape(32.dp)
+    )
+
 @Composable
 private fun SystemUIPlusTheme(
     themeMode: AppThemeMode,
@@ -3430,6 +3402,7 @@ private fun SystemUIPlusTheme(
     MaterialTheme(
         colorScheme = scheme,
         typography = SystemUIPlusTypography,
+        shapes = SystemUIPlusShapes,
         content = content
     )
 }

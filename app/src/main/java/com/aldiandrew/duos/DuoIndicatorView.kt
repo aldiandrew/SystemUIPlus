@@ -43,6 +43,12 @@ class DuoIndicatorView(context: Context) : View(context) {
         const val WIFI_DOT_RADIUS = 5.5f
         const val WIFI_DOT_LIFT = 3.2f
 
+        const val PILL_WIDTH = 104f
+        const val PILL_HEIGHT = 62f
+        const val PILL_STROKE = 3.8f
+        const val PILL_TEXT_FONT = 25f
+        const val PILL_DOT_RADIUS = 3.5f
+
         val DOTS = arrayOf(
             floatArrayOf(-27f, 42.7f),
             floatArrayOf(-9.5f, 49.7f),
@@ -102,6 +108,7 @@ class DuoIndicatorView(context: Context) : View(context) {
             DuoVisualStyle.COMPACT -> 0.88f
             DuoVisualStyle.MINIMAL -> 0.94f
             DuoVisualStyle.RING -> 1f
+            DuoVisualStyle.PILL -> 1f
         }
         val k = (contentSide * styleScale) / DESIGN_SIZE
         val stroke = STROKE * k *
@@ -130,6 +137,15 @@ class DuoIndicatorView(context: Context) : View(context) {
                     cy
                 )
             }
+            DuoVisualStyle.PILL -> {
+                drawPill(
+                    canvas,
+                    current,
+                    k,
+                    cx,
+                    cy
+                )
+            }
             else -> {
                 drawRing(canvas, current, k, arc)
 
@@ -140,6 +156,180 @@ class DuoIndicatorView(context: Context) : View(context) {
 
                 drawBatteryText(canvas, current, k, cx, cy)
             }
+        }
+    }
+
+    private fun drawPill(
+        canvas: Canvas,
+        current: DuoStatusState,
+        k: Float,
+        cx: Float,
+        cy: Float
+    ) {
+        val width = PILL_WIDTH * k
+        val height = PILL_HEIGHT * k
+        val left = cx - width / 2f
+        val top = cy - height / 2f
+        val right = cx + width / 2f
+        val bottom = cy + height / 2f
+        val radius = height / 2f
+
+        fillPaint.color =
+            withAlpha(current.foregroundColor, 0.12f)
+        canvas.drawRoundRect(
+            left,
+            top,
+            right,
+            bottom,
+            radius,
+            radius,
+            fillPaint
+        )
+
+        ringPaint.strokeWidth = PILL_STROKE * k
+        ringPaint.color =
+            withAlpha(current.foregroundColor, 0.42f)
+        canvas.drawRoundRect(
+            left + ringPaint.strokeWidth / 2f,
+            top + ringPaint.strokeWidth / 2f,
+            right - ringPaint.strokeWidth / 2f,
+            bottom - ringPaint.strokeWidth / 2f,
+            radius,
+            radius,
+            ringPaint
+        )
+
+        val innerLeft = left + 7f * k
+        val innerRight = right - 7f * k
+        val progressTop = bottom - 8f * k
+        val progressBottom = bottom - 4f * k
+        val progressWidth =
+            (innerRight - innerLeft) *
+                (current.batteryLevel.coerceIn(0, 100) / 100f)
+
+        fillPaint.color =
+            withAlpha(
+                current.batteryColor,
+                if (current.charging) {
+                    chargingPulse()
+                } else {
+                    0.86f
+                }
+            )
+
+        if (progressWidth > 0f) {
+            canvas.drawRoundRect(
+                innerLeft,
+                progressTop,
+                innerLeft + progressWidth,
+                progressBottom,
+                2f * k,
+                2f * k,
+                fillPaint
+            )
+        }
+
+        if (current.charging) {
+            drawBolt(
+                canvas,
+                current.batteryColor,
+                left + 17f * k,
+                cy - 1f * k,
+                24f * k
+            )
+        } else {
+            textPaint.color = current.foregroundColor
+            textPaint.textSize = PILL_TEXT_FONT * k
+            val batteryText =
+                current.batteryLevel.coerceIn(0, 100).toString()
+            val batteryBaseline =
+                cy - (textPaint.ascent() + textPaint.descent()) / 2f
+
+            canvas.drawText(
+                batteryText,
+                left + 26f * k,
+                batteryBaseline,
+                textPaint
+            )
+        }
+
+        val rightCx = right - 24f * k
+        val statusCy = cy - 5f * k
+
+        when {
+            current.airplane -> {
+                drawAirplane(
+                    canvas,
+                    current.foregroundColor,
+                    k * 0.58f,
+                    rightCx,
+                    statusCy
+                )
+            }
+            current.dnd -> {
+                drawMoon(
+                    canvas,
+                    current.foregroundColor,
+                    k * 0.42f,
+                    rightCx,
+                    statusCy
+                )
+            }
+            current.vpnConnected -> {
+                drawNetwork(
+                    canvas,
+                    current.foregroundColor,
+                    "VPN",
+                    k * 0.48f,
+                    rightCx,
+                    statusCy
+                )
+            }
+            current.wifiConnected -> {
+                drawWifi(
+                    canvas,
+                    current.foregroundColor,
+                    current.wifiLevel,
+                    k * 0.46f,
+                    rightCx,
+                    statusCy
+                )
+            }
+            current.networkGeneration.isNotEmpty() -> {
+                drawNetwork(
+                    canvas,
+                    current.foregroundColor,
+                    current.networkGeneration,
+                    k * 0.50f,
+                    rightCx,
+                    statusCy
+                )
+            }
+        }
+
+        val opacities =
+            DuoStatusMapper.cellOpacities(
+                if (current.airplane) 0 else current.cellLevel
+            )
+        val dotsStartX = right - 42f * k
+        val dotsY = cy + 12f * k
+
+        for (i in 0 until 4) {
+            fillPaint.color =
+                withAlpha(
+                    current.foregroundColor,
+                    opacities[i]
+                )
+            canvas.drawCircle(
+                dotsStartX + i * 6f * k,
+                dotsY,
+                PILL_DOT_RADIUS * k,
+                fillPaint
+            )
+        }
+
+        if (current.charging) {
+            postInvalidateDelayed(100L)
         }
     }
 

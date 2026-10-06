@@ -5,6 +5,7 @@ import android.graphics.Color
 enum class DuoVisualStyle {
     DUO,
     COMPACT,
+    PILL,
     MINIMAL,
     RING
 }

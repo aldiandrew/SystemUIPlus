@@ -44,6 +44,7 @@
     <string name="style">Gaya</string>
     <string name="duo">Duo</string>
     <string name="compact">Ringkas</string>
+    <string name="pill">Pill</string>
     <string name="restore_native_systemui">Pulihkan SystemUI bawaan</string>
     <string name="reset">Reset</string>
     <string name="ready">SIAP</string>
