@@ -56,7 +56,7 @@ object SystemUIPlusAppearance {
     private var screenReceiverContext: Context? = null
 
     private const val CACHE_MS = 1_500L
-    private const val REFRESH_WHEN_INTERACTIVE_MS = 10_000L
+    private const val REFRESH_WHEN_INTERACTIVE_MS = 30_000L
     private const val REFRESH_WHEN_SCREEN_OFF_MS = 60_000L
     private const val LIGHT_STATUS_BARS = 8L
 
