@@ -9,14 +9,18 @@ import android.os.Looper
  * Single owner of native SystemUI visibility.
  *
  * This follows the proven CleanBar sequence: clear demo mode, disable native
- * status-bar icons/clock/notifications, then apply immersive policy. ClockOS
- * and Duos never touch native SystemUI visibility themselves.
+ * status-bar system/notification icons, hide only the native clock through the
+ * SystemUI icon hide-list, then apply immersive policy. ClockOS and Duos never
+ * touch native SystemUI visibility themselves.
  */
 object SystemUIPlusController {
     private const val PREFS = "systemui_plus_controller"
     private const val KEY_ENABLED = "native_systemui_hidden"
     private const val KEY_PREVIOUS_POLICY = "previous_policy_control"
+    private const val KEY_PREVIOUS_ICON_BLACKLIST = "previous_icon_blacklist"
     private const val NO_POLICY = "__SYSTEMUI_PLUS_NO_POLICY__"
+    private const val NO_ICON_BLACKLIST = "__SYSTEMUI_PLUS_NO_ICON_BLACKLIST__"
+    private const val CLOCK_SLOT = "clock"
     private val handler = Handler(Looper.getMainLooper())
     private var lastOrientationMode: Int = Int.MIN_VALUE
 
@@ -48,18 +52,24 @@ object SystemUIPlusController {
                     .apply()
             }
 
+            // Save and modify only the native clock hide-list entry. Existing
+            // user/OEM blacklist entries are preserved exactly for restoration.
+            ensureClockBlacklisted(
+                context,
+                prefs
+            ).getOrThrow()
+
             // CleanBar sequence:
             // 1. Exit any active SystemUI demo mode.
             SystemUIPlusShizuku.execute(
                 "am broadcast -a com.android.systemui.demo -e command exit"
             )
 
-            // 2. Explicitly disable native status-bar icons, clock and
-            // notifications. This closes the gap where immersive policy alone
-            // can leave the native SystemUI renderer visible on some builds.
+            // 2. Keep native system icons and notification icons disabled.
+            // The clock is intentionally NOT part of this disable flag.
             SystemUIPlusShizuku.execute(
-                "cmd statusbar send-disable-flag system-icons clock notification-icons"
-            )
+                "cmd statusbar send-disable-flag system-icons notification-icons"
+            ).getOrThrow()
 
             // 3. Keep the full immersive policy so native navigation is hidden
             // as well. The custom renderer remains the only visible SystemUI
@@ -98,8 +108,19 @@ object SystemUIPlusController {
                 return Result.failure(SecurityException("Shizuku permission is not granted"))
             }
 
+            val prefs =
+                context.getSharedPreferences(
+                    PREFS,
+                    Context.MODE_PRIVATE
+                )
+
+            ensureClockBlacklisted(
+                context,
+                prefs
+            ).getOrThrow()
+
             SystemUIPlusShizuku.execute(
-                "cmd statusbar send-disable-flag system-icons clock notification-icons"
+                "cmd statusbar send-disable-flag system-icons notification-icons"
             ).getOrThrow()
 
             Result.success(Unit)
@@ -116,8 +137,19 @@ object SystemUIPlusController {
                 )
             }
 
+            val prefs =
+                context.getSharedPreferences(
+                    PREFS,
+                    Context.MODE_PRIVATE
+                )
+
+            ensureClockBlacklisted(
+                context,
+                prefs
+            ).getOrThrow()
+
             SystemUIPlusShizuku.execute(
-                "cmd statusbar send-disable-flag system-icons clock notification-icons"
+                "cmd statusbar send-disable-flag system-icons notification-icons"
             ).getOrThrow()
 
             SystemUIPlusShizuku.execute(
@@ -138,9 +170,15 @@ object SystemUIPlusController {
                 )
             }
 
-            // Landscape deliberately uses the stock Motorola SystemUI.
+            // Landscape deliberately returns ownership to the stock SystemUI.
             SystemUIPlusShizuku.execute(
                 "cmd statusbar send-disable-flag none"
+            ).getOrThrow()
+
+            // Restore the native clock visibility when the custom portrait
+            // renderer is not active.
+            restoreClockBlacklist(
+                context
             ).getOrThrow()
 
             val prefs = context.getSharedPreferences(
@@ -184,6 +222,186 @@ object SystemUIPlusController {
             Result.failure(t)
         }
     }
+
+    /**
+     * Add only the "clock" slot to Settings.Secure icon_blacklist while
+     * preserving the exact pre-SystemUI Plus value for safe restoration.
+     */
+    private fun ensureClockBlacklisted(
+        context: Context,
+        prefs: android.content.SharedPreferences
+    ): Result<Unit> {
+        return try {
+            if (!prefs.contains(KEY_PREVIOUS_ICON_BLACKLIST)) {
+                val current =
+                    SystemUIPlusShizuku.execute(
+                        "settings get secure icon_blacklist"
+                    ).getOrThrow().stdout.trim()
+
+                prefs.edit()
+                    .putString(
+                        KEY_PREVIOUS_ICON_BLACKLIST,
+                        if (
+                            current.isBlank() ||
+                            current == "null"
+                        ) {
+                            NO_ICON_BLACKLIST
+                        } else {
+                            current
+                        }
+                    )
+                    .apply()
+            }
+
+            val current =
+                SystemUIPlusShizuku.execute(
+                    "settings get secure icon_blacklist"
+                ).getOrThrow().stdout.trim()
+
+            val slots =
+                current
+                    .takeUnless {
+                        it.isBlank() ||
+                            it == "null"
+                    }
+                    ?.split(",")
+                    ?.map { it.trim() }
+                    ?.filter { it.isNotEmpty() }
+                    ?.toMutableList()
+                    ?: mutableListOf()
+
+            if (!slots.contains(CLOCK_SLOT)) {
+                slots.add(CLOCK_SLOT)
+            }
+
+            val updated =
+                slots.joinToString(",")
+
+            SystemUIPlusShizuku.execute(
+                "settings put secure icon_blacklist " +
+                    shellQuote(updated)
+            ).getOrThrow()
+
+            val verify =
+                SystemUIPlusShizuku.execute(
+                    "settings get secure icon_blacklist"
+                ).getOrThrow().stdout.trim()
+
+            val verifiedSlots =
+                verify
+                    .takeUnless {
+                        it.isBlank() ||
+                            it == "null"
+                    }
+                    ?.split(",")
+                    ?.map { it.trim() }
+                    ?: emptyList()
+
+            if (!verifiedSlots.contains(CLOCK_SLOT)) {
+                return Result.failure(
+                    IllegalStateException(
+                        "Android did not add clock to icon_blacklist"
+                    )
+                )
+            }
+
+            Result.success(Unit)
+        } catch (t: Throwable) {
+            Result.failure(t)
+        }
+    }
+
+    /**
+     * Restore the exact icon_blacklist value that existed before SystemUI Plus
+     * enabled the custom status bar.
+     */
+    private fun restoreClockBlacklist(
+        context: Context
+    ): Result<Unit> {
+        val prefs =
+            context.getSharedPreferences(
+                PREFS,
+                Context.MODE_PRIVATE
+            )
+
+        if (!prefs.contains(KEY_PREVIOUS_ICON_BLACKLIST)) {
+            return Result.success(Unit)
+        }
+
+        return try {
+            if (!SystemUIPlusShizuku.hasPermission()) {
+                return Result.failure(
+                    SecurityException(
+                        "Shizuku permission is not granted"
+                    )
+                )
+            }
+
+            val previous =
+                prefs.getString(
+                    KEY_PREVIOUS_ICON_BLACKLIST,
+                    NO_ICON_BLACKLIST
+                ) ?: NO_ICON_BLACKLIST
+
+            if (
+                previous == NO_ICON_BLACKLIST ||
+                previous == "null" ||
+                previous.isBlank()
+            ) {
+                SystemUIPlusShizuku.execute(
+                    "settings delete secure icon_blacklist"
+                ).getOrThrow()
+            } else {
+                SystemUIPlusShizuku.execute(
+                    "settings put secure icon_blacklist " +
+                        shellQuote(previous)
+                ).getOrThrow()
+            }
+
+            val verify =
+                SystemUIPlusShizuku.execute(
+                    "settings get secure icon_blacklist"
+                ).getOrThrow().stdout.trim()
+
+            val restored =
+                if (
+                    previous == NO_ICON_BLACKLIST ||
+                    previous == "null" ||
+                    previous.isBlank()
+                ) {
+                    verify.isBlank() ||
+                        verify == "null"
+                } else {
+                    verify == previous
+                }
+
+            if (!restored) {
+                return Result.failure(
+                    IllegalStateException(
+                        "Android did not restore the previous icon_blacklist"
+                    )
+                )
+            }
+
+            prefs.edit()
+                .remove(KEY_PREVIOUS_ICON_BLACKLIST)
+                .apply()
+
+            Result.success(Unit)
+        } catch (t: Throwable) {
+            Result.failure(t)
+        }
+    }
+
+    private fun shellQuote(
+        value: String
+    ): String =
+        "'" +
+            value.replace(
+                "'",
+                "'\\''"
+            ) +
+            "'"
 
     /**
      * Orientation-aware native SystemUI policy.
@@ -237,11 +455,15 @@ object SystemUIPlusController {
                 )
             }
 
-            // CleanBar restoration first re-enables all native SystemUI
-            // elements before removing the immersive policy.
+            // Re-enable all native SystemUI disable-flag controlled elements.
             SystemUIPlusShizuku.execute(
                 "cmd statusbar send-disable-flag none"
-            )
+            ).getOrThrow()
+
+            // Restore the exact pre-SystemUI Plus clock hide-list value.
+            restoreClockBlacklist(
+                context
+            ).getOrThrow()
 
             val previous = prefs.getString(KEY_PREVIOUS_POLICY, NO_POLICY)
                 ?: NO_POLICY
