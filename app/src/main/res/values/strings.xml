@@ -147,10 +147,5 @@
     <string name="about_project_information_summary">Project source, third-party licenses and privacy information</string>
     <string name="content_description_project_information">Source, licenses and privacy</string>
 
-    <string name="overlay_notification">Overlay notification</string>
-    <string name="overlay_notification_summary">Manage the Android system notification for displaying over other apps.</string>
-    <string name="manage">Manage</string>
-    <string name="content_description_overlay_notification">Overlay notification</string>
-    <string name="toast_overlay_notification_settings_failed">Could not open overlay notification settings.</string>
 
 </resources>

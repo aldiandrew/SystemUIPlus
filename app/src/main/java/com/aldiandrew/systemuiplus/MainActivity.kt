@@ -34,7 +34,6 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.BatteryChargingFull
-import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.AccessTime
@@ -101,9 +100,6 @@ import rikka.shizuku.Shizuku
 class MainActivity : ComponentActivity() {
     companion object {
         private const val PHONE_PERMISSION_REQUEST = 4107
-        private const val SYSTEM_PACKAGE_NAME = "android"
-        private const val OVERLAY_NOTIFICATION_CHANNEL_PREFIX =
-            "com.android.server.wm.AlertWindowNotification - "
     }
     private lateinit var clockPrefs: ClockPrefs
     private var shizukuReady by mutableStateOf(false)
@@ -316,49 +312,6 @@ class MainActivity : ComponentActivity() {
             )
         } catch (_: Throwable) {
             startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION))
-        }
-    }
-
-    private fun openOverlayNotificationSettings() {
-        val channelId =
-            OVERLAY_NOTIFICATION_CHANNEL_PREFIX + packageName
-
-        val intent =
-            Intent(
-                Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS
-            ).apply {
-                putExtra(
-                    Settings.EXTRA_APP_PACKAGE,
-                    SYSTEM_PACKAGE_NAME
-                )
-                putExtra(
-                    Settings.EXTRA_CHANNEL_ID,
-                    channelId
-                )
-            }
-
-        try {
-            startActivity(intent)
-        } catch (_: Throwable) {
-            try {
-                startActivity(
-                    Intent(
-                        Settings.ACTION_APP_NOTIFICATION_SETTINGS
-                    ).apply {
-                        putExtra(
-                            Settings.EXTRA_APP_PACKAGE,
-                            SYSTEM_PACKAGE_NAME
-                        )
-                    }
-                )
-            } catch (t: Throwable) {
-                toast(
-                    t.message
-                        ?: getString(
-                            R.string.toast_overlay_notification_settings_failed
-                        )
-                )
-            }
         }
     }
 
@@ -1808,52 +1761,6 @@ class MainActivity : ComponentActivity() {
                         }
                     )
 
-                    HorizontalDivider(
-                        modifier = Modifier.padding(
-                            horizontal = 16.dp
-                        )
-                    )
-
-                    ListItem(
-                        modifier = Modifier.clickable {
-                            openOverlayNotificationSettings()
-                        },
-                        leadingContent = {
-                            Icon(
-                                Icons.Default.NotificationsOff,
-                                contentDescription =
-                                    stringResource(
-                                        R.string
-                                            .content_description_overlay_notification
-                                    )
-                            )
-                        },
-                        headlineContent = {
-                            Text(
-                                stringResource(
-                                    R.string.overlay_notification
-                                )
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                stringResource(
-                                    R.string.overlay_notification_summary
-                                )
-                            )
-                        },
-                        trailingContent = {
-                            Text(
-                                stringResource(
-                                    R.string.manage
-                                ),
-                                color =
-                                    MaterialTheme.colorScheme.primary,
-                                style =
-                                    MaterialTheme.typography
-                                        .labelLarge
-                            )
-                        }
                     )
                 }
             }

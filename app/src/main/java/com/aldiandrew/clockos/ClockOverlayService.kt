@@ -46,6 +46,8 @@ class ClockOverlayService : Service() {
         private const val CLOCK_EDGE_MARGIN_DP = 4f
         private const val CLOCK_VERTICAL_OFFSET_DP = -2f
         private const val MAX_DATE_EXTRA_WIDTH_DP = 72f
+        private const val LOGO_SLOT_WIDTH_DP = 20f
+        private const val LOGO_CLOCK_OVERLAP_DP = 2f
     }
 
     private lateinit var windowManager: WindowManager
@@ -190,7 +192,9 @@ class ClockOverlayService : Service() {
                 )
 
             logoView =
-                StatusBarLogoView(systemUiContext)
+                StatusBarLogoView(systemUiContext).apply {
+                    visibility = View.GONE
+                }
 
             statusBarContentView =
                 StatusBarClusterView(systemUiContext).apply {
@@ -473,6 +477,8 @@ class ClockOverlayService : Service() {
 
         val settings =
             ClockPrefs(this).load()
+
+        applyLogoSettings(settings)
 
         if (settings.sizeSp != lastSizeSp) {
             // TextView.setTextSize(float) is SP, while getTextSize() is PX.
@@ -874,7 +880,7 @@ class ClockOverlayService : Service() {
                 ::logoView.isInitialized &&
                 logoView.visibility == View.VISIBLE
             ) {
-                dp(30f)
+                dp(LOGO_SLOT_WIDTH_DP)
             } else {
                 0
             }
@@ -903,7 +909,7 @@ class ClockOverlayService : Service() {
             width -=
                 dp(
                     DuoPreferences.getIndicatorSizeDp(this) +
-                        8f
+                        6f
                 )
         }
 
@@ -1308,7 +1314,7 @@ private class StatusBarClusterView(
             logo.measure(
                 MeasureSpec.makeMeasureSpec(
                     (
-                        30f *
+                        LOGO_SLOT_WIDTH_DP *
                             resources.displayMetrics.density
                     ).toInt(),
                     MeasureSpec.EXACTLY
@@ -1398,6 +1404,10 @@ private class StatusBarClusterView(
 
         if (logo != null && logoOnLeft) {
             layoutChild(logo)
+            x -= (
+                LOGO_CLOCK_OVERLAP_DP *
+                    resources.displayMetrics.density
+            ).toInt()
         }
 
         layoutChild(clock)

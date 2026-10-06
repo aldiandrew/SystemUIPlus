@@ -175,7 +175,10 @@ class DuoIndicatorView(context: Context) : View(context) {
         val radius = height / 2f
 
         fillPaint.color =
-            withAlpha(current.foregroundColor, 0.12f)
+            withAlpha(
+                current.foregroundColor,
+                0.12f
+            )
         canvas.drawRoundRect(
             left,
             top,
@@ -186,71 +189,70 @@ class DuoIndicatorView(context: Context) : View(context) {
             fillPaint
         )
 
-        ringPaint.strokeWidth = PILL_STROKE * k
+        val batteryText =
+            current.batteryLevel
+                .coerceIn(0, 100)
+                .toString()
+
+        textPaint.color =
+            current.foregroundColor
+        textPaint.textSize =
+            (
+                if (batteryText.length >= 3) {
+                    21f
+                } else {
+                    PILL_TEXT_FONT
+                }
+            ) * k
+
+        ringPaint.strokeWidth =
+            PILL_STROKE * k
         ringPaint.color =
-            withAlpha(current.foregroundColor, 0.42f)
-        canvas.drawRoundRect(
-            left + ringPaint.strokeWidth / 2f,
-            top + ringPaint.strokeWidth / 2f,
-            right - ringPaint.strokeWidth / 2f,
-            bottom - ringPaint.strokeWidth / 2f,
-            radius,
-            radius,
-            ringPaint
+            withAlpha(
+                current.foregroundColor,
+                0.42f
+            )
+
+        drawPillOutline(
+            canvas = canvas,
+            left = left,
+            top = top,
+            right = right,
+            bottom = bottom,
+            radius = radius,
+            centerX = cx,
+            gapWidth =
+                if (current.charging) {
+                    28f * k
+                } else {
+                    textPaint.measureText(
+                        batteryText
+                    ) + 8f * k
+                }
         )
+
+        val batteryCenterY =
+            top + 1.5f * k
 
         if (current.charging) {
             drawBolt(
                 canvas,
                 current.batteryColor,
                 cx,
-                top + 1f * k,
+                batteryCenterY,
                 20f * k
             )
         } else {
-            val batteryText =
-                current.batteryLevel.coerceIn(0, 100).toString()
-
-            textPaint.color = current.foregroundColor
-            textPaint.textSize = PILL_TEXT_FONT * k
             val baseline =
-                top + 1f * k -
-                    (textPaint.ascent() + textPaint.descent()) / 2f
+                batteryCenterY -
+                    (
+                        textPaint.ascent() +
+                            textPaint.descent()
+                    ) / 2f
 
-            val textWidth =
-                textPaint.measureText(batteryText)
-            val maskLeft =
-                cx -
-                    textWidth / 2f -
-                    4f * k
-            val maskRight =
-                cx +
-                    textWidth / 2f +
-                    4f * k
-            val maskTop =
-                baseline +
-                    textPaint.ascent() -
-                    2f * k
-            val maskBottom =
-                baseline +
-                    textPaint.descent() +
-                    2f * k
-
-            fillPaint.color =
-                withAlpha(
-                    current.foregroundColor,
-                    0.12f
-                )
-            canvas.drawRoundRect(
-                maskLeft,
-                maskTop,
-                maskRight,
-                maskBottom,
-                4f * k,
-                4f * k,
-                fillPaint
-            )
-
+            // Like Duo/Compact, the outline is opened around the
+            // battery percentage instead of covering it with a
+            // background-colored mask.
             canvas.drawText(
                 batteryText,
                 cx,
@@ -260,7 +262,8 @@ class DuoIndicatorView(context: Context) : View(context) {
         }
 
         val centerStatusX = cx
-        val centerStatusY = cy + 3f * k
+        val centerStatusY =
+            cy + 3f * k
 
         when {
             current.airplane -> {
@@ -319,10 +322,17 @@ class DuoIndicatorView(context: Context) : View(context) {
 
         val opacities =
             DuoStatusMapper.cellOpacities(
-                if (current.airplane) 0 else current.cellLevel
+                if (current.airplane) {
+                    0
+                } else {
+                    current.cellLevel
+                }
             )
-        val dotsY = cy + 18f * k
-        val totalDotsWidth = 18f * k
+
+        val dotsY =
+            cy + 18f * k
+        val totalDotsWidth =
+            18f * k
         val dotsStartX =
             cx - totalDotsWidth / 2f
 
@@ -343,6 +353,101 @@ class DuoIndicatorView(context: Context) : View(context) {
         if (current.charging) {
             postInvalidateDelayed(100L)
         }
+    }
+
+    private fun drawPillOutline(
+        canvas: Canvas,
+        left: Float,
+        top: Float,
+        right: Float,
+        bottom: Float,
+        radius: Float,
+        centerX: Float,
+        gapWidth: Float
+    ) {
+        val halfStroke =
+            ringPaint.strokeWidth / 2f
+        val pathTop =
+            top + halfStroke
+        val pathBottom =
+            bottom - halfStroke
+        val pathLeft =
+            left + halfStroke
+        val pathRight =
+            right - halfStroke
+        val pathRadius =
+            (radius - halfStroke)
+                .coerceAtLeast(1f)
+
+        val maxGap =
+            (
+                pathRight -
+                    pathLeft -
+                    2f * pathRadius -
+                    2f
+            ).coerceAtLeast(0f)
+        val actualGap =
+            gapWidth.coerceIn(
+                0f,
+                maxGap
+            )
+        val gapHalf =
+            actualGap / 2f
+
+        path.reset()
+        path.moveTo(
+            centerX + gapHalf,
+            pathTop
+        )
+        path.lineTo(
+            pathRight - pathRadius,
+            pathTop
+        )
+        path.quadTo(
+            pathRight,
+            pathTop,
+            pathRight,
+            pathTop + pathRadius
+        )
+        path.lineTo(
+            pathRight,
+            pathBottom - pathRadius
+        )
+        path.quadTo(
+            pathRight,
+            pathBottom,
+            pathRight - pathRadius,
+            pathBottom
+        )
+        path.lineTo(
+            pathLeft + pathRadius,
+            pathBottom
+        )
+        path.quadTo(
+            pathLeft,
+            pathBottom,
+            pathLeft,
+            pathBottom - pathRadius
+        )
+        path.lineTo(
+            pathLeft,
+            pathTop + pathRadius
+        )
+        path.quadTo(
+            pathLeft,
+            pathTop,
+            pathLeft + pathRadius,
+            pathTop
+        )
+        path.lineTo(
+            centerX - gapHalf,
+            pathTop
+        )
+
+        canvas.drawPath(
+            path,
+            ringPaint
+        )
     }
 
     private fun drawRingOnly(
