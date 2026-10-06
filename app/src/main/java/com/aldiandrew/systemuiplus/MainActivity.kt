@@ -778,8 +778,8 @@ class MainActivity : ComponentActivity() {
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             Text(
-                stringResource(R.string.about_description),
-                style = MaterialTheme.typography.bodyLarge,
+                stringResource(R.string.home_subtitle),
+                style = MaterialTheme.typography.bodyMedium,
                 color =
                     MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(
@@ -2700,7 +2700,7 @@ class MainActivity : ComponentActivity() {
         text: String
     ) {
         Text(
-            text = text,
+            text = text.uppercase(),
             style =
                 MaterialTheme.typography.labelMedium.copy(
                     fontWeight = FontWeight.Medium,
