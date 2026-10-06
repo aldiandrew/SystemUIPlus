@@ -124,6 +124,7 @@ class MainActivity : ComponentActivity() {
     private var settingsPage by mutableStateOf(AppSettingsPage.ROOT)
     private var customizationPage by mutableStateOf(CustomizationPage.NONE)
     private var appLanguageMode by mutableStateOf(AppLanguageMode.DEVICE)
+    private var onboardingCompleted by mutableStateOf(false)
 
     private val permissionListener =
         Shizuku.OnRequestPermissionResultListener { _, _ -> refreshState() }
@@ -149,6 +150,8 @@ class MainActivity : ComponentActivity() {
         appThemeMode = SystemUIPlusAppSettings.getThemeMode(this)
         usePureBlackTheme =
             SystemUIPlusAppSettings.isPureBlackThemeEnabled(this)
+        onboardingCompleted =
+            SystemUIPlusAppSettings.isOnboardingCompleted(this)
         SystemUIPlusAppSettings.applyLanguage(this, appLanguageMode)
         loadSettings()
         refreshPhonePermission()
@@ -578,6 +581,30 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     private fun SystemUIScreen() {
+        if (!onboardingCompleted) {
+            OnboardingScreen(
+                modifier = Modifier.fillMaxSize(),
+                shizukuReady = shizukuReady,
+                notificationAccess = notificationAccess,
+                phoneStateGranted = phoneStateGranted,
+                overlayPermissionGranted = overlayPermissionGranted,
+                appLanguageMode = appLanguageMode,
+                onLanguageSelected = ::changeLanguage,
+                onShizukuAction = ::requestShizuku,
+                onNotificationAccess = ::openNotificationAccess,
+                onPhonePermission = ::requestPhonePermission,
+                onOverlayPermission = ::openOverlayPermission,
+                onComplete = {
+                    SystemUIPlusAppSettings.setOnboardingCompleted(
+                        this@MainActivity,
+                        true
+                    )
+                    onboardingCompleted = true
+                }
+            )
+            return
+        }
+
         BackHandler(
             enabled =
                 settingsScreen ||

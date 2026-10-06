@@ -37,6 +37,7 @@ object SystemUIPlusAppSettings {
     private const val KEY_LANGUAGE_MODE = "language_mode"
     private const val KEY_THEME_MODE = "theme_mode"
     private const val KEY_PURE_BLACK_THEME = "pure_black_theme"
+    private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
 
     fun getLanguageMode(context: Context): AppLanguageMode =
         AppLanguageMode.fromStorage(
@@ -64,6 +65,18 @@ object SystemUIPlusAppSettings {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_THEME_MODE, mode.storageValue)
+            .apply()
+    }
+
+
+    fun isOnboardingCompleted(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean(KEY_ONBOARDING_COMPLETED, false)
+
+    fun setOnboardingCompleted(context: Context, completed: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_ONBOARDING_COMPLETED, completed)
             .apply()
     }
 
