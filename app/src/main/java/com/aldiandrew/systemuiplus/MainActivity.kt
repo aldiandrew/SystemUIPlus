@@ -923,7 +923,10 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
-    }private fun ClockCustomizationScreen(
+    }
+
+    @Composable
+    private fun ClockCustomizationScreen(
         modifier: Modifier = Modifier
     ) {
         Column(
@@ -2070,7 +2073,10 @@ class MainActivity : ComponentActivity() {
                     }
                 } else null
         )
-    }private fun BackupRestoreScreen(
+    }
+
+    @Composable
+    private fun BackupRestoreScreen(
         modifier: Modifier = Modifier
     ) {
         var pendingRestoreUri by remember {
