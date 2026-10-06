@@ -1957,7 +1957,6 @@ class MainActivity : ComponentActivity() {
         ListItem(
             selected = selected,
             onClick = onSelected,
-            headlineContent = { Text(label) },
             leadingContent = {
                 RadioButton(
                     selected = selected,
@@ -1974,7 +1973,9 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 } else null
-        )
+        ) {
+            Text(label)
+        }
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
