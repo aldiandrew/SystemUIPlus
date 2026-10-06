@@ -12,6 +12,7 @@
     <string name="allow">Izinkan</string>
     <string name="display_over_other_apps">Tampil di atas aplikasi lain</string>
     <string name="live_preview">Pratinjau langsung</string>
+    <string name="home_subtitle">Kustomisasi status bar sistem Anda</string>
     <string name="customize">KUSTOMISASI</string>
     <string name="clock">Jam</string>
     <string name="clock_summary">Waktu, tanggal &amp; posisi</string>
