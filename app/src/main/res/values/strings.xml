@@ -14,6 +14,14 @@
     <string name="live_preview">Live preview</string>
     <string name="home_subtitle">Customize your system status bar</string>
     <string name="onboarding_welcome_title">Welcome to SystemUI Plus</string>
+    <string name="onboarding_acknowledgement_title">A quick note before you start</string>
+    <string name="onboarding_acknowledgement_message">SystemUI Plus changes parts of the visible status bar while it is active. The native SystemUI can always be restored.</string>
+    <string name="onboarding_no_root">No root access is required.</string>
+    <string name="onboarding_no_xposed">No Xposed framework is required.</string>
+    <string name="onboarding_no_accessibility">No Accessibility service is required.</string>
+    <string name="onboarding_shizuku_notice">Shizuku is used only for the privileged SystemUI operations.</string>
+    <string name="onboarding_preferences_title">Choose your defaults</string>
+    <string name="onboarding_preferences_message">Pick a theme now. You can change it any time from Settings.</string>
     <string name="onboarding_welcome_message">A simple way to customize your status bar clock, indicators and notification icons.</string>
     <string name="onboarding_language_label">Language</string>
     <string name="onboarding_shizuku_title">Connect Shizuku</string>
