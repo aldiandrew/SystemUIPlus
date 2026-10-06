@@ -923,11 +923,7 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
-    }
-
-    @Composable
-    private fun ClockCustomizationScreen(    @Composable
-    private fun ClockCustomizationScreen(
+    }private fun ClockCustomizationScreen(
         modifier: Modifier = Modifier
     ) {
         Column(
@@ -1365,7 +1361,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun navigateBackFromSettings(    private fun navigateBackFromSettings() {
+    private fun navigateBackFromSettings() {
         if (!settingsScreen) return
 
         if (settingsPage != AppSettingsPage.ROOT) {
@@ -1980,8 +1976,6 @@ class MainActivity : ComponentActivity() {
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    private fun ThemeDialog(    @OptIn(ExperimentalMaterial3Api::class)
-    @Composable
     private fun ThemeDialog(
         onDismiss: () -> Unit
     ) {
@@ -2076,11 +2070,7 @@ class MainActivity : ComponentActivity() {
                     }
                 } else null
         )
-    }
-
-    @Composable
-    private fun BackupRestoreScreen(    @Composable
-    private fun BackupRestoreScreen(
+    }private fun BackupRestoreScreen(
         modifier: Modifier = Modifier
     ) {
         var pendingRestoreUri by remember {
