@@ -45,7 +45,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
@@ -77,8 +76,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -658,53 +655,21 @@ class MainActivity : ComponentActivity() {
 
         Scaffold(
             topBar = {
-                if (isHome) {
-                    androidx.compose.material3.LargeTopAppBar(
-                        title = {
-                            Text(
-                                topBarTitle,
-                                style =
-                                    MaterialTheme.typography.headlineMedium.copy(
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                            )
-                        },
-                        actions = {
-                            FilledTonalIconButton(
-                                onClick = {
-                                    settingsPage = AppSettingsPage.ROOT
-                                    settingsScreen = true
-                                }
-                            ) {
-                                Icon(
-                                    Icons.Default.Settings,
-                                    contentDescription =
-                                        stringResource(
-                                            R.string.content_description_settings
-                                        )
+                TopAppBar(
+                    title = {
+                        Text(
+                            topBarTitle,
+                            style =
+                                MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.Medium
                                 )
-                            }
-                        },
-                        colors =
-                            TopAppBarDefaults.topAppBarColors(
-                                containerColor =
-                                    androidx.compose.ui.graphics.Color.Transparent,
-                                scrolledContainerColor =
-                                    MaterialTheme.colorScheme.surface
-                            )
-                    )
-                } else {
-                    TopAppBar(
-                        title = {
-                            Text(
-                                topBarTitle,
-                                style =
-                                    MaterialTheme.typography.titleLarge.copy(
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                            )
-                        },
-                        navigationIcon = {
+                        )
+                    },
+                    navigationIcon = if (
+                        settingsScreen ||
+                            customizationPage != CustomizationPage.NONE
+                    ) {
+                        {
                             IconButton(
                                 onClick = {
                                     when {
@@ -724,16 +689,35 @@ class MainActivity : ComponentActivity() {
                                         )
                                 )
                             }
-                        },
-                        colors =
-                            TopAppBarDefaults.topAppBarColors(
-                                containerColor =
-                                    androidx.compose.ui.graphics.Color.Transparent,
-                                scrolledContainerColor =
-                                    MaterialTheme.colorScheme.surface
-                            )
-                    )
-                }
+                        }
+                    } else {
+                        {}
+                    },
+                    actions = if (
+                        !settingsScreen &&
+                            customizationPage == CustomizationPage.NONE
+                    ) {
+                        {
+                            IconButton(
+                                onClick = {
+                                    settingsPage =
+                                        AppSettingsPage.ROOT
+                                    settingsScreen = true
+                                }
+                            ) {
+                                Icon(
+                                    Icons.Default.Settings,
+                                    contentDescription =
+                                        stringResource(
+                                            R.string.content_description_settings
+                                        )
+                                )
+                            }
+                        }
+                    } else {
+                        {}
+                    }
+                )
             }
         ) { padding ->
             when {
@@ -814,31 +798,6 @@ class MainActivity : ComponentActivity() {
                 modifier = Modifier.padding(horizontal = 2.dp)
             )
 
-            AssistChip(
-                onClick = {},
-                enabled = false,
-                label = {
-                    Text(
-                        if (systemUiHidden) {
-                            stringResource(R.string.systemui_status_active)
-                        } else {
-                            statusSummary
-                        }
-                    )
-                },
-                leadingIcon = {
-                    Icon(
-                        if (systemUiHidden) {
-                            Icons.Default.Check
-                        } else {
-                            Icons.Default.Tune
-                        },
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            )
-
             SectionLabel(stringResource(R.string.live_preview))
 
             StatusBarPreview(
@@ -897,17 +856,6 @@ class MainActivity : ComponentActivity() {
                         customizationPage = CustomizationPage.INDICATORS
                     }
                 )
-            }
-
-            if (systemUiHidden) {
-                FilledTonalButton(
-                    enabled = !busy,
-                    onClick = ::restoreNativeSystemUi,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.extraLarge
-                ) {
-                    Text(stringResource(R.string.restore_native_systemui))
-                }
             }
 
             if (!allRequiredAccess && !systemUiHidden) {
@@ -1011,7 +959,8 @@ class MainActivity : ComponentActivity() {
                             "EEE MMM dd",
                             "EEEE dd/MM",
                             "EEEE MM/dd"
-                        )
+                        ),
+                        canInteract = clockSettings.showDate
                     ) {
                         saveClock(
                             "dateFormat",
@@ -1050,7 +999,8 @@ class MainActivity : ComponentActivity() {
                             normalLabel,
                             lowercaseLabel,
                             uppercaseLabel
-                        )
+                        ),
+                        canInteract = clockSettings.showDate
                     ) { value ->
                         saveClock(
                             "dateStyle",
@@ -1502,45 +1452,25 @@ class MainActivity : ComponentActivity() {
                         )
                     )
 
-                    ListItem(
-                        headlineContent = {
+                    if (systemUiHidden) {
+                        FilledTonalButton(
+                            enabled = !busy,
+                            onClick = ::restoreNativeSystemUi,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    horizontal = 16.dp,
+                                    vertical = 12.dp
+                                ),
+                            shape = MaterialTheme.shapes.extraLarge
+                        ) {
                             Text(
                                 stringResource(
-                                    R.string.systemui_plus
-                                ),
-                                style =
-                                    MaterialTheme.typography
-                                        .bodyLarge
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                if (systemUiHidden) {
-                                    stringResource(
-                                        R.string.systemui_status_active
-                                    )
-                                } else {
-                                    stringResource(
-                                        R.string.systemui_status_ready
-                                    )
-                                }
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = systemUiHidden,
-                                onCheckedChange = {
-                                    toggleMasterSystemUi()
-                                },
-                                enabled =
-                                    shizukuReady &&
-                                        notificationAccess &&
-                                        phoneStateGranted &&
-                                        overlayPermissionGranted &&
-                                        !busy
+                                    R.string.restore_native_systemui
+                                )
                             )
                         }
-                    )
+                    }
                 }
             }
 
@@ -2984,9 +2914,10 @@ class MainActivity : ComponentActivity() {
         label: String,
         selected: String,
         options: List<String>,
-        onSelected: (String) -> Unit
+        onSelected: (String) -> Unit,
+        canInteract: Boolean = true
     ) {
-        val enabled = systemUiHidden && !busy
+        val enabled = systemUiHidden && !busy && canInteract
         var expanded by androidx.compose.runtime.remember { mutableStateOf(false) }
 
         Box(Modifier.fillMaxWidth()) {
@@ -3204,74 +3135,8 @@ private enum class PreviewMode {
     INDICATORS
 }
 
-private val SystemUIPlusJakartaSans =
-    FontFamily(
-        Font(
-            R.font.plus_jakarta_sans_400,
-            FontWeight.Normal
-        ),
-        Font(
-            R.font.plus_jakarta_sans_500,
-            FontWeight.Medium
-        ),
-        Font(
-            R.font.plus_jakarta_sans_600,
-            FontWeight.SemiBold
-        ),
-        Font(
-            R.font.plus_jakarta_sans_700,
-            FontWeight.Bold
-        )
-    )
-
 private val SystemUIPlusTypography =
-    androidx.compose.material3.Typography().copy(
-        displayLarge = androidx.compose.material3.Typography().displayLarge.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        displayMedium = androidx.compose.material3.Typography().displayMedium.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        displaySmall = androidx.compose.material3.Typography().displaySmall.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        headlineLarge = androidx.compose.material3.Typography().headlineLarge.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        headlineMedium = androidx.compose.material3.Typography().headlineMedium.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        headlineSmall = androidx.compose.material3.Typography().headlineSmall.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        titleLarge = androidx.compose.material3.Typography().titleLarge.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        titleMedium = androidx.compose.material3.Typography().titleMedium.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        titleSmall = androidx.compose.material3.Typography().titleSmall.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        bodyLarge = androidx.compose.material3.Typography().bodyLarge.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        bodyMedium = androidx.compose.material3.Typography().bodyMedium.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        bodySmall = androidx.compose.material3.Typography().bodySmall.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        labelLarge = androidx.compose.material3.Typography().labelLarge.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        labelMedium = androidx.compose.material3.Typography().labelMedium.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        ),
-        labelSmall = androidx.compose.material3.Typography().labelSmall.copy(
-            fontFamily = SystemUIPlusJakartaSans
-        )
-    )
+    androidx.compose.material3.Typography()
 
 private val SystemUIPlusShapes =
     androidx.compose.material3.Shapes(
