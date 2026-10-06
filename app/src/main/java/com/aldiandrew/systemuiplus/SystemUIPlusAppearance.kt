@@ -245,21 +245,22 @@ object SystemUIPlusAppearance {
 
         try {
             executor.execute {
-            try {
-                val current =
-                    snapshot(context)
+                try {
+                    val current =
+                        snapshot(context)
 
-                if (
-                    previousSnapshot == null ||
-                    previousSnapshot.foregroundColor !=
-                        current.foregroundColor
-                ) {
-                    notifyListeners(
-                        current.foregroundColor
-                    )
+                    if (
+                        previousSnapshot == null ||
+                        previousSnapshot.foregroundColor !=
+                            current.foregroundColor
+                    ) {
+                        notifyListeners(
+                            current.foregroundColor
+                        )
+                    }
+                } finally {
+                    refreshPending.set(false)
                 }
-            } finally {
-                refreshPending.set(false)
             }
         } catch (_: java.util.concurrent.RejectedExecutionException) {
             refreshPending.set(false)
