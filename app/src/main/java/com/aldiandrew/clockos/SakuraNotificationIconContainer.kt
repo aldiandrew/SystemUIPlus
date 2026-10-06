@@ -55,13 +55,6 @@ class SakuraNotificationIconContainer(
         invalidate()
     }
 
-    fun clearIcons() {
-        if (icons.isEmpty()) return
-        icons.clear()
-        requestLayout()
-        invalidate()
-    }
-
     fun desiredWidthPx(): Int {
         if (icons.isEmpty()) return 0
         return (

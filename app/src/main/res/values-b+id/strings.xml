@@ -72,6 +72,15 @@
     <string name="language_english">English</string>
     <string name="language_dialog_title">Bahasa</string>
     <string name="language_dialog_message">Pilih bahasa yang digunakan SystemUI Plus.</string>
+    <string name="theme">Tema</string>
+    <string name="theme_summary">Pilih tema aplikasi</string>
+    <string name="theme_always_dark">Selalu gelap</string>
+    <string name="theme_always_light">Selalu terang</string>
+    <string name="theme_follow_system">Ikuti sistem</string>
+    <string name="theme_dialog_title">Tema</string>
+    <string name="theme_dialog_message">Pilih bagaimana SystemUI Plus mengikuti tampilan terang dan gelap.</string>
+    <string name="theme_pure_black">Gunakan tema hitam murni</string>
+    <string name="theme_pure_black_summary">Gunakan latar #000000 murni saat tema gelap diterapkan.</string>
     <string name="battery_optimization">Optimasi baterai</string>
     <string name="battery_optimization_enabled_summary">Dikecualikan dari optimasi baterai standar</string>
     <string name="battery_optimization_disabled_summary">Izinkan SystemUI Plus berjalan dengan pembatasan latar belakang yang lebih sedikit</string>
@@ -112,6 +121,7 @@
     <string name="content_description_settings">Pengaturan</string>
     <string name="content_description_back">Kembali</string>
     <string name="content_description_language">Bahasa</string>
+    <string name="content_description_theme">Tema</string>
     <string name="content_description_backup_restore">Cadangkan dan Pulihkan</string>
     <string name="content_description_about">Tentang</string>
 

@@ -24,7 +24,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowInsets
 import android.view.WindowManager
-import android.widget.ImageView
 import android.widget.TextView
 import com.aldiandrew.systemuiplus.SystemUIPlusAppearance
 import com.aldiandrew.systemuiplus.SystemUIPlusController
@@ -1305,110 +1304,6 @@ private class StatusBarClusterView(
         LayoutParams(
             p.width,
             p.height
-        )
-
-    override fun checkLayoutParams(
-        p: LayoutParams
-    ): Boolean = true
-}
-
-private class NotificationIconRow(
-    context: Context,
-    private val slotSizePx: Int
-) : ViewGroup(context) {
-
-    private val horizontalPaddingPx = 0
-
-    private val iconScale = 0.78f
-
-    fun desiredWidthPx(): Int =
-        childCount *
-            (
-                slotSizePx +
-                    horizontalPaddingPx * 2
-            )
-
-    override fun onMeasure(
-        widthMeasureSpec: Int,
-        heightMeasureSpec: Int
-    ) {
-        val height =
-            MeasureSpec.getSize(heightMeasureSpec)
-                .takeIf { it > 0 }
-                ?: suggestedMinimumHeight
-
-        for (index in 0 until childCount) {
-            val child = getChildAt(index)
-            child.measure(
-                MeasureSpec.makeMeasureSpec(
-                    slotSizePx,
-                    MeasureSpec.EXACTLY
-                ),
-                MeasureSpec.makeMeasureSpec(
-                    slotSizePx,
-                    MeasureSpec.EXACTLY
-                )
-            )
-        }
-
-        setMeasuredDimension(
-            resolveSize(
-                desiredWidthPx(),
-                widthMeasureSpec
-            ),
-            height
-        )
-    }
-
-    override fun onLayout(
-        changed: Boolean,
-        left: Int,
-        top: Int,
-        right: Int,
-        bottom: Int
-    ) {
-        var x = horizontalPaddingPx
-
-        for (index in 0 until childCount) {
-            val child = getChildAt(index)
-            val y =
-                ((bottom - top - child.measuredHeight) / 2)
-                    .coerceAtLeast(0)
-
-            child.layout(
-                x,
-                y,
-                x + child.measuredWidth,
-                y + child.measuredHeight
-            )
-
-            x +=
-                child.measuredWidth +
-                    horizontalPaddingPx * 2
-        }
-    }
-
-    override fun generateDefaultLayoutParams():
-        LayoutParams =
-        LayoutParams(
-            slotSizePx,
-            slotSizePx
-        )
-
-    override fun generateLayoutParams(
-        attrs: android.util.AttributeSet?
-    ): LayoutParams =
-        LayoutParams(
-            slotSizePx,
-            slotSizePx
-        )
-
-    override fun generateLayoutParams(
-        p: LayoutParams
-    ): LayoutParams =
-        LayoutParams(
-            slotSizePx,
-            slotSizePx
         )
 
     override fun checkLayoutParams(

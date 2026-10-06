@@ -1,7 +1,6 @@
 package com.aldiandrew.clockos
 
 import android.content.Context
-import android.content.res.Configuration
 
 data class ClockSettings(
     val format24: Boolean = true,

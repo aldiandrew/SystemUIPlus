@@ -28,11 +28,6 @@ object NotificationIconStore {
         }
     }
 
-    fun isListenerConnected(): Boolean =
-        synchronized(lock) {
-            listenerConnected
-        }
-
     fun setListenerConnected(
         connected: Boolean
     ) {

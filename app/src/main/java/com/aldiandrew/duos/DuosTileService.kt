@@ -3,7 +3,6 @@ package com.aldiandrew.duos
 import android.graphics.drawable.Icon
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
-import android.content.Intent
 import androidx.annotation.RequiresApi
 import com.aldiandrew.systemuiplus.SystemUIPlusShizuku
 import android.os.Build

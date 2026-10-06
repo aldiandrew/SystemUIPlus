@@ -72,6 +72,15 @@
     <string name="language_english">English</string>
     <string name="language_dialog_title">Language</string>
     <string name="language_dialog_message">Choose the language used by SystemUI Plus.</string>
+    <string name="theme">Theme</string>
+    <string name="theme_summary">Choose the application theme</string>
+    <string name="theme_always_dark">Always dark</string>
+    <string name="theme_always_light">Always light</string>
+    <string name="theme_follow_system">Follow system</string>
+    <string name="theme_dialog_title">Theme</string>
+    <string name="theme_dialog_message">Choose how SystemUI Plus follows light and dark appearance.</string>
+    <string name="theme_pure_black">Use pure black theme</string>
+    <string name="theme_pure_black_summary">Use a pure #000000 background when dark theme is active.</string>
     <string name="battery_optimization">Battery optimization</string>
     <string name="battery_optimization_enabled_summary">Exempt from standard battery optimization</string>
     <string name="battery_optimization_disabled_summary">Allow SystemUI Plus to run with fewer background restrictions</string>
@@ -112,6 +121,7 @@
     <string name="content_description_settings">Settings</string>
     <string name="content_description_back">Back</string>
     <string name="content_description_language">Language</string>
+    <string name="content_description_theme">Theme</string>
     <string name="content_description_backup_restore">Backup and Restore</string>
     <string name="content_description_about">About</string>
 

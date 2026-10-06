@@ -97,38 +97,6 @@ object SystemUIPlusController {
         }
     }
 
-    /**
-     * Re-assert the hidden native SystemUI state without changing the master
-     * enabled preference or the saved pre-SystemUI policy.
-     */
-    fun reapply(context: Context): Result<Unit> {
-        if (!isEnabled(context)) return Result.success(Unit)
-        return try {
-            if (!SystemUIPlusShizuku.hasPermission()) {
-                return Result.failure(SecurityException("Shizuku permission is not granted"))
-            }
-
-            val prefs =
-                context.getSharedPreferences(
-                    PREFS,
-                    Context.MODE_PRIVATE
-                )
-
-            ensureClockBlacklisted(
-                context,
-                prefs
-            ).getOrThrow()
-
-            SystemUIPlusShizuku.execute(
-                "cmd statusbar send-disable-flag system-icons notification-icons"
-            ).getOrThrow()
-
-            Result.success(Unit)
-        } catch (t: Throwable) {
-            Result.failure(t)
-        }
-    }
-
     private fun activatePortrait(context: Context): Result<Unit> {
         return try {
             if (!SystemUIPlusShizuku.hasPermission()) {

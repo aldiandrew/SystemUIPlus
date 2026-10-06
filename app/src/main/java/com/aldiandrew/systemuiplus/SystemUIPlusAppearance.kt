@@ -9,6 +9,7 @@ import android.graphics.Color
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -37,7 +38,7 @@ object SystemUIPlusAppearance {
 
     private val lock = Any()
     private val handler = Handler(Looper.getMainLooper())
-    private val refreshExecutor =
+    private var refreshExecutor: ExecutorService =
         Executors.newSingleThreadExecutor()
     private val refreshPending =
         AtomicBoolean(false)
@@ -137,6 +138,7 @@ object SystemUIPlusAppearance {
             synchronized(lock) {
                 if (listeners.isEmpty()) {
                     monitorContext = null
+                    refreshExecutor.shutdown()
                 }
             }
         }
@@ -229,7 +231,20 @@ object SystemUIPlusAppearance {
             return
         }
 
-        refreshExecutor.execute {
+        val executor =
+            synchronized(lock) {
+                if (
+                    refreshExecutor.isShutdown ||
+                    refreshExecutor.isTerminated
+                ) {
+                    refreshExecutor =
+                        Executors.newSingleThreadExecutor()
+                }
+                refreshExecutor
+            }
+
+        try {
+            executor.execute {
             try {
                 val current =
                     snapshot(context)
@@ -246,6 +261,8 @@ object SystemUIPlusAppearance {
             } finally {
                 refreshPending.set(false)
             }
+        } catch (_: java.util.concurrent.RejectedExecutionException) {
+            refreshPending.set(false)
         }
     }
 

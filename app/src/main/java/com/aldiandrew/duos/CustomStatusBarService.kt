@@ -15,7 +15,6 @@ import android.graphics.Color
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
-import android.os.BatteryManager
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -52,6 +51,10 @@ class CustomStatusBarService : Service() {
     private var lastState: DuoStatusState? = null
     @Volatile
     private var foregroundColor: Int = Color.WHITE
+    @Volatile
+    private var batteryLevelCached: Int = 0
+    @Volatile
+    private var batteryChargingCached: Boolean = false
 
     private val stateRefreshRunnable = Runnable {
         stateRefreshJob?.cancel()
@@ -99,6 +102,9 @@ class CustomStatusBarService : Service() {
 
     private val stateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Intent.ACTION_BATTERY_CHANGED) {
+                updateBatteryState(intent)
+            }
             requestStateRefresh()
         }
     }
@@ -370,14 +376,11 @@ class CustomStatusBarService : Service() {
 
         if (!isLandscape()) {
             attachOverlay(customView)
-        }
-
-        // Use the cached/lightweight foreground value for the first frame.
-        customView.update(readState())
-
-        if (!isLandscape()) {
             startStateMonitoring()
         }
+
+        // Use the cached/lightweight state for the first frame.
+        customView.update(readState())
     }
 
     private fun isLandscape(): Boolean =
@@ -488,12 +491,22 @@ class CustomStatusBarService : Service() {
             addAction(android.os.PowerManager.ACTION_POWER_SAVE_MODE_CHANGED)
             addAction(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED)
         }
-        if (Build.VERSION.SDK_INT >= 33) {
-            registerReceiver(stateReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            @Suppress("DEPRECATION")
-            registerReceiver(stateReceiver, filter)
-        }
+        val initialBatteryIntent =
+            if (Build.VERSION.SDK_INT >= 33) {
+                registerReceiver(
+                    stateReceiver,
+                    filter,
+                    Context.RECEIVER_NOT_EXPORTED
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                registerReceiver(
+                    stateReceiver,
+                    filter
+                )
+            }
+
+        updateBatteryState(initialBatteryIntent)
 
         val connectivity = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
         if (connectivity != null) {
@@ -533,7 +546,8 @@ class CustomStatusBarService : Service() {
     }
 
     private fun readState(): DuoStatusState {
-        val battery = batteryState()
+        val battery =
+            batteryLevelCached to batteryChargingCached
         val wifi = wifiState()
         val airplane = isAirplaneOn()
         val dnd = isDndOn()
@@ -555,38 +569,36 @@ class CustomStatusBarService : Service() {
         )
     }
 
-    private fun batteryState(): Pair<Int, Boolean> {
-        return try {
-            val manager =
-                getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
+    private fun updateBatteryState(intent: Intent?) {
+        if (intent == null) return
 
-            val level =
-                manager?.getIntProperty(
-                    BatteryManager.BATTERY_PROPERTY_CAPACITY
-                )?.takeIf { it in 0..100 } ?: 0
-
-            val status =
-                registerReceiver(
-                    null,
-                    android.content.IntentFilter(
-                        Intent.ACTION_BATTERY_CHANGED
-                    )
-                )?.getIntExtra(
-                    BatteryManager.EXTRA_STATUS,
-                    BatteryManager.BATTERY_STATUS_UNKNOWN
-                ) ?: BatteryManager.BATTERY_STATUS_UNKNOWN
-
-            level to (
-                status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                    status == BatteryManager.BATTERY_STATUS_FULL
-                )
-        } catch (t: Throwable) {
-            Log.w(
-                TAG,
-                "battery read failed: ${t.javaClass.simpleName}"
+        val level =
+            intent.getIntExtra(
+                android.os.BatteryManager.EXTRA_LEVEL,
+                -1
             )
-            0 to false
+        val scale =
+            intent.getIntExtra(
+                android.os.BatteryManager.EXTRA_SCALE,
+                -1
+            )
+
+        if (level >= 0 && scale > 0) {
+            batteryLevelCached =
+                (level * 100 / scale).coerceIn(0, 100)
         }
+
+        val status =
+            intent.getIntExtra(
+                android.os.BatteryManager.EXTRA_STATUS,
+                android.os.BatteryManager.BATTERY_STATUS_UNKNOWN
+            )
+
+        batteryChargingCached =
+            status ==
+                android.os.BatteryManager.BATTERY_STATUS_CHARGING ||
+            status ==
+                android.os.BatteryManager.BATTERY_STATUS_FULL
     }
 
     private fun wifiState(): Pair<Int, Boolean> {

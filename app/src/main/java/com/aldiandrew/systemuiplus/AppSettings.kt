@@ -21,9 +21,22 @@ enum class AppLanguageMode(val storageValue: String) {
     }
 }
 
+enum class AppThemeMode(val storageValue: String) {
+    ALWAYS_DARK("always_dark"),
+    ALWAYS_LIGHT("always_light"),
+    FOLLOW_SYSTEM("follow_system");
+
+    companion object {
+        fun fromStorage(value: String?): AppThemeMode =
+            entries.firstOrNull { it.storageValue == value } ?: FOLLOW_SYSTEM
+    }
+}
+
 object SystemUIPlusAppSettings {
     private const val PREFS = "systemui_plus_app_settings"
     private const val KEY_LANGUAGE_MODE = "language_mode"
+    private const val KEY_THEME_MODE = "theme_mode"
+    private const val KEY_PURE_BLACK_THEME = "pure_black_theme"
 
     fun getLanguageMode(context: Context): AppLanguageMode =
         AppLanguageMode.fromStorage(
@@ -35,6 +48,33 @@ object SystemUIPlusAppSettings {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_LANGUAGE_MODE, mode.storageValue)
+            .apply()
+    }
+
+    fun getThemeMode(context: Context): AppThemeMode =
+        AppThemeMode.fromStorage(
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getString(
+                    KEY_THEME_MODE,
+                    AppThemeMode.FOLLOW_SYSTEM.storageValue
+                )
+        )
+
+    fun setThemeMode(context: Context, mode: AppThemeMode) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_THEME_MODE, mode.storageValue)
+            .apply()
+    }
+
+    fun isPureBlackThemeEnabled(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean(KEY_PURE_BLACK_THEME, false)
+
+    fun setPureBlackThemeEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_PURE_BLACK_THEME, enabled)
             .apply()
     }
 

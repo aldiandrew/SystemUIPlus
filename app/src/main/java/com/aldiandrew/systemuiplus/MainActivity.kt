@@ -15,6 +15,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,6 +35,7 @@ import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Tune
@@ -56,6 +58,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -63,6 +66,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -101,6 +106,8 @@ class MainActivity : ComponentActivity() {
     private var phoneStateGranted by mutableStateOf(true)
     private var overlayPermissionGranted by mutableStateOf(false)
     private var batteryOptimizationIgnored by mutableStateOf(false)
+    private var appThemeMode by mutableStateOf(AppThemeMode.FOLLOW_SYSTEM)
+    private var usePureBlackTheme by mutableStateOf(false)
 
     private var clockSettings by mutableStateOf(ClockSettings())
     private var duoSize by mutableStateOf(36f)
@@ -134,6 +141,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         clockPrefs = ClockPrefs(this)
         appLanguageMode = SystemUIPlusAppSettings.getLanguageMode(this)
+        appThemeMode = SystemUIPlusAppSettings.getThemeMode(this)
+        usePureBlackTheme =
+            SystemUIPlusAppSettings.isPureBlackThemeEnabled(this)
         SystemUIPlusAppSettings.applyLanguage(this, appLanguageMode)
         loadSettings()
         refreshPhonePermission()
@@ -153,7 +163,10 @@ class MainActivity : ComponentActivity() {
         refreshState()
 
         setContent {
-            SystemUIPlusTheme {
+            SystemUIPlusTheme(
+                themeMode = appThemeMode,
+                usePureBlackTheme = usePureBlackTheme
+            ) {
                 Surface(Modifier.fillMaxSize()) {
                     SystemUIScreen()
                 }
@@ -165,6 +178,9 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         refreshState()
         loadSettings()
+        appThemeMode = SystemUIPlusAppSettings.getThemeMode(this)
+        usePureBlackTheme =
+            SystemUIPlusAppSettings.isPureBlackThemeEnabled(this)
 
         if (systemUiHidden && isLandscape()) {
             // Landscape intentionally uses the stock Motorola SystemUI.
@@ -1452,6 +1468,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun changeTheme(mode: AppThemeMode) {
+        SystemUIPlusAppSettings.setThemeMode(this, mode)
+        appThemeMode = mode
+    }
+
+    private fun setPureBlackTheme(enabled: Boolean) {
+        SystemUIPlusAppSettings.setPureBlackThemeEnabled(this, enabled)
+        usePureBlackTheme = enabled
+    }
+
     private fun openWebLink(url: String) {
         try {
             startActivity(
@@ -1470,6 +1496,9 @@ class MainActivity : ComponentActivity() {
         modifier: Modifier = Modifier
     ) {
         var showLanguageDialog by remember {
+            mutableStateOf(false)
+        }
+        var showThemeDialog by remember {
             mutableStateOf(false)
         }
 
@@ -1605,6 +1634,83 @@ class MainActivity : ComponentActivity() {
                 Modifier.fillMaxWidth()
             ) {
                 Column {
+                    ListItem(
+                        modifier = Modifier.clickable {
+                            showThemeDialog = true
+                        },
+                        leadingContent = {
+                            Icon(
+                                Icons.Default.Palette,
+                                contentDescription =
+                                    stringResource(
+                                        R.string.content_description_theme
+                                    )
+                            )
+                        },
+                        headlineContent = {
+                            Text(stringResource(R.string.theme))
+                        },
+                        supportingContent = {
+                            Text(stringResource(R.string.theme_summary))
+                        },
+                        trailingContent = {
+                            Text(
+                                when (appThemeMode) {
+                                    AppThemeMode.ALWAYS_DARK ->
+                                        stringResource(
+                                            R.string.theme_always_dark
+                                        )
+
+                                    AppThemeMode.ALWAYS_LIGHT ->
+                                        stringResource(
+                                            R.string.theme_always_light
+                                        )
+
+                                    AppThemeMode.FOLLOW_SYSTEM ->
+                                        stringResource(
+                                            R.string.theme_follow_system
+                                        )
+                                },
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(
+                            horizontal = 16.dp
+                        )
+                    )
+
+                    ListItem(
+                        headlineContent = {
+                            Text(stringResource(R.string.theme_pure_black))
+                        },
+                        supportingContent = {
+                            Text(
+                                stringResource(
+                                    R.string.theme_pure_black_summary
+                                )
+                            )
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = usePureBlackTheme,
+                                enabled =
+                                    appThemeMode !=
+                                        AppThemeMode.ALWAYS_LIGHT,
+                                onCheckedChange = ::setPureBlackTheme
+                            )
+                        }
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(
+                            horizontal = 16.dp
+                        )
+                    )
+
                     ListItem(
                         modifier = Modifier.clickable {
                             showLanguageDialog = true
@@ -1845,6 +1951,14 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
+            if (showThemeDialog) {
+                ThemeDialog(
+                    onDismiss = {
+                        showThemeDialog = false
+                    }
+                )
+            }
+
             if (showLanguageDialog) {
                 LanguageDialog(
                     onDismiss = {
@@ -1941,6 +2055,98 @@ class MainActivity : ComponentActivity() {
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    private fun ThemeDialog(
+        onDismiss: () -> Unit
+    ) {
+        var pendingTheme by remember(appThemeMode) {
+            mutableStateOf(appThemeMode)
+        }
+
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = {
+                Text(stringResource(R.string.theme_dialog_title))
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.theme_dialog_message),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    ThemeOption(
+                        label = stringResource(R.string.theme_always_dark),
+                        selected =
+                            pendingTheme == AppThemeMode.ALWAYS_DARK,
+                        onSelected = {
+                            pendingTheme = AppThemeMode.ALWAYS_DARK
+                        }
+                    )
+
+                    ThemeOption(
+                        label = stringResource(R.string.theme_always_light),
+                        selected =
+                            pendingTheme == AppThemeMode.ALWAYS_LIGHT,
+                        onSelected = {
+                            pendingTheme = AppThemeMode.ALWAYS_LIGHT
+                        }
+                    )
+
+                    ThemeOption(
+                        label = stringResource(R.string.theme_follow_system),
+                        selected =
+                            pendingTheme == AppThemeMode.FOLLOW_SYSTEM,
+                        onSelected = {
+                            pendingTheme = AppThemeMode.FOLLOW_SYSTEM
+                        }
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDismiss()
+                        changeTheme(pendingTheme)
+                    }
+                ) {
+                    Text(stringResource(R.string.done))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    @Composable
+    private fun ThemeOption(
+        label: String,
+        selected: Boolean,
+        onSelected: () -> Unit
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onSelected)
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            RadioButton(
+                selected = selected,
+                onClick = onSelected
+            )
+            Text(
+                label,
+                modifier = Modifier.padding(start = 8.dp)
+            )
+        }
+    }
+
     @Composable
     private fun BackupRestoreScreen(
         modifier: Modifier = Modifier
@@ -3110,50 +3316,116 @@ private val SystemUIPlusTypography =
     )
 
 @Composable
-private fun SystemUIPlusTheme(content: @Composable () -> Unit) {
+private fun SystemUIPlusTheme(
+    themeMode: AppThemeMode,
+    usePureBlackTheme: Boolean,
+    content: @Composable () -> Unit
+) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val deviceAccent =
+    val systemDark = isSystemInDarkTheme()
+    val darkTheme =
+        when (themeMode) {
+            AppThemeMode.ALWAYS_DARK -> true
+            AppThemeMode.ALWAYS_LIGHT -> false
+            AppThemeMode.FOLLOW_SYSTEM -> systemDark
+        }
+
+    val dynamicDark =
         androidx.compose.material3.dynamicDarkColorScheme(context)
+    val dynamicLight =
+        androidx.compose.material3.dynamicLightColorScheme(context)
 
-    val scheme =
-        androidx.compose.material3.darkColorScheme(
-            primary = deviceAccent.primary,
-            onPrimary = deviceAccent.onPrimary,
-            primaryContainer = deviceAccent.primaryContainer,
-            onPrimaryContainer = deviceAccent.onPrimaryContainer,
-
+    val darkScheme =
+        dynamicDark.copy(
             secondary = androidx.compose.ui.graphics.Color(0xFFB8CBD0),
             onSecondary = androidx.compose.ui.graphics.Color(0xFF223236),
-            secondaryContainer = androidx.compose.ui.graphics.Color(0xFF394A4F),
-            onSecondaryContainer = androidx.compose.ui.graphics.Color(0xFFD4E7EC),
+            secondaryContainer =
+                androidx.compose.ui.graphics.Color(0xFF394A4F),
+            onSecondaryContainer =
+                androidx.compose.ui.graphics.Color(0xFFD4E7EC),
 
             tertiary = androidx.compose.ui.graphics.Color(0xFFB9CDD0),
             onTertiary = androidx.compose.ui.graphics.Color(0xFF243234),
-            tertiaryContainer = androidx.compose.ui.graphics.Color(0xFF3A4B4E),
-            onTertiaryContainer = androidx.compose.ui.graphics.Color(0xFFD5E8EA),
+            tertiaryContainer =
+                androidx.compose.ui.graphics.Color(0xFF3A4B4E),
+            onTertiaryContainer =
+                androidx.compose.ui.graphics.Color(0xFFD5E8EA),
 
-            background = androidx.compose.ui.graphics.Color(0xFF000000),
-            onBackground = androidx.compose.ui.graphics.Color(0xFFF5F5F5),
+            background =
+                if (usePureBlackTheme) {
+                    androidx.compose.ui.graphics.Color.Black
+                } else {
+                    dynamicDark.background
+                },
+            surface =
+                if (usePureBlackTheme) {
+                    androidx.compose.ui.graphics.Color.Black
+                } else {
+                    dynamicDark.surface
+                },
+            surfaceVariant =
+                androidx.compose.ui.graphics.Color(0xFF111111),
+            onSurfaceVariant =
+                androidx.compose.ui.graphics.Color(0xFFB8B8B8),
 
-            surface = androidx.compose.ui.graphics.Color(0xFF000000),
-            onSurface = androidx.compose.ui.graphics.Color(0xFFFFFFFF),
-            surfaceVariant = androidx.compose.ui.graphics.Color(0xFF111111),
-            onSurfaceVariant = androidx.compose.ui.graphics.Color(0xFFB8B8B8),
+            surfaceContainerLowest =
+                if (usePureBlackTheme) {
+                    androidx.compose.ui.graphics.Color.Black
+                } else {
+                    dynamicDark.surfaceContainerLowest
+                },
+            surfaceContainerLow =
+                androidx.compose.ui.graphics.Color(0xFF111111),
+            surfaceContainer =
+                androidx.compose.ui.graphics.Color(0xFF141414),
+            surfaceContainerHigh =
+                androidx.compose.ui.graphics.Color(0xFF181818),
+            surfaceContainerHighest =
+                androidx.compose.ui.graphics.Color(0xFF1A1A1A),
 
-            surfaceContainerLowest = androidx.compose.ui.graphics.Color(0xFF000000),
-            surfaceContainerLow = androidx.compose.ui.graphics.Color(0xFF111111),
-            surfaceContainer = androidx.compose.ui.graphics.Color(0xFF141414),
-            surfaceContainerHigh = androidx.compose.ui.graphics.Color(0xFF181818),
-            surfaceContainerHighest = androidx.compose.ui.graphics.Color(0xFF1A1A1A),
-
-            outline = androidx.compose.ui.graphics.Color(0xFF626262),
-            outlineVariant = androidx.compose.ui.graphics.Color(0xFF2A2A2A),
-
-            scrim = androidx.compose.ui.graphics.Color(0xFF000000),
-            inverseSurface = androidx.compose.ui.graphics.Color(0xFFF0F0F0),
-            inverseOnSurface = androidx.compose.ui.graphics.Color(0xFF1A1A1A),
-            inversePrimary = deviceAccent.primary
+            outline =
+                androidx.compose.ui.graphics.Color(0xFF626262),
+            outlineVariant =
+                androidx.compose.ui.graphics.Color(0xFF2A2A2A),
+            scrim = androidx.compose.ui.graphics.Color.Black,
+            inverseSurface =
+                androidx.compose.ui.graphics.Color(0xFFF0F0F0),
+            inverseOnSurface =
+                androidx.compose.ui.graphics.Color(0xFF1A1A1A),
+            inversePrimary = dynamicDark.primary
         )
+
+    val scheme =
+        if (darkTheme) {
+            darkScheme
+        } else {
+            dynamicLight
+        }
+
+    val view = LocalView.current
+
+    if (!view.isInEditMode) {
+        SideEffect {
+            val activity =
+                view.context as? android.app.Activity
+                    ?: return@SideEffect
+
+            val background = scheme.background.toArgb()
+            activity.window.statusBarColor = background
+            activity.window.navigationBarColor = background
+
+            val lightBars =
+                android.view.WindowInsetsController
+                    .APPEARANCE_LIGHT_STATUS_BARS or
+                    android.view.WindowInsetsController
+                        .APPEARANCE_LIGHT_NAVIGATION_BARS
+
+            activity.window.insetsController?.setSystemBarsAppearance(
+                if (darkTheme) 0 else lightBars,
+                lightBars
+            )
+        }
+    }
 
     MaterialTheme(
         colorScheme = scheme,
