@@ -35,6 +35,8 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -109,6 +111,7 @@ class MainActivity : ComponentActivity() {
     private var duoStyle by mutableStateOf(DuoVisualStyle.DUO)
     private var settingsScreen by mutableStateOf(false)
     private var settingsPage by mutableStateOf(AppSettingsPage.ROOT)
+    private var customizationPage by mutableStateOf(CustomizationPage.NONE)
     private var appLanguageMode by mutableStateOf(AppLanguageMode.DEVICE)
 
     private val permissionListener =
@@ -544,6 +547,37 @@ class MainActivity : ComponentActivity() {
         loadSettings()
     }
 
+    private fun resetClockPosition() {
+        clockPrefs.set(
+            "horizontalPositionDp",
+            0f
+        )
+        clockPrefs.set(
+            "verticalPositionDp",
+            0f
+        )
+        clockSettings = clockPrefs.load()
+
+        if (clockActive) {
+            try {
+                startService(
+                    Intent(
+                        this,
+                        ClockOverlayService::class.java
+                    ).setAction(
+                        ClockOverlayService.ACTION_SETTINGS_CHANGED
+                    )
+                )
+            } catch (_: Throwable) {
+            }
+        }
+    }
+
+    private fun navigateBackFromCustomization() {
+        customizationPage =
+            CustomizationPage.NONE
+    }
+
     private fun restoreNativeSystemUi() {
         stopUnifiedSystemUi()
     }
@@ -563,19 +597,35 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     private fun SystemUIScreen() {
-        BackHandler(enabled = settingsScreen) {
-            navigateBackFromSettings()
+        BackHandler(
+            enabled =
+                settingsScreen ||
+                    customizationPage != CustomizationPage.NONE
+        ) {
+            when {
+                settingsScreen ->
+                    navigateBackFromSettings()
+                customizationPage != CustomizationPage.NONE ->
+                    navigateBackFromCustomization()
+            }
         }
 
         val topBarTitle =
             when {
-                !settingsScreen -> stringResource(R.string.systemui_plus)
-                settingsPage == AppSettingsPage.ROOT ->
+                settingsScreen &&
+                    settingsPage == AppSettingsPage.ROOT ->
                     stringResource(R.string.settings)
-                settingsPage == AppSettingsPage.BACKUP_RESTORE ->
+                settingsScreen &&
+                    settingsPage == AppSettingsPage.BACKUP_RESTORE ->
                     stringResource(R.string.backup_restore_title)
-                else ->
+                settingsScreen ->
                     stringResource(R.string.about_title)
+                customizationPage == CustomizationPage.CLOCK ->
+                    stringResource(R.string.clock)
+                customizationPage == CustomizationPage.INDICATORS ->
+                    stringResource(R.string.indicators)
+                else ->
+                    stringResource(R.string.systemui_plus)
             }
 
         Scaffold(
@@ -584,38 +634,60 @@ class MainActivity : ComponentActivity() {
                     title = {
                         Text(
                             topBarTitle,
-                            style = MaterialTheme.typography.titleLarge
+                            style =
+                                MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.Medium
+                                )
                         )
                     },
-                    navigationIcon = if (settingsScreen) {
+                    navigationIcon = if (
+                        settingsScreen ||
+                            customizationPage != CustomizationPage.NONE
+                    ) {
                         {
                             IconButton(
-                                onClick = ::navigateBackFromSettings
+                                onClick = {
+                                    when {
+                                        settingsScreen ->
+                                            navigateBackFromSettings()
+                                        customizationPage !=
+                                            CustomizationPage.NONE ->
+                                            navigateBackFromCustomization()
+                                    }
+                                }
                             ) {
                                 Icon(
                                     Icons.Default.ArrowBack,
-                                    contentDescription = stringResource(
-                                        R.string.content_description_back
-                                    )
+                                    contentDescription =
+                                        stringResource(
+                                            R.string.content_description_back
+                                        )
                                 )
                             }
                         }
                     } else {
                         {}
                     },
-                    actions = if (!settingsScreen) {
+                    actions = if (
+                        !settingsScreen &&
+                            customizationPage == CustomizationPage.NONE
+                    ) {
                         {
                             IconButton(
                                 onClick = {
-                                    settingsPage = AppSettingsPage.ROOT
+                                    customizationPage =
+                                        CustomizationPage.NONE
+                                    settingsPage =
+                                        AppSettingsPage.ROOT
                                     settingsScreen = true
                                 }
                             ) {
                                 Icon(
                                     Icons.Default.Settings,
-                                    contentDescription = stringResource(
-                                        R.string.content_description_settings
-                                    )
+                                    contentDescription =
+                                        stringResource(
+                                            R.string.content_description_settings
+                                        )
                                 )
                             }
                         }
@@ -625,444 +697,724 @@ class MainActivity : ComponentActivity() {
                 )
             }
         ) { padding ->
-            if (settingsScreen) {
-                when (settingsPage) {
-                    AppSettingsPage.ROOT ->
-                        SettingsRootScreen(
-                            Modifier
-                                .fillMaxSize()
-                                .padding(padding)
-                        )
-                    AppSettingsPage.BACKUP_RESTORE ->
-                        BackupRestoreScreen(
-                            Modifier
-                                .fillMaxSize()
-                                .padding(padding)
-                        )
-                    AppSettingsPage.ABOUT ->
-                        AboutScreen(
-                            Modifier
-                                .fillMaxSize()
-                                .padding(padding)
-                        )
+            when {
+                settingsScreen -> {
+                    when (settingsPage) {
+                        AppSettingsPage.ROOT ->
+                            SettingsRootScreen(
+                                Modifier
+                                    .fillMaxSize()
+                                    .padding(padding)
+                            )
+                        AppSettingsPage.BACKUP_RESTORE ->
+                            BackupRestoreScreen(
+                                Modifier
+                                    .fillMaxSize()
+                                    .padding(padding)
+                            )
+                        AppSettingsPage.ABOUT ->
+                            AboutScreen(
+                                Modifier
+                                    .fillMaxSize()
+                                    .padding(padding)
+                            )
+                    }
                 }
-            } else {
-                val customizationEnabled =
-                    systemUiHidden && !busy
 
-                Column(
-                    Modifier
-                        .fillMaxSize()
-                        .padding(padding)
-                        .padding(horizontal = 18.dp)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                customizationPage == CustomizationPage.CLOCK ->
+                    ClockCustomizationScreen(
+                        Modifier
+                            .fillMaxSize()
+                            .padding(padding)
+                    )
+
+                customizationPage == CustomizationPage.INDICATORS ->
+                    IndicatorsCustomizationScreen(
+                        Modifier
+                            .fillMaxSize()
+                            .padding(padding)
+                    )
+
+                else ->
+                    HomeScreen(
+                        Modifier
+                            .fillMaxSize()
+                            .padding(padding)
+                    )
+            }
+        }
+    }
+
+    @Composable
+    private fun HomeScreen(
+        modifier: Modifier = Modifier
+    ) {
+        val allRequiredAccess =
+            shizukuReady &&
+                notificationAccess &&
+                phoneStateGranted &&
+                overlayPermissionGranted
+
+        val statusSummary =
+            when {
+                systemUiHidden ->
+                    stringResource(
+                        R.string.systemui_status_active_summary
+                    )
+                allRequiredAccess ->
+                    stringResource(
+                        R.string.systemui_status_ready
+                    )
+                else ->
+                    stringResource(
+                        R.string.systemui_status_setup_summary
+                    )
+            }
+
+        Column(
+            modifier
+                .padding(horizontal = 20.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            Text(
+                stringResource(R.string.about_description),
+                style = MaterialTheme.typography.bodyLarge,
+                color =
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(
+                    start = 2.dp,
+                    top = 2.dp,
+                    end = 2.dp
+                )
+            )
+
+            SectionLabel(
+                stringResource(R.string.live_preview)
+            )
+
+            StatusBarPreview(
+                mode = PreviewMode.FULL,
+                hero = true
+            )
+
+            ExpressiveCard(
+                Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            horizontal = 18.dp,
+                            vertical = 16.dp
+                        ),
+                    verticalAlignment =
+                        Alignment.CenterVertically
                 ) {
-                    ExpressiveCard(Modifier.fillMaxWidth()) {
-                        Column {
-                            Text(
-                                stringResource(R.string.systemui_control),
-                                style = MaterialTheme.typography.titleLarge,
-                                modifier = Modifier.padding(
-                                    start = 16.dp,
-                                    top = 16.dp,
-                                    end = 16.dp,
-                                    bottom = 6.dp
-                                )
-                            )
-
-                            PermissionRow(
-                                title = stringResource(R.string.shizuku),
-                                ready = shizukuReady,
-                                actionLabel = stringResource(R.string.connect),
-                                onAction = ::requestShizuku
-                            )
-                            PermissionRow(
-                                title = stringResource(R.string.notification_access),
-                                ready = notificationAccess,
-                                actionLabel = stringResource(R.string.grant),
-                                onAction = ::openNotificationAccess
-                            )
-                            PermissionRow(
-                                title = stringResource(R.string.phone_state),
-                                ready = phoneStateGranted,
-                                actionLabel = stringResource(R.string.allow),
-                                onAction = ::requestPhonePermission
-                            )
-                            PermissionRow(
-                                title = stringResource(R.string.display_over_other_apps),
-                                ready = overlayPermissionGranted,
-                                actionLabel = stringResource(R.string.allow),
-                                onAction = ::openOverlayPermission
-                            )
-
-                            HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 16.dp)
-                            )
-
-                            ListItem(
-                                headlineContent = {
-                                    Text(stringResource(R.string.systemui_plus))
-                                },
-                                trailingContent = {
-                                    Switch(
-                                        checked = systemUiHidden,
-                                        onCheckedChange = {
-                                            toggleMasterSystemUi()
-                                        },
-                                        enabled = shizukuReady &&
-                                            notificationAccess &&
-                                            phoneStateGranted &&
-                                            overlayPermissionGranted &&
-                                            !busy
-                                    )
-                                }
-                            )
-                        }
-                    }
-
-                    ExpressiveCard(Modifier.fillMaxWidth()) {
-                        Column(
-                            Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                stringResource(R.string.live_preview),
-                                style = MaterialTheme.typography.titleLarge
-                            )
-                            SystemUiPreview()
-                        }
-                    }
-
-                    ExpressiveCard(
-                        Modifier
-                            .fillMaxWidth()
-                            .alpha(if (customizationEnabled) 1f else 0.45f)
+                    Column(
+                        Modifier.weight(1f),
+                        verticalArrangement =
+                            Arrangement.spacedBy(3.dp)
                     ) {
-                        Column(
-                            Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Text(
-                                stringResource(R.string.custom_clock),
-                                style = MaterialTheme.typography.titleLarge
-                            )
-
-                            SettingSwitch(
-                                stringResource(R.string.twenty_four_hour),
-                                clockSettings.format24
-                            ) {
-                                saveClock("format24", it)
-                            }
-                            SettingSwitch(
-                                stringResource(R.string.show_date),
-                                clockSettings.showDate
-                            ) {
-                                saveClock("showDate", it)
-                            }
-
-                            ExpressiveDropdown(
-                                label = stringResource(R.string.date_format),
-                                selected = clockSettings.dateFormat,
-                                options = listOf(
-                                    "dd/MM",
-                                    "dd/MM/yy",
-                                    "yyyy-MM-dd",
-                                    "dd-MM-yyyy",
-                                    "MMM dd",
-                                    "EEE",
-                                    "EEE dd",
-                                    "EEE dd/MM",
-                                    "EEE dd MMM",
-                                    "EEE MMM dd",
-                                    "EEEE dd/MM",
-                                    "EEEE MM/dd"
+                        Text(
+                            stringResource(
+                                R.string.systemui_plus
+                            ),
+                            style =
+                                MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Medium
                                 )
-                            ) {
-                                saveClock("dateFormat", it)
-                            }
-
-                            val normalLabel =
-                                stringResource(R.string.date_style_normal)
-                            val lowercaseLabel =
-                                stringResource(R.string.date_style_lowercase)
-                            val uppercaseLabel =
-                                stringResource(R.string.date_style_uppercase)
-
-                            ExpressiveDropdown(
-                                label = stringResource(R.string.date_style),
-                                selected = when (
-                                    clockSettings.dateStyle.coerceIn(0, 2)
-                                ) {
-                                    1 -> lowercaseLabel
-                                    2 -> uppercaseLabel
-                                    else -> normalLabel
-                                },
-                                options = listOf(
-                                    normalLabel,
-                                    lowercaseLabel,
-                                    uppercaseLabel
+                        )
+                        Text(
+                            if (systemUiHidden) {
+                                stringResource(
+                                    R.string.systemui_status_active
                                 )
-                            ) { value ->
-                                saveClock(
-                                    "dateStyle",
-                                    when (value) {
-                                        lowercaseLabel -> 1
-                                        uppercaseLabel -> 2
-                                        else -> 0
-                                    }
-                                )
-                            }
-
-                            SliderSetting(
-                                title = stringResource(R.string.clock_size),
-                                valueText = stringResource(
-                                    R.string.sp_value,
-                                    clockSettings.sizeSp.toInt()
-                                ),
-                                value = clockSettings.sizeSp,
-                                range = 10f..22f,
-                                onValueChange = {
-                                    saveClock("sizeSp", it)
-                                },
-                                onReset = {
-                                    saveClock(
-                                        "sizeSp",
-                                        clockPrefs.nativeDefaultClockSizeSp()
-                                    )
+                            } else {
+                                statusSummary
+                            },
+                            style =
+                                MaterialTheme.typography.bodyMedium,
+                            color =
+                                if (systemUiHidden) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme
+                                        .colorScheme
+                                        .onSurfaceVariant
                                 }
-                            )
-
-                            SliderSetting(
-                                title = stringResource(
-                                    R.string.clock_horizontal_position
-                                ),
-                                valueText = stringResource(
-                                    R.string.dp_value,
-                                    clockSettings.horizontalPositionDp.toInt()
-                                ),
-                                value = clockSettings.horizontalPositionDp,
-                                range = -100f..100f,
-                                onValueChange = {
-                                    saveClock(
-                                        "horizontalPositionDp",
-                                        it
-                                    )
-                                },
-                                onReset = {
-                                    saveClock(
-                                        "horizontalPositionDp",
-                                        0f
-                                    )
-                                }
-                            )
-
-                            SliderSetting(
-                                title = stringResource(
-                                    R.string.clock_vertical_position
-                                ),
-                                valueText = stringResource(
-                                    R.string.dp_value,
-                                    clockSettings.verticalPositionDp.toInt()
-                                ),
-                                value = clockSettings.verticalPositionDp,
-                                range = -20f..20f,
-                                onValueChange = {
-                                    saveClock(
-                                        "verticalPositionDp",
-                                        it
-                                    )
-                                },
-                                onReset = {
-                                    saveClock(
-                                        "verticalPositionDp",
-                                        0f
-                                    )
-                                }
-                            )
-                        }
+                        )
                     }
 
-                    ExpressiveCard(
-                        Modifier
-                            .fillMaxWidth()
-                            .alpha(if (customizationEnabled) 1f else 0.45f)
+                    Switch(
+                        checked = systemUiHidden,
+                        onCheckedChange = {
+                            toggleMasterSystemUi()
+                        },
+                        enabled =
+                            allRequiredAccess &&
+                                !busy
+                    )
+                }
+            }
+
+            SectionLabel(
+                stringResource(R.string.customize)
+            )
+
+            ExpressiveCard(
+                Modifier.fillMaxWidth()
+            ) {
+                Column {
+                    NavigationRow(
+                        icon = Icons.Default.AccessTime,
+                        title = stringResource(
+                            R.string.clock
+                        ),
+                        summary = stringResource(
+                            R.string.clock_summary
+                        ),
+                        onClick = {
+                            customizationPage =
+                                CustomizationPage.CLOCK
+                        }
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(
+                            horizontal = 16.dp
+                        )
+                    )
+
+                    NavigationRow(
+                        icon = Icons.Default.Tune,
+                        title = stringResource(
+                            R.string.indicators
+                        ),
+                        summary = stringResource(
+                            R.string.indicators_summary
+                        ),
+                        onClick = {
+                            customizationPage =
+                                CustomizationPage.INDICATORS
+                        }
+                    )
+                }
+            }
+
+            if (systemUiHidden) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement =
+                        Arrangement.Center
+                ) {
+                    OutlinedButton(
+                        enabled = !busy,
+                        onClick = ::restoreNativeSystemUi,
+                        shape = RoundedCornerShape(50)
                     ) {
-                        Column(
-                            Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        Text(
+                            stringResource(
+                                R.string.restore_native_systemui
+                            )
+                        )
+                    }
+                }
+            }
+
+            if (!allRequiredAccess && !systemUiHidden) {
+                Text(
+                    statusSummary,
+                    style = MaterialTheme.typography.bodySmall,
+                    color =
+                        MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(
+                        start = 4.dp,
+                        end = 4.dp,
+                        bottom = 8.dp
+                    )
+                )
+            }
+        }
+    }
+
+    @Composable
+    private fun ClockCustomizationScreen(
+        modifier: Modifier = Modifier
+    ) {
+        Column(
+            modifier
+                .padding(horizontal = 18.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            SectionLabel(
+                stringResource(R.string.live_preview)
+            )
+
+            StatusBarPreview(
+                mode = PreviewMode.CLOCK
+            )
+
+            SectionLabel(
+                stringResource(R.string.time_date)
+            )
+
+            ExpressiveCard(
+                Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    Modifier.padding(
+                        horizontal = 16.dp,
+                        vertical = 6.dp
+                    )
+                ) {
+                    SettingSwitch(
+                        stringResource(
+                            R.string.twenty_four_hour
+                        ),
+                        clockSettings.format24
+                    ) {
+                        saveClock("format24", it)
+                    }
+
+                    HorizontalDivider()
+
+                    SettingSwitch(
+                        stringResource(
+                            R.string.show_date
+                        ),
+                        clockSettings.showDate
+                    ) {
+                        saveClock("showDate", it)
+                    }
+                }
+            }
+
+            SectionLabel(
+                stringResource(R.string.date)
+            )
+
+            ExpressiveCard(
+                Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    Modifier.padding(
+                        horizontal = 12.dp,
+                        vertical = 10.dp
+                    ),
+                    verticalArrangement =
+                        Arrangement.spacedBy(8.dp)
+                ) {
+                    ExpressiveDropdown(
+                        label = stringResource(
+                            R.string.date_format
+                        ),
+                        selected = clockSettings.dateFormat,
+                        options = listOf(
+                            "dd/MM",
+                            "dd/MM/yy",
+                            "yyyy-MM-dd",
+                            "dd-MM-yyyy",
+                            "MMM dd",
+                            "EEE",
+                            "EEE dd",
+                            "EEE dd/MM",
+                            "EEE dd MMM",
+                            "EEE MMM dd",
+                            "EEEE dd/MM",
+                            "EEEE MM/dd"
+                        )
+                    ) {
+                        saveClock(
+                            "dateFormat",
+                            it
+                        )
+                    }
+
+                    val normalLabel =
+                        stringResource(
+                            R.string.date_style_normal
+                        )
+                    val lowercaseLabel =
+                        stringResource(
+                            R.string.date_style_lowercase
+                        )
+                    val uppercaseLabel =
+                        stringResource(
+                            R.string.date_style_uppercase
+                        )
+
+                    ExpressiveDropdown(
+                        label = stringResource(
+                            R.string.date_style
+                        ),
+                        selected = when (
+                            clockSettings.dateStyle.coerceIn(
+                                0,
+                                2
+                            )
                         ) {
-                            Text(
-                                stringResource(R.string.custom_system_indicators),
-                                style = MaterialTheme.typography.titleLarge
-                            )
+                            1 -> lowercaseLabel
+                            2 -> uppercaseLabel
+                            else -> normalLabel
+                        },
+                        options = listOf(
+                            normalLabel,
+                            lowercaseLabel,
+                            uppercaseLabel
+                        )
+                    ) { value ->
+                        saveClock(
+                            "dateStyle",
+                            when (value) {
+                                lowercaseLabel -> 1
+                                uppercaseLabel -> 2
+                                else -> 0
+                            }
+                        )
+                    }
+                }
+            }
 
-                            SliderSetting(
-                                title = stringResource(R.string.indicator_size),
-                                valueText = stringResource(
-                                    R.string.dp_value,
-                                    duoSize.toInt()
-                                ),
-                                value = duoSize,
-                                range = 28f..60f,
-                                onValueChange = {
-                                    duoSize = it
-                                    DuoPreferences.setIndicatorSizeDp(
-                                        this@MainActivity,
-                                        it
-                                    )
-                                },
-                                onReset = {
-                                    DuoPreferences.setIndicatorSizeDp(
-                                        this@MainActivity,
-                                        36f
-                                    )
-                                    loadSettings()
-                                }
-                            )
+            SectionLabel(
+                stringResource(R.string.size)
+            )
 
-                            SettingSwitch(
-                                stringResource(R.string.automatic_position),
-                                duoAutomatic
-                            ) {
-                                duoAutomatic = it
-                                DuoPreferences.setAutomaticPosition(
+            ExpressiveCard(
+                Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    Modifier.padding(
+                        horizontal = 16.dp,
+                        vertical = 12.dp
+                    )
+                ) {
+                    SliderSetting(
+                        title = stringResource(
+                            R.string.clock_size
+                        ),
+                        valueText = stringResource(
+                            R.string.sp_value,
+                            clockSettings.sizeSp.toInt()
+                        ),
+                        value = clockSettings.sizeSp,
+                        range = 10f..22f,
+                        onValueChange = {
+                            saveClock(
+                                "sizeSp",
+                                it
+                            )
+                        },
+                        onReset = {
+                            saveClock(
+                                "sizeSp",
+                                clockPrefs
+                                    .nativeDefaultClockSizeSp()
+                            )
+                        }
+                    )
+                }
+            }
+
+            SectionLabel(
+                stringResource(R.string.position)
+            )
+
+            ExpressiveCard(
+                Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    Modifier.padding(
+                        horizontal = 16.dp,
+                        vertical = 12.dp
+                    ),
+                    verticalArrangement =
+                        Arrangement.spacedBy(12.dp)
+                ) {
+                    SliderValueSetting(
+                        title = stringResource(
+                            R.string.clock_horizontal_position
+                        ),
+                        valueText = stringResource(
+                            R.string.dp_value,
+                            clockSettings
+                                .horizontalPositionDp
+                                .toInt()
+                        ),
+                        value =
+                            clockSettings
+                                .horizontalPositionDp,
+                        range = -100f..100f,
+                        onValueChange = {
+                            saveClock(
+                                "horizontalPositionDp",
+                                it
+                            )
+                        }
+                    )
+
+                    SliderValueSetting(
+                        title = stringResource(
+                            R.string.clock_vertical_position
+                        ),
+                        valueText = stringResource(
+                            R.string.dp_value,
+                            clockSettings
+                                .verticalPositionDp
+                                .toInt()
+                        ),
+                        value =
+                            clockSettings
+                                .verticalPositionDp,
+                        range = -20f..20f,
+                        onValueChange = {
+                            saveClock(
+                                "verticalPositionDp",
+                                it
+                            )
+                        }
+                    )
+
+                    PositionResetPill(
+                        onClick = ::resetClockPosition
+                    )
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun IndicatorsCustomizationScreen(
+        modifier: Modifier = Modifier
+    ) {
+        val customizationEnabled =
+            systemUiHidden && !busy
+
+        Column(
+            modifier
+                .padding(horizontal = 18.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            SectionLabel(
+                stringResource(R.string.live_preview)
+            )
+
+            StatusBarPreview(
+                mode = PreviewMode.INDICATORS
+            )
+
+            SectionLabel(
+                stringResource(R.string.size)
+            )
+
+            ExpressiveCard(
+                Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    Modifier.padding(
+                        horizontal = 16.dp,
+                        vertical = 12.dp
+                    )
+                ) {
+                    SliderSetting(
+                        title = stringResource(
+                            R.string.indicator_size
+                        ),
+                        valueText = stringResource(
+                            R.string.dp_value,
+                            duoSize.toInt()
+                        ),
+                        value = duoSize,
+                        range = 28f..60f,
+                        onValueChange = {
+                            duoSize = it
+                            DuoPreferences.setIndicatorSizeDp(
+                                this@MainActivity,
+                                it
+                            )
+                        },
+                        onReset = {
+                            DuoPreferences.setIndicatorSizeDp(
+                                this@MainActivity,
+                                36f
+                            )
+                            loadSettings()
+                        }
+                    )
+                }
+            }
+
+            SectionLabel(
+                stringResource(R.string.position)
+            )
+
+            ExpressiveCard(
+                Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    Modifier.padding(
+                        horizontal = 16.dp,
+                        vertical = 12.dp
+                    ),
+                    verticalArrangement =
+                        Arrangement.spacedBy(12.dp)
+                ) {
+                    SettingSwitch(
+                        stringResource(
+                            R.string.automatic_position
+                        ),
+                        duoAutomatic
+                    ) {
+                        duoAutomatic = it
+                        DuoPreferences
+                            .setAutomaticPosition(
+                                this@MainActivity,
+                                it
+                            )
+                    }
+
+                    SliderValueSetting(
+                        title = stringResource(
+                            R.string.indicator_horizontal_position
+                        ),
+                        valueText = stringResource(
+                            R.string.dp_value,
+                            duoX.toInt()
+                        ),
+                        value = duoX,
+                        range = -24f..24f,
+                        onValueChange = {
+                            duoX = it
+                            duoAutomatic = false
+                            DuoPreferences
+                                .setHorizontalOffsetDp(
                                     this@MainActivity,
                                     it
                                 )
-                            }
-
-                            SliderSetting(
-                                title = stringResource(
-                                    R.string.indicator_horizontal_position
-                                ),
-                                valueText = stringResource(
-                                    R.string.dp_value,
-                                    duoX.toInt()
-                                ),
-                                value = duoX,
-                                range = -24f..24f,
-                                onValueChange = {
-                                    duoX = it
-                                    duoAutomatic = false
-                                    DuoPreferences.setHorizontalOffsetDp(
-                                        this@MainActivity,
-                                        it
-                                    )
-                                    DuoPreferences.setAutomaticPosition(
-                                        this@MainActivity,
-                                        false
-                                    )
-                                },
-                                onReset = ::resetDuoPosition
-                            )
-
-                            SliderSetting(
-                                title = stringResource(
-                                    R.string.indicator_vertical_position
-                                ),
-                                valueText = stringResource(
-                                    R.string.dp_value,
-                                    duoY.toInt()
-                                ),
-                                value = duoY,
-                                range = -24f..24f,
-                                onValueChange = {
-                                    duoY = it
-                                    duoAutomatic = false
-                                    DuoPreferences.setVerticalOffsetDp(
-                                        this@MainActivity,
-                                        it
-                                    )
-                                    DuoPreferences.setAutomaticPosition(
-                                        this@MainActivity,
-                                        false
-                                    )
-                                },
-                                onReset = ::resetDuoPosition
-                            )
-
-                            Text(
-                                stringResource(R.string.style),
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                            Row(
-                                Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                listOf(
-                                    DuoVisualStyle.DUO,
-                                    DuoVisualStyle.COMPACT
-                                ).forEach { style ->
-                                    val selected = duoStyle == style
-                                    if (selected) {
-                                        Button(
-                                            onClick = {},
-                                            enabled = customizationEnabled,
-                                            modifier = Modifier.weight(1f)
-                                        ) {
-                                            Text(
-                                                if (
-                                                    style ==
-                                                        DuoVisualStyle.DUO
-                                                ) {
-                                                    stringResource(R.string.duo)
-                                                } else {
-                                                    stringResource(R.string.compact)
-                                                }
-                                            )
-                                        }
-                                    } else {
-                                        OutlinedButton(
-                                            onClick = {
-                                                duoStyle = style
-                                                DuoPreferences.setVisualStyle(
-                                                    this@MainActivity,
-                                                    style
-                                                )
-                                            },
-                                            enabled = customizationEnabled,
-                                            modifier = Modifier.weight(1f)
-                                        ) {
-                                            Text(
-                                                if (
-                                                    style ==
-                                                        DuoVisualStyle.DUO
-                                                ) {
-                                                    stringResource(R.string.duo)
-                                                } else {
-                                                    stringResource(R.string.compact)
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
-                            }
+                            DuoPreferences
+                                .setAutomaticPosition(
+                                    this@MainActivity,
+                                    false
+                                )
                         }
-                    }
+                    )
 
-                    ExpressiveCard(Modifier.fillMaxWidth()) {
-                        Column(
-                            Modifier.padding(16.dp)
-                        ) {
-                            Text(
-                                stringResource(R.string.safety),
-                                style = MaterialTheme.typography.titleLarge
-                            )
-                            TextButton(
-                                enabled = !busy,
-                                onClick = ::restoreNativeSystemUi,
-                                modifier = Modifier.fillMaxWidth()
+                    SliderValueSetting(
+                        title = stringResource(
+                            R.string.indicator_vertical_position
+                        ),
+                        valueText = stringResource(
+                            R.string.dp_value,
+                            duoY.toInt()
+                        ),
+                        value = duoY,
+                        range = -24f..24f,
+                        onValueChange = {
+                            duoY = it
+                            duoAutomatic = false
+                            DuoPreferences
+                                .setVerticalOffsetDp(
+                                    this@MainActivity,
+                                    it
+                                )
+                            DuoPreferences
+                                .setAutomaticPosition(
+                                    this@MainActivity,
+                                    false
+                                )
+                        }
+                    )
+
+                    PositionResetPill(
+                        onClick = ::resetDuoPosition
+                    )
+                }
+            }
+
+            SectionLabel(
+                stringResource(R.string.style)
+            )
+
+            ExpressiveCard(
+                Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            horizontal = 12.dp,
+                            vertical = 12.dp
+                        ),
+                    horizontalArrangement =
+                        Arrangement.spacedBy(10.dp)
+                ) {
+                    listOf(
+                        DuoVisualStyle.DUO,
+                        DuoVisualStyle.COMPACT
+                    ).forEach { style ->
+                        val selected =
+                            duoStyle == style
+
+                        if (selected) {
+                            Button(
+                                onClick = {},
+                                enabled = customizationEnabled,
+                                modifier = Modifier.weight(1f),
+                                shape =
+                                    RoundedCornerShape(18.dp)
                             ) {
                                 Text(
-                                    stringResource(
-                                        R.string.restore_native_systemui
-                                    )
+                                    if (
+                                        style ==
+                                            DuoVisualStyle.DUO
+                                    ) {
+                                        stringResource(
+                                            R.string.duo
+                                        )
+                                    } else {
+                                        stringResource(
+                                            R.string.compact
+                                        )
+                                    }
+                                )
+                            }
+                        } else {
+                            OutlinedButton(
+                                onClick = {
+                                    duoStyle = style
+                                    DuoPreferences
+                                        .setVisualStyle(
+                                            this@MainActivity,
+                                            style
+                                        )
+                                },
+                                enabled =
+                                    customizationEnabled,
+                                modifier =
+                                    Modifier.weight(1f),
+                                shape =
+                                    RoundedCornerShape(18.dp)
+                            ) {
+                                Text(
+                                    if (
+                                        style ==
+                                            DuoVisualStyle.DUO
+                                    ) {
+                                        stringResource(
+                                            R.string.duo
+                                        )
+                                    } else {
+                                        stringResource(
+                                            R.string.compact
+                                        )
+                                    }
                                 )
                             }
                         }
                     }
-                }
+                )
             }
         }
     }
@@ -1114,53 +1466,191 @@ class MainActivity : ComponentActivity() {
             modifier
                 .padding(horizontal = 18.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            Text(
-                stringResource(R.string.settings_general),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(
-                    start = 4.dp,
-                    top = 8.dp
-                )
+            SectionLabel(
+                stringResource(R.string.systemui_control)
             )
 
-            ExpressiveCard(Modifier.fillMaxWidth()) {
-                ListItem(
-                    modifier = Modifier.clickable {
-                        showLanguageDialog = true
-                    },
-                    leadingContent = {
-                        Icon(
-                            Icons.Default.Language,
-                            contentDescription = stringResource(
-                                R.string.content_description_language
+            ExpressiveCard(
+                Modifier.fillMaxWidth()
+            ) {
+                Column {
+                    PermissionRow(
+                        title = stringResource(
+                            R.string.shizuku
+                        ),
+                        ready = shizukuReady,
+                        actionLabel = stringResource(
+                            R.string.connect
+                        ),
+                        onAction = ::requestShizuku
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(
+                            horizontal = 16.dp
+                        )
+                    )
+
+                    PermissionRow(
+                        title = stringResource(
+                            R.string.notification_access
+                        ),
+                        ready = notificationAccess,
+                        actionLabel = stringResource(
+                            R.string.grant
+                        ),
+                        onAction = ::openNotificationAccess
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(
+                            horizontal = 16.dp
+                        )
+                    )
+
+                    PermissionRow(
+                        title = stringResource(
+                            R.string.phone_state
+                        ),
+                        ready = phoneStateGranted,
+                        actionLabel = stringResource(
+                            R.string.allow
+                        ),
+                        onAction = ::requestPhonePermission
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(
+                            horizontal = 16.dp
+                        )
+                    )
+
+                    PermissionRow(
+                        title = stringResource(
+                            R.string.display_over_other_apps
+                        ),
+                        ready = overlayPermissionGranted,
+                        actionLabel = stringResource(
+                            R.string.allow
+                        ),
+                        onAction = ::openOverlayPermission
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(
+                            horizontal = 16.dp
+                        )
+                    )
+
+                    ListItem(
+                        headlineContent = {
+                            Text(
+                                stringResource(
+                                    R.string.systemui_plus
+                                ),
+                                style =
+                                    MaterialTheme.typography
+                                        .bodyLarge
                             )
-                        )
-                    },
-                    headlineContent = {
-                        Text(stringResource(R.string.language))
-                    },
-                    supportingContent = {
-                        Text(stringResource(R.string.language_summary))
-                    },
-                    trailingContent = {
-                        Text(
-                            if (appLanguageMode == AppLanguageMode.ENGLISH) {
-                                stringResource(R.string.language_english)
-                            } else {
-                                stringResource(R.string.language_device)
-                            },
-                            color = MaterialTheme.colorScheme.primary,
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                    }
-                )
+                        },
+                        supportingContent = {
+                            Text(
+                                if (systemUiHidden) {
+                                    stringResource(
+                                        R.string.systemui_status_active
+                                    )
+                                } else {
+                                    stringResource(
+                                        R.string.systemui_status_ready
+                                    )
+                                }
+                            )
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = systemUiHidden,
+                                onCheckedChange = {
+                                    toggleMasterSystemUi()
+                                },
+                                enabled =
+                                    shizukuReady &&
+                                        notificationAccess &&
+                                        phoneStateGranted &&
+                                        overlayPermissionGranted &&
+                                        !busy
+                            )
+                        }
+                    )
+                }
             }
 
-            ExpressiveCard(Modifier.fillMaxWidth()) {
+            SectionLabel(
+                stringResource(R.string.settings_general)
+            )
+
+            ExpressiveCard(
+                Modifier.fillMaxWidth()
+            ) {
                 Column {
+                    ListItem(
+                        modifier = Modifier.clickable {
+                            showLanguageDialog = true
+                        },
+                        leadingContent = {
+                            Icon(
+                                Icons.Default.Language,
+                                contentDescription =
+                                    stringResource(
+                                        R.string
+                                            .content_description_language
+                                    )
+                            )
+                        },
+                        headlineContent = {
+                            Text(
+                                stringResource(
+                                    R.string.language
+                                )
+                            )
+                        },
+                        supportingContent = {
+                            Text(
+                                stringResource(
+                                    R.string.language_summary
+                                )
+                            )
+                        },
+                        trailingContent = {
+                            Text(
+                                if (
+                                    appLanguageMode ==
+                                        AppLanguageMode.ENGLISH
+                                ) {
+                                    stringResource(
+                                        R.string.language_english
+                                    )
+                                } else {
+                                    stringResource(
+                                        R.string.language_device
+                                    )
+                                },
+                                color =
+                                    MaterialTheme.colorScheme.primary,
+                                style =
+                                    MaterialTheme.typography
+                                        .labelLarge
+                            )
+                        }
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(
+                            horizontal = 16.dp
+                        )
+                    )
+
                     ListItem(
                         modifier = Modifier.clickable {
                             requestBatteryOptimization()
@@ -1168,9 +1658,11 @@ class MainActivity : ComponentActivity() {
                         leadingContent = {
                             Icon(
                                 Icons.Default.BatteryChargingFull,
-                                contentDescription = stringResource(
-                                    R.string.content_description_battery_optimization
-                                )
+                                contentDescription =
+                                    stringResource(
+                                        R.string
+                                            .content_description_battery_optimization
+                                    )
                             )
                         },
                         headlineContent = {
@@ -1183,10 +1675,14 @@ class MainActivity : ComponentActivity() {
                         supportingContent = {
                             Text(
                                 stringResource(
-                                    if (batteryOptimizationIgnored) {
-                                        R.string.battery_optimization_enabled_summary
+                                    if (
+                                        batteryOptimizationIgnored
+                                    ) {
+                                        R.string
+                                            .battery_optimization_enabled_summary
                                     } else {
-                                        R.string.battery_optimization_disabled_summary
+                                        R.string
+                                            .battery_optimization_disabled_summary
                                     }
                                 )
                             )
@@ -1194,20 +1690,27 @@ class MainActivity : ComponentActivity() {
                         trailingContent = {
                             Text(
                                 stringResource(
-                                    if (batteryOptimizationIgnored) {
+                                    if (
+                                        batteryOptimizationIgnored
+                                    ) {
                                         R.string.enabled
                                     } else {
                                         R.string.enable
                                     }
                                 ),
-                                color = MaterialTheme.colorScheme.primary,
-                                style = MaterialTheme.typography.labelLarge
+                                color =
+                                    MaterialTheme.colorScheme.primary,
+                                style =
+                                    MaterialTheme.typography
+                                        .labelLarge
                             )
                         }
                     )
 
                     HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp)
+                        modifier = Modifier.padding(
+                            horizontal = 16.dp
+                        )
                     )
 
                     ListItem(
@@ -1217,9 +1720,11 @@ class MainActivity : ComponentActivity() {
                         leadingContent = {
                             Icon(
                                 Icons.Default.NotificationsOff,
-                                contentDescription = stringResource(
-                                    R.string.content_description_overlay_notification
-                                )
+                                contentDescription =
+                                    stringResource(
+                                        R.string
+                                            .content_description_overlay_notification
+                                    )
                             )
                         },
                         headlineContent = {
@@ -1238,40 +1743,48 @@ class MainActivity : ComponentActivity() {
                         },
                         trailingContent = {
                             Text(
-                                stringResource(R.string.manage),
-                                color = MaterialTheme.colorScheme.primary,
-                                style = MaterialTheme.typography.labelLarge
+                                stringResource(
+                                    R.string.manage
+                                ),
+                                color =
+                                    MaterialTheme.colorScheme.primary,
+                                style =
+                                    MaterialTheme.typography
+                                        .labelLarge
                             )
                         }
                     )
                 }
             }
 
-            Text(
-                stringResource(R.string.settings_data),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(
-                    start = 4.dp,
-                    top = 8.dp
-                )
+            SectionLabel(
+                stringResource(R.string.settings_data)
             )
 
-            ExpressiveCard(Modifier.fillMaxWidth()) {
+            ExpressiveCard(
+                Modifier.fillMaxWidth()
+            ) {
                 ListItem(
                     modifier = Modifier.clickable {
-                        settingsPage = AppSettingsPage.BACKUP_RESTORE
+                        settingsPage =
+                            AppSettingsPage.BACKUP_RESTORE
                     },
                     leadingContent = {
                         Icon(
                             Icons.Default.Backup,
-                            contentDescription = stringResource(
-                                R.string.content_description_backup_restore
-                            )
+                            contentDescription =
+                                stringResource(
+                                    R.string
+                                        .content_description_backup_restore
+                                )
                         )
                     },
                     headlineContent = {
-                        Text(stringResource(R.string.backup_restore))
+                        Text(
+                            stringResource(
+                                R.string.backup_restore
+                            )
+                        )
                     },
                     supportingContent = {
                         Text(
@@ -1283,27 +1796,25 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
-            Text(
-                stringResource(R.string.settings_about),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(
-                    start = 4.dp,
-                    top = 8.dp
-                )
+            SectionLabel(
+                stringResource(R.string.settings_about)
             )
 
-            ExpressiveCard(Modifier.fillMaxWidth()) {
+            ExpressiveCard(
+                Modifier.fillMaxWidth()
+            ) {
                 ListItem(
                     modifier = Modifier.clickable {
-                        settingsPage = AppSettingsPage.ABOUT
+                        settingsPage =
+                            AppSettingsPage.ABOUT
                     },
                     leadingContent = {
                         Icon(
                             Icons.Default.Info,
-                            contentDescription = stringResource(
-                                R.string.content_description_about
-                            )
+                            contentDescription =
+                                stringResource(
+                                    R.string.content_description_about
+                                )
                         )
                     },
                     headlineContent = {
@@ -1325,7 +1836,9 @@ class MainActivity : ComponentActivity() {
 
             if (showLanguageDialog) {
                 LanguageDialog(
-                    onDismiss = { showLanguageDialog = false }
+                    onDismiss = {
+                        showLanguageDialog = false
+                    }
                 )
             }
         }
@@ -1797,107 +2310,365 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun SystemUiPreview() {
+    private fun StatusBarPreview(
+        mode: PreviewMode,
+        hero: Boolean = false
+    ) {
         val now = java.time.LocalDateTime.now()
-        val timePattern = if (clockSettings.format24) "HH:mm" else "hh:mm a"
-        val timeText = runCatching {
-            java.time.format.DateTimeFormatter.ofPattern(
-                timePattern,
-                java.util.Locale.getDefault()
-            ).format(now)
-        }.getOrDefault("--:--")
-        val dateTextRaw = runCatching {
-            java.time.format.DateTimeFormatter.ofPattern(
-                clockSettings.dateFormat,
-                java.util.Locale.getDefault()
-            ).format(now)
-        }.getOrDefault(clockSettings.dateFormat)
-        val dateText = when (clockSettings.dateStyle.coerceIn(0, 2)) {
-            1 -> dateTextRaw.lowercase(java.util.Locale.getDefault())
-            2 -> dateTextRaw.uppercase(java.util.Locale.getDefault())
-            else -> dateTextRaw
-        }
-        val indicatorScale =
-            (duoSize / 36f).coerceIn(0.78f, 1.45f) *
-                if (duoStyle == DuoVisualStyle.COMPACT) 0.88f else 1f
-        val previewDarkTheme = true
+
+        val timePattern =
+            if (clockSettings.format24) {
+                "HH:mm"
+            } else {
+                "hh:mm a"
+            }
+
+        val timeText =
+            runCatching {
+                java.time.format.DateTimeFormatter
+                    .ofPattern(
+                        timePattern,
+                        java.util.Locale.getDefault()
+                    )
+                    .format(now)
+            }.getOrDefault("--:--")
+
+        val dateTextRaw =
+            runCatching {
+                java.time.format.DateTimeFormatter
+                    .ofPattern(
+                        clockSettings.dateFormat,
+                        java.util.Locale.getDefault()
+                    )
+                    .format(now)
+            }.getOrDefault(
+                clockSettings.dateFormat
+            )
+
+        val dateText =
+            when (
+                clockSettings.dateStyle.coerceIn(
+                    0,
+                    2
+                )
+            ) {
+                1 ->
+                    dateTextRaw.lowercase(
+                        java.util.Locale.getDefault()
+                    )
+                2 ->
+                    dateTextRaw.uppercase(
+                        java.util.Locale.getDefault()
+                    )
+                else ->
+                    dateTextRaw
+            }
+
+        val previewClockSize =
+            if (hero) {
+                maxOf(
+                    30f,
+                    clockSettings.sizeSp
+                )
+            } else {
+                clockSettings.sizeSp
+            }
+
+        val surfaceHeight =
+            when {
+                hero -> 176.dp
+                mode == PreviewMode.CLOCK -> 136.dp
+                else -> 112.dp
+            }
 
         Surface(
-            modifier = Modifier.fillMaxWidth().height(92.dp),
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-            tonalElevation = 2.dp
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(surfaceHeight),
+            shape = RoundedCornerShape(
+                if (hero) 32.dp else 28.dp
+            ),
+            color =
+                MaterialTheme.colorScheme.surfaceContainer,
+            tonalElevation = 0.dp
         ) {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    
-                    .padding(horizontal = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(
-                    Modifier
-                        .weight(1f)
-                        .offset(
-                            x = clockSettings.horizontalPositionDp.dp,
-                            y = clockSettings.verticalPositionDp.dp
-                        )
-                ) {
-                    Text(
-                        timeText,
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontSize = clockSettings.sizeSp.sp
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                    )
-                    if (clockSettings.showDate) {
-                        Text(
-                            dateText,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+            when (mode) {
+                PreviewMode.FULL -> {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                horizontal = 20.dp
+                            ),
+                        verticalAlignment =
+                            Alignment.CenterVertically
+                    ) {
+                        Column(
+                            Modifier
+                                .weight(1f)
+                                .offset(
+                                    x =
+                                        clockSettings
+                                            .horizontalPositionDp
+                                            .dp,
+                                    y =
+                                        clockSettings
+                                            .verticalPositionDp
+                                            .dp
+                                ),
+                            horizontalAlignment =
+                                Alignment.Start
+                        ) {
+                            Text(
+                                timeText,
+                                style =
+                                    MaterialTheme
+                                        .typography
+                                        .headlineMedium
+                                        .copy(
+                                            fontSize =
+                                                previewClockSize.sp,
+                                            fontWeight =
+                                                FontWeight.SemiBold
+                                        ),
+                                color =
+                                    MaterialTheme
+                                        .colorScheme
+                                        .onSurface
+                            )
+
+                            if (clockSettings.showDate) {
+                                Text(
+                                    dateText,
+                                    style =
+                                        MaterialTheme
+                                            .typography
+                                            .bodyMedium,
+                                    color =
+                                        MaterialTheme
+                                            .colorScheme
+                                            .onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        IndicatorPreviewView(
+                            modifier = Modifier
+                                .size(
+                                    (
+                                        duoSize *
+                                            if (
+                                                duoStyle ==
+                                                    DuoVisualStyle
+                                                        .COMPACT
+                                            ) {
+                                                0.88f
+                                            } else {
+                                                1f
+                                            }
+                                    ).dp.coerceIn(
+                                        28.dp,
+                                        60.dp
+                                    )
+                                )
                         )
                     }
                 }
 
-                AndroidView(
-                    modifier = Modifier
-                        .size((duoSize * if (duoStyle == DuoVisualStyle.COMPACT) 0.88f else 1f).dp.coerceIn(28.dp, 60.dp)),
-                    factory = { context -> DuoIndicatorView(context) },
-                    update = { view ->
-                        val battery = runCatching {
-                            (getSystemService(android.content.Context.BATTERY_SERVICE) as BatteryManager)
-                                .getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
-                                .coerceIn(0, 100)
-                        }.getOrDefault(100)
-                        val wifi = runCatching {
-                            val cm = getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
-                            val network = cm.activeNetwork
-                            val caps = network?.let { cm.getNetworkCapabilities(it) }
-                            val connected = caps?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) == true
-                            val info = (getSystemService(android.content.Context.WIFI_SERVICE) as android.net.wifi.WifiManager).connectionInfo
-                            val bars = if (info.rssi == -127) 1 else
-                                (android.net.wifi.WifiManager.calculateSignalLevel(info.rssi, 5) + 1).coerceIn(0, 4)
-                            Triple(com.aldiandrew.duos.DuoStatusMapper.wifiBars(bars), connected, caps?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true)
-                        }.getOrDefault(Triple(0, false, false))
-                        val light = !previewDarkTheme
-                        view.update(
-                            DuoStatusState(
-                                batteryLevel = battery,
-                                wifiLevel = wifi.first,
-                                wifiConnected = wifi.second,
-                                foregroundColor = if (light) android.graphics.Color.BLACK else android.graphics.Color.WHITE,
-                                visualStyle = duoStyle
+                PreviewMode.CLOCK -> {
+                    Box(
+                        Modifier.fillMaxSize(),
+                        contentAlignment =
+                            Alignment.Center
+                    ) {
+                        Column(
+                            modifier =
+                                Modifier.offset(
+                                    x =
+                                        clockSettings
+                                            .horizontalPositionDp
+                                            .dp,
+                                    y =
+                                        clockSettings
+                                            .verticalPositionDp
+                                            .dp
+                                ),
+                            horizontalAlignment =
+                                Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                timeText,
+                                style =
+                                    MaterialTheme
+                                        .typography
+                                        .headlineMedium
+                                        .copy(
+                                            fontSize =
+                                                previewClockSize.sp,
+                                            fontWeight =
+                                                FontWeight.SemiBold
+                                        ),
+                                color =
+                                    MaterialTheme
+                                        .colorScheme
+                                        .onSurface
                             )
+
+                            if (clockSettings.showDate) {
+                                Text(
+                                    dateText,
+                                    style =
+                                        MaterialTheme
+                                            .typography
+                                            .bodyMedium,
+                                    color =
+                                        MaterialTheme
+                                            .colorScheme
+                                            .onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+
+                PreviewMode.INDICATORS -> {
+                    Box(
+                        Modifier.fillMaxSize(),
+                        contentAlignment =
+                            Alignment.CenterEnd
+                    ) {
+                        IndicatorPreviewView(
+                            modifier = Modifier
+                                .padding(end = 18.dp)
+                                .offset(
+                                    x = duoX.dp,
+                                    y = duoY.dp
+                                )
+                                .size(
+                                    (
+                                        duoSize *
+                                            if (
+                                                duoStyle ==
+                                                    DuoVisualStyle
+                                                        .COMPACT
+                                            ) {
+                                                0.88f
+                                            } else {
+                                                1f
+                                            }
+                                    ).dp.coerceIn(
+                                        28.dp,
+                                        60.dp
+                                    )
+                                )
                         )
                     }
-                )
+                }
             }
         }
-        Text(
-            stringResource(R.string.preview_updates),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    @Composable
+    private fun IndicatorPreviewView(
+        modifier: Modifier = Modifier
+    ) {
+        AndroidView(
+            modifier = modifier,
+            factory = { context ->
+                DuoIndicatorView(context)
+            },
+            update = { view ->
+                val battery =
+                    runCatching {
+                        (
+                            getSystemService(
+                                android.content.Context
+                                    .BATTERY_SERVICE
+                            ) as BatteryManager
+                        ).getIntProperty(
+                            BatteryManager
+                                .BATTERY_PROPERTY_CAPACITY
+                        ).coerceIn(
+                            0,
+                            100
+                        )
+                    }.getOrDefault(100)
+
+                val wifi =
+                    runCatching {
+                        val cm =
+                            getSystemService(
+                                android.content.Context
+                                    .CONNECTIVITY_SERVICE
+                            ) as android.net.ConnectivityManager
+
+                        val network = cm.activeNetwork
+                        val caps =
+                            network?.let {
+                                cm.getNetworkCapabilities(
+                                    it
+                                )
+                            }
+
+                        val connected =
+                            caps?.hasTransport(
+                                android.net.NetworkCapabilities
+                                    .TRANSPORT_WIFI
+                            ) == true
+
+                        val info =
+                            (
+                                getSystemService(
+                                    android.content.Context
+                                        .WIFI_SERVICE
+                                ) as android.net.wifi.WifiManager
+                            ).connectionInfo
+
+                        val bars =
+                            if (info.rssi == -127) {
+                                1
+                            } else {
+                                (
+                                    android.net.wifi.WifiManager
+                                        .calculateSignalLevel(
+                                            info.rssi,
+                                            5
+                                        ) + 1
+                                ).coerceIn(
+                                    0,
+                                    4
+                                )
+                            }
+
+                        Triple(
+                            com.aldiandrew.duos
+                                .DuoStatusMapper
+                                .wifiBars(bars),
+                            connected,
+                            caps?.hasCapability(
+                                android.net.NetworkCapabilities
+                                    .NET_CAPABILITY_VALIDATED
+                            ) == true
+                        )
+                    }.getOrDefault(
+                        Triple(
+                            0,
+                            false,
+                            false
+                        )
+                    )
+
+                view.update(
+                    DuoStatusState(
+                        batteryLevel = battery,
+                        wifiLevel = wifi.first,
+                        wifiConnected = wifi.second,
+                        foregroundColor =
+                            android.graphics.Color.WHITE,
+                        visualStyle = duoStyle
+                    )
+                )
+            }
         )
     }
 
@@ -1909,12 +2680,177 @@ class MainActivity : ComponentActivity() {
         Card(
             modifier = modifier,
             shape = RoundedCornerShape(28.dp),
-            elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 2.dp),
-            colors = androidx.compose.material3.CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-            ),
+            elevation =
+                androidx.compose.material3.CardDefaults
+                    .cardElevation(
+                        defaultElevation = 0.dp
+                    ),
+            colors =
+                androidx.compose.material3.CardDefaults.cardColors(
+                    containerColor =
+                        MaterialTheme.colorScheme
+                            .surfaceContainerLow
+                ),
             content = content
         )
+    }
+
+    @Composable
+    private fun SectionLabel(
+        text: String
+    ) {
+        Text(
+            text = text,
+            style =
+                MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = 0.6.sp
+                ),
+            color =
+                MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(
+                start = 4.dp,
+                top = 2.dp
+            )
+        )
+    }
+
+    @Composable
+    private fun NavigationRow(
+        icon: androidx.compose.ui.graphics.vector.ImageVector,
+        title: String,
+        summary: String,
+        onClick: () -> Unit
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(
+                    horizontal = 16.dp,
+                    vertical = 15.dp
+                ),
+            verticalAlignment =
+                Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint =
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp)
+            )
+
+            Column(
+                Modifier
+                    .weight(1f)
+                    .padding(horizontal = 16.dp),
+                verticalArrangement =
+                    Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    title,
+                    style =
+                        MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Medium
+                        )
+                )
+
+                Text(
+                    summary,
+                    style =
+                        MaterialTheme.typography.bodySmall,
+                    color =
+                        MaterialTheme.colorScheme
+                            .onSurfaceVariant
+                )
+            }
+
+            Text(
+                "›",
+                style =
+                    MaterialTheme.typography.headlineSmall,
+                color =
+                    MaterialTheme.colorScheme
+                        .onSurfaceVariant
+            )
+        }
+    }
+
+    @Composable
+    private fun PositionResetPill(
+        onClick: () -> Unit
+    ) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement =
+                Arrangement.Center
+        ) {
+            OutlinedButton(
+                enabled = systemUiHidden && !busy,
+                onClick = onClick,
+                shape = RoundedCornerShape(50)
+            ) {
+                Icon(
+                    Icons.Default.Refresh,
+                    contentDescription = null
+                )
+                Text(
+                    stringResource(
+                        R.string.reset_position
+                    ),
+                    modifier = Modifier.padding(
+                        start = 6.dp
+                    )
+                )
+            }
+        }
+    }
+
+    @Composable
+    private fun SliderValueSetting(
+        title: String,
+        valueText: String,
+        value: Float,
+        range: ClosedFloatingPointRange<Float>,
+        onValueChange: (Float) -> Unit
+    ) {
+        val enabled = systemUiHidden && !busy
+
+        Column(
+            verticalArrangement =
+                Arrangement.spacedBy(2.dp)
+        ) {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment =
+                    Alignment.CenterVertically
+            ) {
+                Text(
+                    title,
+                    style =
+                        MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f)
+                )
+
+                Text(
+                    valueText,
+                    style =
+                        MaterialTheme.typography.bodyMedium,
+                    color =
+                        MaterialTheme.colorScheme
+                            .onSurfaceVariant
+                )
+            }
+
+            Slider(
+                value = value,
+                onValueChange = onValueChange,
+                valueRange = range,
+                enabled = enabled,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 
     @Composable
@@ -2059,10 +2995,19 @@ class MainActivity : ComponentActivity() {
     ) {
         val enabled = systemUiHidden && !busy
         Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp),
+            horizontalArrangement =
+                Arrangement.SpaceBetween,
+            verticalAlignment =
+                Alignment.CenterVertically
         ) {
-            Text(label)
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyLarge
+            )
+
             Switch(
                 checked = checked,
                 enabled = enabled,
@@ -2070,6 +3015,18 @@ class MainActivity : ComponentActivity() {
             )
         }
     }
+}
+
+private enum class CustomizationPage {
+    NONE,
+    CLOCK,
+    INDICATORS
+}
+
+private enum class PreviewMode {
+    FULL,
+    CLOCK,
+    INDICATORS
 }
 
 private val SystemUIPlusJakartaSans =
@@ -2167,19 +3124,19 @@ private fun SystemUIPlusTheme(content: @Composable () -> Unit) {
             background = androidx.compose.ui.graphics.Color(0xFF000000),
             onBackground = androidx.compose.ui.graphics.Color(0xFFF5F5F5),
 
-            surface = androidx.compose.ui.graphics.Color(0xFF050505),
-            onSurface = androidx.compose.ui.graphics.Color(0xFFF5F5F5),
+            surface = androidx.compose.ui.graphics.Color(0xFF000000),
+            onSurface = androidx.compose.ui.graphics.Color(0xFFFFFFFF),
             surfaceVariant = androidx.compose.ui.graphics.Color(0xFF111111),
-            onSurfaceVariant = androidx.compose.ui.graphics.Color(0xFFB7B7B7),
+            onSurfaceVariant = androidx.compose.ui.graphics.Color(0xFFB8B8B8),
 
             surfaceContainerLowest = androidx.compose.ui.graphics.Color(0xFF000000),
-            surfaceContainerLow = androidx.compose.ui.graphics.Color(0xFF080808),
-            surfaceContainer = androidx.compose.ui.graphics.Color(0xFF0D0D0D),
-            surfaceContainerHigh = androidx.compose.ui.graphics.Color(0xFF121212),
-            surfaceContainerHighest = androidx.compose.ui.graphics.Color(0xFF181818),
+            surfaceContainerLow = androidx.compose.ui.graphics.Color(0xFF111111),
+            surfaceContainer = androidx.compose.ui.graphics.Color(0xFF141414),
+            surfaceContainerHigh = androidx.compose.ui.graphics.Color(0xFF181818),
+            surfaceContainerHighest = androidx.compose.ui.graphics.Color(0xFF1A1A1A),
 
             outline = androidx.compose.ui.graphics.Color(0xFF626262),
-            outlineVariant = androidx.compose.ui.graphics.Color(0xFF303030),
+            outlineVariant = androidx.compose.ui.graphics.Color(0xFF2A2A2A),
 
             scrim = androidx.compose.ui.graphics.Color(0xFF000000),
             inverseSurface = androidx.compose.ui.graphics.Color(0xFFF0F0F0),
