@@ -119,4 +119,8 @@
     <string name="content_description_source">Source Code</string>
     <string name="content_description_licenses">Lisensi</string>
     <string name="content_description_privacy">Kebijakan Privasi</string>
+
+    <string name="about_project_information">Source, Lisensi &amp; Privasi</string>
+    <string name="about_project_information_summary">Source project, lisensi pihak ketiga, dan informasi privasi</string>
+    <string name="content_description_project_information">Source, lisensi, dan privasi</string>
 </resources>
