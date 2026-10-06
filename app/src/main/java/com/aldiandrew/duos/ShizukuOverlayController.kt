@@ -6,7 +6,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
-import rikka.shizuku.Shizuku
+import com.aldiandrew.systemuiplus.SystemUIPlusShizuku
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -25,7 +25,7 @@ object ShizukuOverlayController {
         context: Context,
         callback: (Boolean, String) -> Unit
     ) {
-        if (!ShizukuManager.hasPermission()) {
+        if (!SystemUIPlusShizuku.hasPermission()) {
             callbackOnMain(
                 callback,
                 false,
@@ -40,28 +40,12 @@ object ShizukuOverlayController {
                 return@launch
             }
 
-            // Switch from full immersive mode to a hybrid shell:
-            // SystemUI stays visible for the clock/notification icons,
-            // while its system-icon group is delegated to Duos.
-            val shell = SystemBarController.showCustomBarShell()
-            if (shell.isFailure) {
-                SystemBarController.restore()
-                callbackOnMain(
-                    callback,
-                    false,
-                    shell.exceptionOrNull()?.message
-                        ?: "Could not prepare the native status-bar shell"
-                )
-                return@launch
-            }
-
             CustomStatusBarService.clearError()
 
             val overlayPermission =
                 enableOverlayPermission(context)
 
             if (overlayPermission.isFailure) {
-                SystemBarController.restore()
                 callbackOnMain(
                     callback,
                     false,
@@ -84,7 +68,6 @@ object ShizukuOverlayController {
                     context.startService(intent)
                 }
             } catch (t: Throwable) {
-                SystemBarController.restore()
                 callbackOnMain(
                     callback,
                     false,
@@ -128,7 +111,6 @@ object ShizukuOverlayController {
 
     fun stop(
         context: Context,
-        restoreSystemBar: Boolean = true,
         callback: (() -> Unit)? = null
     ) {
         val appContext = context.applicationContext
@@ -149,10 +131,6 @@ object ShizukuOverlayController {
                     return@repeat
                 }
                 delay(50L)
-            }
-
-            if (restoreSystemBar) {
-                SystemBarController.restore()
             }
 
             Handler(Looper.getMainLooper()).post {
@@ -177,16 +155,22 @@ object ShizukuOverlayController {
         val packageName = context.packageName
 
         val result =
-            ShizukuManager.executeCommand(
+            SystemUIPlusShizuku.execute(
                 "appops set $packageName " +
                     "android:system_alert_window allow"
             )
 
-        if (result.isFailure) {
+        val commandResult =
+            result.getOrElse {
+                return Result.failure(it)
+            }
+
+        if (commandResult.exitCode != 0) {
             return Result.failure(
                 SecurityException(
-                    result.exceptionOrNull()?.message
-                        ?: "Shizuku could not enable system_alert_window"
+                    commandResult.stderr.ifBlank {
+                        "Shizuku could not enable system_alert_window"
+                    }
                 )
             )
         }
@@ -200,12 +184,14 @@ object ShizukuOverlayController {
         }
 
         val state =
-            ShizukuManager.executeCommand(
+            SystemUIPlusShizuku.execute(
                 "appops get $packageName " +
                     "android:system_alert_window"
-            ).getOrDefault("unknown")
+            ).getOrElse {
+                "unknown"
+            }
 
-        return Result.failure<String>(
+        return Result.failure(
             SecurityException(
                 "Display over other apps is still unavailable. " +
                     "AppOps: $state"
