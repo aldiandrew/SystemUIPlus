@@ -594,6 +594,10 @@ class MainActivity : ComponentActivity() {
                 onNotificationAccess = ::openNotificationAccess,
                 onPhonePermission = ::requestPhonePermission,
                 onOverlayPermission = ::openOverlayPermission,
+                themeMode = appThemeMode,
+                usePureBlackTheme = usePureBlackTheme,
+                onThemeSelected = ::changeTheme,
+                onPureBlackChanged = ::setPureBlackTheme,
                 onComplete = {
                     SystemUIPlusAppSettings.setOnboardingCompleted(
                         this@MainActivity,
