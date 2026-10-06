@@ -2863,7 +2863,6 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun NavigationRow(    @Composable
     private fun NavigationRow(
         icon: androidx.compose.ui.graphics.vector.ImageVector,
         title: String,
@@ -2937,7 +2936,6 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun SliderValueSetting(    @Composable
     private fun SliderValueSetting(
         title: String,
         valueText: String,
@@ -3115,7 +3113,6 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun SliderSetting(    @Composable
     private fun SliderSetting(
         title: String,
         valueText: String,
