@@ -12,16 +12,12 @@ enum class StatusBarLogoStyle(
     val label: String
 ) {
     SAKURA(0, "Sakura"),
-    ANDROID(1, "Android"),
-    ADIDAS(2, "Adidas"),
+    SLASH(2, "Slash"),
     APPLE(3, "Apple"),
-    BATMAN(4, "Batman"),
     BEATS(5, "Beats"),
     BIOHAZARD(6, "Biohazard"),
     HEART(7, "Heart"),
-    NIKE(8, "Nike"),
     ROG(9, "ROG"),
-    SUPERMAN(10, "Superman"),
     WINDOWS(11, "Windows");
 
     companion object {
@@ -74,16 +70,12 @@ class StatusBarLogoView(context: Context) : View(context) {
 
         when (logoStyle) {
             StatusBarLogoStyle.SAKURA -> drawSakura(canvas)
-            StatusBarLogoStyle.ANDROID -> drawAndroid(canvas)
-            StatusBarLogoStyle.ADIDAS -> drawAdidas(canvas)
+            StatusBarLogoStyle.SLASH -> drawSlash(canvas)
             StatusBarLogoStyle.APPLE -> drawApple(canvas)
-            StatusBarLogoStyle.BATMAN -> drawBatman(canvas)
             StatusBarLogoStyle.BEATS -> drawBeats(canvas)
             StatusBarLogoStyle.BIOHAZARD -> drawBiohazard(canvas)
             StatusBarLogoStyle.HEART -> drawHeart(canvas)
-            StatusBarLogoStyle.NIKE -> drawNike(canvas)
             StatusBarLogoStyle.ROG -> drawText(canvas, "ROG", 50f, 58f, 25f)
-            StatusBarLogoStyle.SUPERMAN -> drawSuperman(canvas)
             StatusBarLogoStyle.WINDOWS -> drawWindows(canvas)
         }
 
@@ -102,19 +94,8 @@ class StatusBarLogoView(context: Context) : View(context) {
         canvas.drawCircle(cx, cy, 9f, paint)
     }
 
-    private fun drawAndroid(canvas: Canvas) {
-        paint.style = Paint.Style.STROKE
-        paint.strokeWidth = 7f
-        canvas.drawRoundRect(27f, 38f, 73f, 74f, 15f, 15f, paint)
-        canvas.drawLine(39f, 34f, 32f, 23f, paint)
-        canvas.drawLine(61f, 34f, 68f, 23f, paint)
-        paint.style = Paint.Style.FILL
-        canvas.drawCircle(41f, 50f, 3f, paint)
-        canvas.drawCircle(59f, 50f, 3f, paint)
-        canvas.drawRect(31f, 65f, 69f, 83f, paint)
-    }
 
-    private fun drawAdidas(canvas: Canvas) {
+    private fun drawSlash(canvas: Canvas) {
         for (i in 0..2) {
             val x = 28f + i * 19f
             path.reset()
@@ -146,22 +127,6 @@ class StatusBarLogoView(context: Context) : View(context) {
         canvas.drawPath(path, paint)
     }
 
-    private fun drawBatman(canvas: Canvas) {
-        path.reset()
-        path.moveTo(15f, 40f)
-        path.lineTo(28f, 45f)
-        path.lineTo(34f, 31f)
-        path.lineTo(43f, 39f)
-        path.lineTo(50f, 27f)
-        path.lineTo(57f, 39f)
-        path.lineTo(66f, 31f)
-        path.lineTo(72f, 45f)
-        path.lineTo(85f, 40f)
-        path.lineTo(78f, 61f)
-        path.cubicTo(70f, 77f, 30f, 77f, 22f, 61f)
-        path.close()
-        canvas.drawPath(path, paint)
-    }
 
     private fun drawBeats(canvas: Canvas) {
         paint.style = Paint.Style.STROKE
@@ -199,29 +164,7 @@ class StatusBarLogoView(context: Context) : View(context) {
         canvas.drawPath(path, paint)
     }
 
-    private fun drawNike(canvas: Canvas) {
-        paint.style = Paint.Style.STROKE
-        paint.strokeWidth = 12f
-        path.reset()
-        path.moveTo(18f, 62f)
-        path.cubicTo(34f, 67f, 56f, 58f, 82f, 38f)
-        canvas.drawPath(path, paint)
-    }
 
-    private fun drawSuperman(canvas: Canvas) {
-        paint.style = Paint.Style.STROKE
-        paint.strokeWidth = 7f
-        path.reset()
-        path.moveTo(50f, 18f)
-        path.lineTo(82f, 31f)
-        path.lineTo(74f, 68f)
-        path.lineTo(50f, 84f)
-        path.lineTo(26f, 68f)
-        path.lineTo(18f, 31f)
-        path.close()
-        canvas.drawPath(path, paint)
-        drawText(canvas, "S", 50f, 63f, 35f)
-    }
 
     private fun drawWindows(canvas: Canvas) {
         canvas.drawRect(22f, 22f, 47f, 47f, paint)
