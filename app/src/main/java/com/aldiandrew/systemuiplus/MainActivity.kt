@@ -2587,6 +2587,9 @@ class MainActivity : ComponentActivity() {
                 clockSettings.sizeSp
             }
 
+        val logoPreviewColor =
+            MaterialTheme.colorScheme.onSurface.toArgb()
+
         val surfaceHeight =
             when {
                 hero -> 176.dp
@@ -2714,10 +2717,7 @@ class MainActivity : ComponentActivity() {
                                             clockSettings.logoStyle
                                         )
                                         view.setLogoColor(
-                                            MaterialTheme
-                                                .colorScheme
-                                                .onSurface
-                                                .toArgb()
+                                            logoPreviewColor
                                         )
                                     }
                                 )
@@ -2788,10 +2788,7 @@ class MainActivity : ComponentActivity() {
                                         clockSettings.logoStyle
                                     )
                                     view.setLogoColor(
-                                        MaterialTheme
-                                            .colorScheme
-                                            .onSurface
-                                            .toArgb()
+                                        logoPreviewColor
                                     )
                                 }
                             )
