@@ -207,11 +207,7 @@ class DuoIndicatorView(context: Context) : View(context) {
 
         ringPaint.strokeWidth =
             PILL_STROKE * k
-        ringPaint.color =
-            withAlpha(
-                current.foregroundColor,
-                0.42f
-            )
+        ringPaint.color = current.foregroundColor
 
         drawPillOutline(
             canvas = canvas,
