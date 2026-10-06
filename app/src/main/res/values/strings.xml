@@ -12,6 +12,7 @@
     <string name="allow">Allow</string>
     <string name="display_over_other_apps">Display over other apps</string>
     <string name="live_preview">Live preview</string>
+    <string name="home_subtitle">Customize your system status bar</string>
     <string name="customize">CUSTOMIZE</string>
     <string name="clock">Clock</string>
     <string name="clock_summary">Time, date &amp; position</string>
