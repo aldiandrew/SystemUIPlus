@@ -199,14 +199,6 @@ class DuoIndicatorView(context: Context) : View(context) {
             ringPaint
         )
 
-        val innerLeft = left + 7f * k
-        val innerRight = right - 7f * k
-        val progressTop = bottom - 8f * k
-        val progressBottom = bottom - 4f * k
-        val progressWidth =
-            (innerRight - innerLeft) *
-                (current.batteryLevel.coerceIn(0, 100) / 100f)
-
         if (current.charging) {
             drawBolt(
                 canvas,
